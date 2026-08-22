@@ -40,11 +40,16 @@ routing; the [What next](#what-next) ladder covers expanding it).
 
 ```sh
 gh extension install radiusred/gh-codecrew
+gh codecrew version        # confirm what you got (gh extension list agrees)
 
 gh repo create my-project --private --clone   # or use an existing repo
 cd my-project
 gh codecrew init
 ```
+
+One thing worth knowing up front: `gh` never auto-updates extensions — not
+for patches, not for majors. Updating is always your act:
+`gh extension upgrade codecrew`, then `gh codecrew version` to confirm.
 
 `init` writes your `.codecrew.yml` (the project's pointer file, with a
 routing table declaring all four roles — `~` means "held by you"), a
