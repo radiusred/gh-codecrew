@@ -279,7 +279,9 @@ same review gate as code.
 ## 5. Configuration
 
 `.codecrew.yml` in every repo. Spokes need only the pointer; the hub carries
-the full configuration:
+the full configuration. The `codecrew` field is the **protocol version** —
+this document's version, naming the conventions the file speaks — and is
+independent of the CLI release (`codecrew version`):
 
 ```yaml
 codecrew: "0.1"

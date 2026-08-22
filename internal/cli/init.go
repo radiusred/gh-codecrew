@@ -12,7 +12,7 @@ import (
 	codecrew "github.com/radiusred/gh-codecrew"
 )
 
-const hubConfigScaffold = `codecrew: "0.1"
+const hubConfigScaffold = `codecrew: "0.1" # protocol version (SPEC.md), not the CLI release — see codecrew version
 hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all four at
@@ -56,7 +56,7 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 		".codecrew.yml": hubConfigScaffold,
 	}
 	if hub != "self" {
-		files[".codecrew.yml"] = fmt.Sprintf("codecrew: \"0.1\"\nhub: %s\n", hub)
+		files[".codecrew.yml"] = fmt.Sprintf("codecrew: \"0.1\" # protocol version (SPEC.md), not the CLI release\nhub: %s\n", hub)
 	} else {
 		files["ROADMAP.md"] = roadmapScaffold
 		files["AGENTS.md"] = agentsScaffold
@@ -91,6 +91,14 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 	return written, skipped, nil
 }
 
+// inGitRepo reports whether dir carries a .git entry (directory in normal
+// clones, file in worktrees). A conservative check: the protocol needs a
+// GitHub repo, and an agent shouldn't have to discover its absence itself.
+func inGitRepo(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, ".git"))
+	return err == nil
+}
+
 // initCmd scaffolds a new CodeCrew repo: hub mode by default, spoke mode
 // with --hub owner/repo (pointer only — contracts and roadmap live in the
 // hub).
@@ -109,6 +117,10 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	for _, f := range skipped {
 		fmt.Fprintf(w, "kept existing %s\n", f)
+	}
+	if !inGitRepo(".") {
+		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
+		fmt.Fprintln(w, "first: git init && gh repo create <owner>/<name> --private --source=. --push")
 	}
 	if *hub == "self" {
 		fmt.Fprintln(w, "\nnext: declare who holds each role in .codecrew.yml (~ = you),")

@@ -69,13 +69,17 @@ gh codecrew milestone new --title "Walking skeleton" \
 
 This creates the milestone tracking issue — the canonical milestone object —
 and adds a row to `ROADMAP.md` (commit it with your next PR). Now edit the
-issue's **Requirements** section on GitHub, giving each requirement a bold
-ID the tooling can check "done" against:
+issue's **Requirements** section, giving each requirement a bold ID the
+tooling can check "done" against:
 
 ```markdown
 ## Requirements
 - **M1-R1** — visiting the app's URL returns a greeting
 ```
+
+Edit it in the web UI, or safely from the shell with
+`gh issue edit 1 --body-file <(...)` — never a raw `gh api` PATCH built
+from shell variables: one empty variable silently replaces the whole body.
 
 ## 3. Open a task, plan it, start it
 

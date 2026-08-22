@@ -57,6 +57,26 @@ func TestScaffoldSpoke(t *testing.T) {
 	}
 }
 
+func TestInGitRepo(t *testing.T) {
+	dir := t.TempDir()
+	if inGitRepo(dir) {
+		t.Error("bare temp dir should not read as a git repo")
+	}
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !inGitRepo(dir) {
+		t.Error(".git directory should read as a git repo")
+	}
+	worktree := t.TempDir()
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte("gitdir: elsewhere"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !inGitRepo(worktree) {
+		t.Error(".git file (worktree) should read as a git repo")
+	}
+}
+
 func TestScaffoldIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
