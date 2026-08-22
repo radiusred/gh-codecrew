@@ -130,9 +130,26 @@ gh codecrew task finish 3 --operator-confirm
 
 This records an explicit confirmation comment on the PR — stating that
 author and operator are the same principal — then rebase-merges. The task
-issue closes via its `Closes #3` keyword. (When your repo has CI, `task
-finish` also refuses on failing or pending checks; add CI early so this
-gate has teeth.)
+issue closes via its `Closes #3` keyword.
+
+If your repo has no CI yet, you'll meet one more refusal first:
+`refused[NO_CHECKS]`. The deterministic gate can't be satisfied by a repo
+that runs nothing, and there's no override — the fix is a ten-line workflow:
+
+```yaml
+# .github/workflows/test.yml
+name: Test
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test   # or your language's test command
+```
+
+Push it to the task branch, let the check report, and `task finish` (with
+failing or pending checks it refuses too — that's the gate having teeth).
 
 ## 6. Verdict — you hold the qa role
 

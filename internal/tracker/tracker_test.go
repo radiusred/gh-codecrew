@@ -1,6 +1,9 @@
 package tracker
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestParseRef(t *testing.T) {
 	cases := []struct {
@@ -135,6 +138,18 @@ func TestParseVerdicts(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("verdict[%d] = %v, want %v", i, got[i], want[i])
 		}
+	}
+}
+
+func TestNoChecksReported(t *testing.T) {
+	if !NoChecksReported(fmt.Errorf("gh pr: no checks reported on the 'probe' branch")) {
+		t.Error("gh's checkless failure should classify as no-checks")
+	}
+	if NoChecksReported(fmt.Errorf("gh pr: HTTP 502")) {
+		t.Error("unrelated errors must not classify as no-checks")
+	}
+	if NoChecksReported(nil) {
+		t.Error("nil error must not classify as no-checks")
 	}
 }
 

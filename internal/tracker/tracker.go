@@ -64,9 +64,17 @@ type PR struct {
 	Number        int
 	Author        string
 	Open          bool
+	NoChecks      bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
 	ChecksPending bool
 	ChecksOK      bool
 	ApprovedBy    []string
+}
+
+// NoChecksReported classifies gh's "no checks reported" failure mode:
+// `gh pr checks` on a checkless PR prints nothing parseable and exits
+// nonzero, so it surfaces as an error rather than an empty list.
+func NoChecksReported(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no checks reported")
 }
 
 // Tracker is the backend interface, shaped by the workflow verbs. GitHub is
