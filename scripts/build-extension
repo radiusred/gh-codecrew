@@ -19,6 +19,7 @@ for platform in "${platforms[@]}"; do
   [[ $os == windows ]] && ext=".exe"
   echo "building $platform"
   CGO_ENABLED=0 GOOS=$os GOARCH=$arch \
-    go build -trimpath -ldflags "-s -w" \
+    go build -trimpath \
+    -ldflags "-s -w -X github.com/radiusred/gh-codecrew/internal/cli.version=${tag}" \
     -o "dist/gh-codecrew_${tag}_${platform}${ext}" ./cmd/codecrew
 done

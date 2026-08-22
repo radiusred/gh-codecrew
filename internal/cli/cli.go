@@ -19,6 +19,7 @@ verbs:
   task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
+  version                                    installed release tag (dev for source builds)
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
 `
@@ -59,6 +60,8 @@ func Run(args []string) error {
 		return checkpoint(os.Stdout, rest)
 	case "role":
 		return roleHolder(os.Stdout, rest)
+	case "version", "--version", "-v":
+		return versionCmd(os.Stdout)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 		return nil
