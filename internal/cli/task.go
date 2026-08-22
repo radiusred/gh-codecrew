@@ -218,6 +218,9 @@ func taskFinish(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
+	if pr.NoChecks {
+		return refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run", pr.Number)
+	}
 	if pr.ChecksPending {
 		return refuse("CHECKS_PENDING", "PR #%d checks still running", pr.Number)
 	}

@@ -240,7 +240,15 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		Bucket string `json:"bucket"`
 	}
 	if err := gh.JSONLoose(&checks, "pr", "checks", fmt.Sprint(number), "--repo", repo, "--json", "bucket"); err != nil {
+		if NoChecksReported(err) {
+			pr.NoChecks = true
+			return pr, nil
+		}
 		return PR{}, err
+	}
+	if len(checks) == 0 {
+		pr.NoChecks = true
+		return pr, nil
 	}
 	pr.ChecksOK = true
 	for _, c := range checks {

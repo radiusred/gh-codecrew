@@ -385,7 +385,7 @@ hub).
 | `codecrew task start <ref>` | Assigns the caller's identity, verifies a plan is present (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. |
 | `codecrew role <name>` | Prints the identity holding a role — an App slug or username, or `~` for the operator (§5). Script-consumable; resolves from the hub's routing table when run in a spoke. The implementer uses it to request review from the reviewer role's holder at PR creation (CODEOWNERS-driven requests coexist — requested reviewers union). |
-| `codecrew task finish <ref>` | The gatekeeper: verifies a PR exists, CI checks are green, an approving review exists from a non-doer, and deviations referenced in the PR body have recorded comments — then merges (rebase) and closes. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (`[bot]` suffix or routed role) are refused with `refused[SELF_CONFIRM]`. |
+| `codecrew task finish <ref>` | The gatekeeper: verifies a PR exists, CI checks exist and are green (`refused[NO_CHECKS]` when a PR reports zero checks — the deterministic gate cannot be satisfied by absence, and there is no override), an approving review exists from a non-doer, and deviations referenced in the PR body have recorded comments — then merges (rebase) and closes. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (`[bot]` suffix or routed role) are refused with `refused[SELF_CONFIRM]`. |
 | `codecrew milestone close <id>` | Verifies all tasks closed and every requirement's latest QA verdict is `satisfied` (`refused[VERDICT_MISSING]` / `refused[VERDICT_UNSATISFIED]` otherwise; only verdicts from the qa role's holder count — its routed identity, or the human operator when the role is unrouted (§5) — and a later verdict supersedes an earlier one); gathers every Decision/Deviation comment across the milestone's tasks into raw material for the doc-synthesizer; refuses to close until the milestone document PR is merged. |
 
 Verbs exit nonzero with a machine-readable reason when a gate blocks them, so
@@ -421,7 +421,10 @@ construction.
 Three independent layers, attacking different failure modes:
 
 1. **Deterministic gates** — each spoke's CI required checks. Owned by the
-   repo, read by `task finish`. Catch what code can catch.
+   repo, read by `task finish`. Catch what code can catch. A PR with zero
+   reported checks refuses (`refused[NO_CHECKS]`, no override): this layer
+   cannot be satisfied by absence, so every repo using `task finish`
+   carries at least one `pull_request` workflow.
 2. **Independent review** — a non-doer approval required to merge. Catches
    correlated self-evaluation failure: the model grading its own work shares
    the blind spots of the model that did the work.
