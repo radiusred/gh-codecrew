@@ -124,6 +124,7 @@ func taskStart(w io.Writer, args []string) error {
 			fmt.Fprintf(w, "note: could not create linked branch (%v); create %q manually\n", err, branch)
 		} else {
 			fmt.Fprintf(w, "linked branch %s created\n", branch)
+			fmt.Fprintf(w, "locally: git fetch && git switch %s\n", branch)
 		}
 	}
 	fmt.Fprintf(w, "started %s as @%s\n", ref, viewer)
