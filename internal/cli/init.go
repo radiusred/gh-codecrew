@@ -120,7 +120,8 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	if !inGitRepo(".") {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
-		fmt.Fprintln(w, "first: git init && gh repo create <owner>/<name> --private --source=. --push")
+		fmt.Fprintln(w, "first: git init && git add -A && git commit -m \"chore: scaffold codecrew\" &&")
+		fmt.Fprintln(w, "       gh repo create <owner>/<name> --private --source=. --push")
 	}
 	if *hub == "self" {
 		fmt.Fprintln(w, "\nnext: declare who holds each role in .codecrew.yml (~ = you),")
