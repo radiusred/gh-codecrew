@@ -77,9 +77,17 @@ tooling can check "done" against:
 - **M1-R1** — visiting the app's URL returns a greeting
 ```
 
-Edit it in the web UI, or safely from the shell with
-`gh issue edit 1 --body-file <(...)` — never a raw `gh api` PATCH built
-from shell variables: one empty variable silently replaces the whole body.
+Edit it in the web UI, or safely from the shell with fetch-edit-put — pull
+the current body down, change only the Requirements section, put it back:
+
+```sh
+gh issue view 1 --json body -q .body > milestone.md
+# edit milestone.md — fill in the Requirements section, leave the rest
+gh issue edit 1 --body-file milestone.md && rm milestone.md
+```
+
+Never a raw `gh api` PATCH built from shell variables: one empty variable
+silently replaces the whole body.
 
 ## 3. Open a task, plan it, start it
 
