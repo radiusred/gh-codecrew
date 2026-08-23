@@ -19,23 +19,37 @@ CodeCrew is three things:
 
 ## Status
 
-The protocol is specified and the CLI works: `status`, `milestone new/close`,
-`task new/start/finish`, and `checkpoint` are all implemented, with
-machine-readable refusals (`refused[CODE]: detail`) when a gate blocks —
-including `GATE_UNRECORDED` when a raised gate lacks a recorded resolution,
-and `VERDICT_MISSING`/`VERDICT_UNSATISFIED` when a milestone tries to close
-without a satisfied QA verdict on every requirement. `task start` is
-role-aware: roles whose contracts forbid commits (qa, reviewer) get no
-linked development branch.
+The protocol is specified and the CLI works — released as v0.2.3: `init`,
+`status`, `milestone new/close`, `task new/start/finish`, `checkpoint`,
+`role`, and `version` are all implemented, with machine-readable refusals
+(`refused[CODE]: detail`) when a gate blocks — `NO_CHECKS` when a PR reports
+no CI checks at all (the deterministic gate cannot be satisfied by absence,
+and there is no override), `GATE_UNRECORDED` when a raised gate lacks a
+recorded resolution, and `VERDICT_MISSING`/`VERDICT_UNSATISFIED` when a
+milestone tries to close without a satisfied QA verdict on every
+requirement. `task start` is role-aware: roles whose contracts forbid
+commits (qa, reviewer) get no linked development branch.
 
-Three milestones have been delivered *with* the protocol — agent-authored
+Solo is a routing configuration, not a degraded tier: every role is always
+staffed, by a GitHub App, a named human, or — `~` — the operator themselves;
+the qa holder's verdicts are the ones that count at close, and the reviewer
+holder is who PRs ask to review. A solo operator therefore needs nothing but
+`gh auth login`; `codecrew init` scaffolds a new project with every role
+routed to `~`, and the [quickstart](docs/first-milestone.md) walks the first
+milestone end to end.
+
+Four milestones have been delivered *with* the protocol — agent-authored
 PRs under GitHub App identities, non-doer review, deterministic CI gates, QA
 verdicts enforced at close, and synthesized closing documents. The first
 spoke is live: [radiusred/www](https://github.com/radiusred/www) is driven
 from this hub through the installed extension, and its first delivery was
 [a blog post introducing CodeCrew, published by the protocol it
 describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
-See [docs/milestones/](docs/milestones/) for the per-milestone records.
+The first stranger's project is public too:
+[davison/numberguess](https://github.com/davison/numberguess) was taken from
+`gh codecrew init` to a closed milestone by one human and a Codex session
+working from the scaffold alone, transcript included. See
+[docs/milestones/](docs/milestones/) for the per-milestone records.
 
 Not yet here: any backend other than GitHub.
 
@@ -43,8 +57,10 @@ Not yet here: any backend other than GitHub.
 
 ```sh
 gh extension install radiusred/gh-codecrew   # precompiled, all platforms
+gh codecrew version        # confirm what you installed (gh never auto-updates extensions)
 gh codecrew init           # scaffold a new project (see docs/first-milestone.md)
 gh codecrew status         # open milestones, inferred task states, raised gates
+gh codecrew role reviewer  # who holds a role: an App, a username, or ~ (you)
 gh codecrew help           # the full verb list
 
 # or build from source (single static binary; requires gh on PATH):
@@ -52,10 +68,12 @@ go build ./cmd/codecrew
 ```
 
 Every repo in a CodeCrew project carries a `.codecrew.yml` pointing at the
-hub — a spoke's is a two-line pointer; this repo is its own hub
-(`hub: self`; see SPEC §3 for choosing yours). Agents dispatched into a
-CodeCrew repo start at [AGENTS.md](AGENTS.md). Agent identities are GitHub
-Apps; short-lived tokens come from `scripts/codecrew-token` (see SPEC §5 and
+hub — a spoke's is a two-line pointer (`init --hub owner/repo`); this repo
+is its own hub (`hub: self`; see SPEC §3 for choosing yours). The hub's
+config also routes the four roles, and `init` writes that table for you.
+Agents dispatched into a CodeCrew repo start at [AGENTS.md](AGENTS.md).
+Agent identities are GitHub Apps; short-lived tokens come from
+`scripts/codecrew-token` (see SPEC §5 and
 [docs/identities.md](docs/identities.md) for the identity tiers — a solo
 operator needs nothing but `gh auth login`, self-confirmation recorded).
 
