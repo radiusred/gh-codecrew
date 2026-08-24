@@ -47,9 +47,11 @@ func TestBuildManifestRefusals(t *testing.T) {
 
 func TestBuildManifestWebhookDefaultsOff(t *testing.T) {
 	m, _ := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "")
-	hook := m["hook_attributes"].(map[string]any)
-	if hook["active"] != false {
-		t.Error("webhooks active by default — a crew App acts, it never listens")
+	// GitHub requires hook_attributes.url whenever the object is present,
+	// regardless of active (the #73 finding) — a webhook-less manifest
+	// must omit the object entirely.
+	if _, ok := m["hook_attributes"]; ok {
+		t.Error("hook_attributes present without --with-webhook — GitHub refuses it urlless")
 	}
 	if _, ok := m["default_events"]; ok {
 		t.Error("events subscribed without --with-webhook")
