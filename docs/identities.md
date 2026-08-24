@@ -62,8 +62,13 @@ gh codecrew identity new reviewer --name myorg-reviewy
 builds a manifest carrying the role's minimal permission set (the table
 below), serves it as a one-click local URL, and — once you confirm the
 creation on GitHub — stores the returned private key under the
-`~/.config/codecrew/` convention and prints the two steps that stay manual:
-installing the App (per-account — see step 4 below) and routing the role.
+`~/.config/codecrew/` convention, routes the role in the hub's
+`.codecrew.yml` for you (run it in the hub; `--no-route` skips, and on a
+pointer-only spoke it prints the routing line instead), and prints what
+stays manual: installing the App (per-account — see step 4 below) and,
+optionally, giving it the crew logo — the manifest has no avatar field and
+no API uploads one, so Display information on the App's settings page is
+where a logo lands.
 The App is owned by the hub's account unless `--owner` says otherwise, and
 the verb refuses an App named after a role — crew-member names only. The
 alternatives weighed at the gate — a published manifest template with no
