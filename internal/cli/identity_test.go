@@ -7,9 +7,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/radiusred/gh-codecrew/internal/config"
 )
 
 func TestBuildManifestPermissionsPerRole(t *testing.T) {
@@ -161,5 +165,113 @@ func TestServeFlowRejectsCodelessCallback(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("codeless callback status = %d, want 400", resp.StatusCode)
+	}
+}
+
+const nestedYML = `codecrew: "0.1" # protocol version
+hub: self
+
+# Advisory role routing, read by whoever dispatches agents.
+roles:
+  implementer:
+    harness: claude-code
+    identity: myorg-coder
+  reviewer:
+    harness: codex
+    identity: alice # the bootstrap human, by name
+  qa:
+    harness: codex
+    identity: myorg-testy
+`
+
+const inlineYML = `codecrew: "0.1"
+hub: self
+roles:
+  implementer: { identity: ~ }
+  reviewer: { identity: ~ }
+  qa: { identity: ~ }
+  doc-synthesizer: { identity: ~ }
+`
+
+func writeTemp(t *testing.T, content string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), ".codecrew.yml")
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestRouteRoleNestedShape(t *testing.T) {
+	p := writeTemp(t, nestedYML)
+	if err := routeRole(p, "reviewer", "myorg-reviewy"); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := os.ReadFile(p)
+	cfg, err := config.Parse(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Roles["reviewer"].Identity; got != "myorg-reviewy" {
+		t.Errorf("reviewer identity = %q", got)
+	}
+	// The stale trailing comment described the old routing — gone.
+	if strings.Contains(string(out), "bootstrap human") {
+		t.Error("stale identity comment survived the rewrite")
+	}
+	// Everything else survives: siblings, harness lines, file comments.
+	for _, keep := range []string{"# Advisory role routing", "harness: codex", "identity: myorg-coder", "identity: myorg-testy", `codecrew: "0.1" # protocol version`} {
+		if !strings.Contains(string(out), keep) {
+			t.Errorf("line lost in surgery: %q", keep)
+		}
+	}
+}
+
+func TestRouteRoleInlineShape(t *testing.T) {
+	p := writeTemp(t, inlineYML)
+	if err := routeRole(p, "reviewer", "myorg-reviewy"); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := os.ReadFile(p)
+	cfg, err := config.Parse(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.Roles["reviewer"].Identity; got != "myorg-reviewy" {
+		t.Errorf("reviewer identity = %q", got)
+	}
+	for _, other := range []string{"implementer", "qa", "doc-synthesizer"} {
+		if cfg.Roles[other].Identity != "" {
+			t.Errorf("%s identity changed to %q", other, cfg.Roles[other].Identity)
+		}
+	}
+}
+
+func TestRouteRoleErrors(t *testing.T) {
+	unchanged := func(t *testing.T, p, want string) {
+		t.Helper()
+		out, _ := os.ReadFile(p)
+		if string(out) != want {
+			t.Error("file modified despite error")
+		}
+	}
+	p := writeTemp(t, nestedYML)
+	if err := routeRole(p, "doc-synthesizer", "myorg-wordy"); err == nil {
+		t.Error("absent role routed")
+	}
+	unchanged(t, p, nestedYML)
+
+	spoke := writeTemp(t, "codecrew: \"0.1\"\nhub: myorg/hub\n")
+	if err := routeRole(spoke, "reviewer", "x"); err == nil {
+		t.Error("routed into a pointer-only spoke config")
+	}
+}
+
+func TestAppSettingsURL(t *testing.T) {
+	if got := appSettingsURL("radiusred", "Organization", "radiusred-reviewy"); got != "https://github.com/organizations/radiusred/settings/apps/radiusred-reviewy" {
+		t.Errorf("org settings URL = %q", got)
+	}
+	if got := appSettingsURL("davison", "User", "davison-reviewy"); got != "https://github.com/settings/apps/davison-reviewy" {
+		t.Errorf("personal settings URL = %q", got)
 	}
 }

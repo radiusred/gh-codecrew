@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/gh"
 )
 
@@ -79,6 +81,16 @@ func manifestTarget(owner, ownerType string) string {
 		return "https://github.com/organizations/" + owner + "/settings/apps/new"
 	}
 	return "https://github.com/settings/apps/new"
+}
+
+// appSettingsURL is the created App's settings page — where the manual
+// display steps live (the manifest has no avatar field and no API uploads
+// one, so the crew logo is added by hand under Display information).
+func appSettingsURL(owner, ownerType, slug string) string {
+	if ownerType == "Organization" {
+		return "https://github.com/organizations/" + owner + "/settings/apps/" + slug
+	}
+	return "https://github.com/settings/apps/" + slug
 }
 
 // appCreds is what the one-hour conversion exchange returns. client_secret
@@ -154,6 +166,79 @@ func serveFlow(l net.Listener, manifestJSON []byte, target string, timeout time.
 	}
 }
 
+// routeRole rewrites role's identity to slug in the .codecrew.yml at path,
+// by line surgery so the file's comments and layout survive. Both table
+// shapes are handled: the scaffold's inline `role: { identity: ~ }` and a
+// nested `identity:` line under the role key (whose trailing comment, if
+// any, is dropped — it described the old routing). The result must
+// re-parse with the role routed to slug, or nothing is written.
+func routeRole(path, role, slug string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	inRoles, done := false, false
+	roleIndent := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		switch {
+		case !inRoles:
+			if trimmed == "roles:" {
+				inRoles = true
+			}
+		case roleIndent == -1:
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if indent == 0 {
+				return fmt.Errorf("role %q not found in the routing table", role)
+			}
+			if strings.HasPrefix(trimmed, role+":") {
+				rest := strings.TrimSpace(strings.TrimPrefix(trimmed, role+":"))
+				if strings.HasPrefix(rest, "{") {
+					// Inline shape: rewrite the identity value in the braces.
+					re := regexp.MustCompile(`(identity:\s*)[^,}]*`)
+					if !re.MatchString(rest) {
+						return fmt.Errorf("no identity key on the %s role's line", role)
+					}
+					lines[i] = line[:indent] + role + ": " + re.ReplaceAllString(rest, "${1}"+slug)
+					done = true
+				} else {
+					roleIndent = indent // nested shape: identity on a deeper line
+				}
+			}
+		default: // scanning inside the role's nested block
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if indent <= roleIndent {
+				return fmt.Errorf("no identity key under the %s role", role)
+			}
+			if strings.HasPrefix(trimmed, "identity:") {
+				lines[i] = line[:indent] + "identity: " + slug
+				done = true
+			}
+		}
+		if done {
+			break
+		}
+	}
+	if !done {
+		return fmt.Errorf("role %q not found in the routing table", role)
+	}
+	out := strings.Join(lines, "\n")
+	cfg, err := config.Parse([]byte(out))
+	if err != nil {
+		return fmt.Errorf("routing edit produced unparseable YAML: %w", err)
+	}
+	if cfg.Roles[role].Identity != slug {
+		return fmt.Errorf("routing edit did not take")
+	}
+	return os.WriteFile(path, []byte(out), 0o644)
+}
+
 // identityNew mints a role's App identity via the manifest flow: the path
 // decided at the #68 gate. It builds the manifest, hands the operator a
 // one-click loopback URL, exchanges the redirect code, stores the private
@@ -165,6 +250,7 @@ func identityNew(w io.Writer, args []string) error {
 	role, args := splitLeadingRef(args)
 	name := fs.String("name", "", "App name — a crew member (myorg-coder), not a role (required)")
 	owner := fs.String("owner", "", "account to own the App (default: the hub's owner)")
+	noRoute := fs.Bool("no-route", false, "print the routing step instead of writing it into the hub's .codecrew.yml")
 	withWebhook := fs.Bool("with-webhook", false, "subscribe the App to protocol-traffic events (platform users)")
 	webhookURL := fs.String("webhook-url", "", "receiver for --with-webhook deliveries")
 	if err := fs.Parse(args); err != nil {
@@ -244,6 +330,15 @@ func identityNew(w io.Writer, args []string) error {
 	fmt.Fprintf(w, "\nnext:\n")
 	fmt.Fprintf(w, "  1. install it: https://github.com/apps/%s/installations/new\n", creds.Slug)
 	fmt.Fprintln(w, "     (installations are per-account — repeat for any other account it must reach)")
-	fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, creds.Slug)
+	routed := false
+	if !*noRoute && c.current == c.hub {
+		routed = routeRole(filepath.Join(c.cfg.Dir, ".codecrew.yml"), role, creds.Slug) == nil
+	}
+	if routed {
+		fmt.Fprintf(w, "  2. routed %s → %s in .codecrew.yml — commit it via your next PR (--no-route to skip)\n", role, creds.Slug)
+	} else {
+		fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, creds.Slug)
+	}
+	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, acct.Type, creds.Slug))
 	return nil
 }
