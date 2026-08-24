@@ -36,10 +36,13 @@ var webhookEvents = []string{
 
 // buildManifest assembles the GitHub App manifest for a role. The App is
 // named for a crew member, never the role (identities outlive role
-// reassignments), so a name equal to the role is refused. Webhooks are
-// inactive by default — a crew App acts, it never listens; withWebhook
-// flips them active for the protocol-traffic events, delivered to
-// webhookURL (the platform's receiver).
+// reassignments), so a name equal to the role is refused. A webhook-less
+// manifest carries no hook_attributes at all — GitHub requires
+// hook_attributes.url whenever the object is present, regardless of
+// active (the #73 live-fire finding) — which registers the App with no
+// webhook: a crew App acts, it never listens. withWebhook adds the object,
+// active, with the protocol-traffic events delivered to webhookURL (the
+// platform's receiver).
 func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string) (map[string]any, error) {
 	perms, ok := rolePermissions[role]
 	if !ok {
@@ -51,21 +54,18 @@ func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, w
 	if name == role {
 		return nil, fmt.Errorf("name the App for a crew member, not the role %q — identities outlive role reassignments", role)
 	}
-	hook := map[string]any{"active": false}
 	m := map[string]any{
 		"name":                name,
 		"url":                 homepage,
 		"redirect_url":        redirectURL,
 		"public":              false,
 		"default_permissions": perms,
-		"hook_attributes":     hook,
 	}
 	if withWebhook {
 		if webhookURL == "" {
 			return nil, fmt.Errorf("--with-webhook requires --webhook-url (the receiver events are delivered to)")
 		}
-		hook["active"] = true
-		hook["url"] = webhookURL
+		m["hook_attributes"] = map[string]any{"active": true, "url": webhookURL}
 		m["default_events"] = webhookEvents
 	}
 	return m, nil
