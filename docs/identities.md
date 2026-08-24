@@ -146,6 +146,32 @@ in this repo: `scripts/codecrew-token <app-slug>` — the **full** App slug
   `<slug>[bot] <UID+<slug>[bot]@users.noreply.github.com>`, where UID comes
   from `gh api 'users/<slug>%5Bbot%5D' --jq .id`.
 
+### Dispatching a role session
+
+A crew App never watches — webhooks are off by default and nothing polls on
+its behalf. Someone *dispatches* a session that acts as it: an orchestrator
+on a platform, or the operator by hand. What matters for the dispatch:
+
+- **Fresh context.** The role session starts clean — no implementation
+  conversation, no shared scratch state. Independence is contextual as well
+  as credential: an approval means little if the approver watched the code
+  being written. For a sole rider, the floor is the same model in a separate
+  session holding nothing but the role contract, the task, and the diff;
+  better, when available, is a different model or harness — `harness:` in
+  the routing table is the declared intent, and de-correlated judgment is
+  the point of splitting the seats.
+- **Credentials.** The env-var path from SPEC §5, or
+  `scripts/codecrew-token <slug>` (which resolves installations on orgs and
+  personal accounts alike). The session exports `GH_TOKEN` and is the App.
+- **The reviewer specifically** is never requested through GitHub's
+  reviewers field — Apps are not review-requestable, and the implementer
+  contract says to stand down rather than gate on it. The dispatched session
+  reads the PR cold and posts its review directly:
+  `GH_TOKEN=$tok gh pr review <n> --request-changes --body …` and, when
+  satisfied, `--approve`. Whether an App's approval also *satisfies a
+  required-review count* is a platform question — verify it on your repo's
+  protection settings before wiring merge expectations to it.
+
 ### Known quirks
 
 - **Bot identities are not assignable to issues.** `task start` handles this:

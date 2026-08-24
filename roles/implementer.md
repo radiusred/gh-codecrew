@@ -45,10 +45,14 @@ Resolve your GitHub credentials in this order:
 - **Open the PR** referencing the task (`Closes #123`) and finalize its
   description as the task summary: what was done, which requirements it
   satisfies, links to any deviation comments. Request review from the
-  reviewer role's holder — `--reviewer $(codecrew role reviewer)`, skipped
-  when it prints `~` (the operator holds the role and there is no username
-  to request). CODEOWNERS-driven requests coexist: requested reviewers
-  union, and neither mechanism should be disabled for the other.
+  reviewer role's holder — `--reviewer $(codecrew role reviewer)` — when the
+  holder is a human username or team. Skip it when it prints `~` (the
+  operator holds the role; there is no username to request), and stand down
+  when the holder is an App identity: GitHub cannot receive a review request
+  for an App, so its review arrives by dispatch instead (see "Dispatching a
+  role session" in the hub's docs/identities.md) — do not raise a gate over
+  the unrequestable name. CODEOWNERS-driven requests coexist: requested
+  reviewers union, and neither mechanism should be disabled for the other.
 
 ## Never
 
