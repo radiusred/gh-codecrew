@@ -13,9 +13,14 @@ org=${CODECREW_ORG:-$(gh repo view --json owner -q .owner.login)}
 pem=$(ls "$HOME/.config/codecrew/$slug".*.private-key.pem 2>/dev/null | head -1)
 [[ -n "$pem" ]] || { echo "codecrew-token: no private key for '$slug' in ~/.config/codecrew" >&2; exit 1; }
 
-read -r app_id inst_id < <(gh api "/orgs/$org/installations" \
-  --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"")
-[[ -n "${app_id:-}" && -n "${inst_id:-}" ]] || { echo "codecrew-token: app '$slug' not installed on org '$org'" >&2; exit 1; }
+# Installation discovery: the org endpoint sees org installations; the
+# /user/installations fallback covers Apps installed on a personal account
+# (found the hard way on gh-codecrew#73, finding 4).
+lookup() { gh api "$1" --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"" 2>/dev/null || true; }
+found=$(lookup "/orgs/$org/installations")
+[[ -n "$found" ]] || found=$(lookup "/user/installations")
+[[ -n "$found" ]] || { echo "codecrew-token: app '$slug' not installed on org '$org' nor visible via /user/installations" >&2; exit 1; }
+read -r app_id inst_id <<<"$found"
 
 b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
 now=$(date +%s)
