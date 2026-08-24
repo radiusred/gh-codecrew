@@ -19,6 +19,8 @@ verbs:
   task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
+  identity new <role> --name N               mint the role's App identity via the manifest flow
+           [--owner O] [--with-webhook --webhook-url U]
   version                                    installed release tag (dev for source builds)
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
@@ -36,6 +38,12 @@ func Run(args []string) error {
 		return initCmd(os.Stdout, rest)
 	case "status":
 		return status(os.Stdout)
+	case "identity":
+		if len(rest) == 0 || rest[0] != "new" {
+			fmt.Fprint(os.Stderr, usage)
+			return fmt.Errorf("identity: unknown subcommand")
+		}
+		return identityNew(os.Stdout, rest[1:])
 	case "milestone", "task":
 		if len(rest) == 0 {
 			fmt.Fprint(os.Stderr, usage)
