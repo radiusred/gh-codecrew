@@ -51,17 +51,33 @@ distinct from the author — it gets its own **GitHub App**. One App per role,
 named for the crew member, not the role (`myorg-coder`, not
 `myorg-implementer`: identities outlive role reassignments).
 
-The framework's answer here is guided creation via the App manifest
-flow: `codecrew identity new <role>` generates a manifest carrying the
-role's minimal permission set (the table below) and hands back a one-click
-creation URL — four rituals become four clicks. Decided at the gate on
-[#68](https://github.com/radiusred/gh-codecrew/issues/68); building the
-verb is its own task, and until it ships minting is the short manual ritual
-below. Webhooks stay off by default — a crew App acts, it never listens —
-but the verb should offer an opt-in switch (`--with-webhook`) that enables
-the right event subscriptions for platform users, whose orchestrators watch
+The framework's path here is guided creation via the App manifest flow
+(decided at the gate on
+[#68](https://github.com/radiusred/gh-codecrew/issues/68)):
+
+```
+gh codecrew identity new reviewer --name myorg-reviewy
+```
+
+builds a manifest carrying the role's minimal permission set (the table
+below), serves it as a one-click local URL, and — once you confirm the
+creation on GitHub — stores the returned private key under the
+`~/.config/codecrew/` convention and prints the two steps that stay manual:
+installing the App (per-account — see step 4 below) and routing the role.
+The App is owned by the hub's account unless `--owner` says otherwise, and
+the verb refuses an App named after a role — crew-member names only. The
+alternatives weighed at the gate — a published manifest template with no
+verb, docs-only tier-sharpening, fine-grained PATs from a second account —
+are recorded there; a shared App published by radiusred stays off the table
+by prior decision, because the framework must never be key custodian for an
+adopter's org.
+
+Webhooks stay off by default — a crew App acts, it never listens — with an
+opt-in `--with-webhook --webhook-url <receiver>` that subscribes the App to
+the protocol-traffic events for platform users, whose orchestrators watch
 through webhooks on the identity Apps they already own (the watch seam,
-[#54](https://github.com/radiusred/gh-codecrew/issues/54)). The alternatives weighed — a published manifest template with no
+[#54](https://github.com/radiusred/gh-codecrew/issues/54)). The webhook
+secret is printed once at creation and never written to disk. The alternatives weighed — a published manifest template with no
 verb, docs-only tier-sharpening, fine-grained PATs from a second account —
 are recorded there; a shared App published by radiusred stays off the table
 by prior decision, because the framework must never be key custodian for an
@@ -79,7 +95,8 @@ mint Apps only for the seats agents actually fill. Agents reading this:
 before recommending `identity new`, check whether the seat in question is
 held by a human — if it is, routing beats minting.
 
-The manual ritual, one App per role:
+When the guided flow can't serve (no browser at hand, an enterprise
+quirk), the manual ritual it automates — one App per role:
 
 1. **Create the App, owned by the org** (Org → Settings → Developer settings
    → GitHub Apps → New GitHub App). Homepage URL can be anything; deactivate
