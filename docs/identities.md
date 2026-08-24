@@ -172,6 +172,22 @@ on a platform, or the operator by hand. What matters for the dispatch:
   required-review count* is a platform question — verify it on your repo's
   protection settings before wiring merge expectations to it.
 
+A dispatch prompt proven in the field (the numberguess flight,
+davison/numberguess#8 — where the isolated reviewer caught a real encoding
+crash the implementer's tests had missed, refused approval until it was
+fixed, then verified the exact reproduction before approving):
+
+> Act as the CodeCrew reviewer for `<repo>` PR #N. Read AGENTS.md and the
+> hub's roles/reviewer.md first and follow them exactly. You are not the
+> implementer and must not edit code. Inspect the PR diff BEFORE its
+> description, then the task and milestone issues. Authenticate as
+> `<app-slug>` (mint a token; never print it — use it only as GH_TOKEN).
+> Confirm your identity differs from the PR author. Review correctness,
+> plan, premises, tests, and consequences. Submit an ordinary GitHub PR
+> review as the App: approve only if sound, otherwise request changes with
+> concrete findings. Report your verdict and evidence back. Do not merge or
+> run task finish.
+
 ### Known quirks
 
 - **Bot identities are not assignable to issues.** `task start` handles this:
