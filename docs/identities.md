@@ -57,7 +57,11 @@ role's minimal permission set (the table below) and hands back a one-click
 creation URL — four rituals become four clicks. Decided at the gate on
 [#68](https://github.com/radiusred/gh-codecrew/issues/68); building the
 verb is its own task, and until it ships minting is the short manual ritual
-below. The alternatives weighed — a published manifest template with no
+below. Webhooks stay off by default — a crew App acts, it never listens —
+but the verb should offer an opt-in switch (`--with-webhook`) that enables
+the right event subscriptions for platform users, whose orchestrators watch
+through webhooks on the identity Apps they already own (the watch seam,
+[#54](https://github.com/radiusred/gh-codecrew/issues/54)). The alternatives weighed — a published manifest template with no
 verb, docs-only tier-sharpening, fine-grained PATs from a second account —
 are recorded there; a shared App published by radiusred stays off the table
 by prior decision, because the framework must never be key custodian for an
