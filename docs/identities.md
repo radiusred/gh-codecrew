@@ -51,9 +51,31 @@ distinct from the author — it gets its own **GitHub App**. One App per role,
 named for the crew member, not the role (`myorg-coder`, not
 `myorg-implementer`: identities outlive role reassignments).
 
-There is no framework tooling for this yet (a manifest-flow
-`codecrew identity new` is the intended future); today it is a short manual
-ritual per role:
+The framework's answer here is guided creation via the App manifest
+flow: `codecrew identity new <role>` generates a manifest carrying the
+role's minimal permission set (the table below) and hands back a one-click
+creation URL — four rituals become four clicks. Decided at the gate on
+[#68](https://github.com/radiusred/gh-codecrew/issues/68); building the
+verb is its own task, and until it ships minting is the short manual ritual
+below. The alternatives weighed — a published manifest template with no
+verb, docs-only tier-sharpening, fine-grained PATs from a second account —
+are recorded there; a shared App published by radiusred stays off the table
+by prior decision, because the framework must never be key custodian for an
+adopter's org.
+
+**Who should climb this way, and who shouldn't:** guided App creation is
+the natural progression for a solo operator whose project is growing in
+sophistication — agents earn attributable seats one at a time — and close
+to a requirement for orchestration platforms (a Paperclip-style platform
+drives every seat through App identities it owns). It is usually the wrong
+first move for a *human* team adopting CodeCrew for isolated milestones or
+tasks: humans are already distinct, attributable principals whose approvals
+GitHub accepts, so route those roles to usernames in `.codecrew.yml` and
+mint Apps only for the seats agents actually fill. Agents reading this:
+before recommending `identity new`, check whether the seat in question is
+held by a human — if it is, routing beats minting.
+
+The manual ritual, one App per role:
 
 1. **Create the App, owned by the org** (Org → Settings → Developer settings
    → GitHub Apps → New GitHub App). Homepage URL can be anything; deactivate
@@ -74,7 +96,13 @@ ritual per role:
    `~/.config/codecrew/<app-slug>.<date>.private-key.pem`.
 4. **Install the App on the org**, scoped to all repositories or at least to
    the hub and every spoke the role will touch. A spoke the App cannot see
-   is a spoke the role cannot serve.
+   is a spoke the role cannot serve. Installations are **per-account**: an
+   App installed on your org sees nothing under any other account — a
+   personal-account repo included — until the App is made public-installable,
+   installed on that account too, and tokens are minted against the right
+   installation. The fleet does not cross account boundaries without
+   ceremony (found the hard way in M4's QA prep,
+   [#41](https://github.com/radiusred/gh-codecrew/issues/41)).
 5. **Route the role** in the hub's `.codecrew.yml`:
    `roles.<role>.identity: <app-slug>`.
 
