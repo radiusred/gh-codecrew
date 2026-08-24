@@ -1,0 +1,3 @@
+# Dev-loop binary (gh extension install . runs ./gh-codecrew)
+/gh-codecrew
+/dist/
