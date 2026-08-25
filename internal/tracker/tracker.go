@@ -62,8 +62,9 @@ type Comment struct {
 type PR struct {
 	// ReviewDecision is GitHub's own verdict on required reviews: empty
 	// when no rule applies, "APPROVED" when satisfied, "REVIEW_REQUIRED"
-	// when the rule is not met by counted approvals (App reviews are never
-	// counted — the R1 Decision on #73).
+	// when the rule is not met by counted approvals — which come only from
+	// write-access principals; a read-only App's review does not count
+	// (the superseding Decision on #73).
 	ReviewDecision string
 	Repo           string
 	Number         int
