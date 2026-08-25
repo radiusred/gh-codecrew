@@ -237,10 +237,18 @@ func taskFinish(w io.Writer, args []string) error {
 			approved = true
 		}
 	}
+	if !approved && !*operatorConfirm {
+		return refuse("NO_NONDOER_APPROVAL", "PR #%d has no approving review from a non-author (solo tier: rerun with --operator-confirm)", pr.Number)
+	}
+	// Decide the merge path before writing anything: a REVIEW_NOT_COUNTED
+	// refusal must land before the operator-confirm comment, or a rerun
+	// with --bypass would record the confirmation twice (testy finding on
+	// PR #89).
+	admin, err := mergeGate(pr.ReviewDecision, *bypass)
+	if err != nil {
+		return err
+	}
 	if !approved {
-		if !*operatorConfirm {
-			return refuse("NO_NONDOER_APPROVAL", "PR #%d has no approving review from a non-author (solo tier: rerun with --operator-confirm)", pr.Number)
-		}
 		viewer, err := c.t.Viewer()
 		if err != nil {
 			return err
@@ -261,10 +269,6 @@ func taskFinish(w io.Writer, args []string) error {
 		}
 	}
 
-	admin, err := mergeGate(pr.ReviewDecision, *bypass)
-	if err != nil {
-		return err
-	}
 	if admin {
 		viewer, err := c.t.Viewer()
 		if err != nil {
@@ -275,10 +279,15 @@ func taskFinish(w io.Writer, args []string) error {
 			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
 		}
 		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+		// Worded as the act, not the outcome: GitHub enforces bypass
+		// eligibility after this comment posts, and a false "merged"
+		// record must not survive a refused bypass (testy finding on
+		// PR #89).
 		msg := fmt.Sprintf("**Merge bypass:** the protocol's review gate is satisfied, but GitHub's "+
 			"required-review rule does not count it (App reviews and operator confirmations are never "+
-			"counted — the R1 Decision, radiusred/gh-codecrew#73). Merged with the ruleset's "+
-			"administrator bypass by @%s.", viewer)
+			"counted — the R1 Decision, radiusred/gh-codecrew#73). Merging with the ruleset's "+
+			"administrator bypass as @%s; GitHub enforces eligibility — if this PR remains unmerged, "+
+			"the bypass was refused.", viewer)
 		if err := c.t.Comment(prRef, msg); err != nil {
 			return err
 		}
