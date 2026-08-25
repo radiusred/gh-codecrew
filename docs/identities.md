@@ -219,7 +219,11 @@ fixed, then verified the exact reproduction before approving):
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
   the routing table names the bare slug; the CLI normalises this everywhere
   it resolves roles.
-- **Approvals from Apps and required-review rules:** whether an App's
-  approving PR review satisfies a ruleset's required-review count is a
-  platform question to verify before depending on it (see SPEC §5, Platform
-  requirements, for the tier-intentionality obligation).
+- **Approvals from Apps and required-review rules:** verified — an App's
+  approving review does **not** count toward a ruleset's required-review
+  total (the R1 Decision on
+  [#73](https://github.com/radiusred/gh-codecrew/issues/73), proven live).
+  `task finish` refuses with `REVIEW_NOT_COUNTED` in that configuration;
+  the supported paths are a non-author human approving on the reviewer's
+  recommendation, or `task finish --bypass` where the ruleset lists the
+  operator as a bypass actor (the bypass is recorded on the PR).

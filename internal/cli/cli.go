@@ -17,6 +17,7 @@ verbs:
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch
   task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge
+           [--bypass]                        (recorded admin merge when GitHub won't count the approval)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
   identity new <role> --name N               mint the role's App identity via the manifest flow

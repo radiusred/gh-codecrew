@@ -203,8 +203,9 @@ query($owner: String!, $repo: String!, $num: Int!) {
 
 func (GitHub) PRInfo(repo string, number int) (PR, error) {
 	var view struct {
-		State  string `json:"state"`
-		Author struct {
+		State          string `json:"state"`
+		ReviewDecision string `json:"reviewDecision"`
+		Author         struct {
 			Login string `json:"login"`
 		} `json:"author"`
 		Reviews []struct {
@@ -215,7 +216,7 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		} `json:"reviews"`
 	}
 	err := gh.JSON(&view, "pr", "view", fmt.Sprint(number), "--repo", repo,
-		"--json", "state,author,reviews")
+		"--json", "state,author,reviews,reviewDecision")
 	if err != nil {
 		return PR{}, err
 	}
@@ -224,6 +225,8 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		Number: number,
 		Author: strings.TrimPrefix(view.Author.Login, "app/"),
 		Open:   view.State == "OPEN",
+
+		ReviewDecision: view.ReviewDecision,
 	}
 	latest := map[string]string{}
 	for _, r := range view.Reviews {
@@ -266,6 +269,14 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 
 func (GitHub) MergePR(repo string, number int) error {
 	_, err := gh.Run("pr", "merge", fmt.Sprint(number), "--repo", repo, "--rebase")
+	return err
+}
+
+// MergePRBypass rebase-merges using the ruleset's administrator bypass.
+// GitHub enforces eligibility: without a bypass actor covering the caller,
+// this fails with the platform's own error, unmasked.
+func (GitHub) MergePRBypass(repo string, number int) error {
+	_, err := gh.Run("pr", "merge", fmt.Sprint(number), "--repo", repo, "--rebase", "--admin")
 	return err
 }
 

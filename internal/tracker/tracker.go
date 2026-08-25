@@ -60,14 +60,19 @@ type Comment struct {
 
 // PR is the review-surface state task finish gates on.
 type PR struct {
-	Repo          string
-	Number        int
-	Author        string
-	Open          bool
-	NoChecks      bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
-	ChecksPending bool
-	ChecksOK      bool
-	ApprovedBy    []string
+	// ReviewDecision is GitHub's own verdict on required reviews: empty
+	// when no rule applies, "APPROVED" when satisfied, "REVIEW_REQUIRED"
+	// when the rule is not met by counted approvals (App reviews are never
+	// counted — the R1 Decision on #73).
+	ReviewDecision string
+	Repo           string
+	Number         int
+	Author         string
+	Open           bool
+	NoChecks       bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
+	ChecksPending  bool
+	ChecksOK       bool
+	ApprovedBy     []string
 }
 
 // NoChecksReported classifies gh's "no checks reported" failure mode:
@@ -113,6 +118,10 @@ type Tracker interface {
 	PRInfo(repo string, number int) (PR, error)
 	// MergePR rebase-merges a PR.
 	MergePR(repo string, number int) error
+	// MergePRBypass rebase-merges with the ruleset's administrator bypass
+	// (task finish --bypass; fails with GitHub's own error when the caller
+	// is not a bypass actor).
+	MergePRBypass(repo string, number int) error
 	// CloseIssue closes an issue with a closing comment.
 	CloseIssue(ref IssueRef, comment string) error
 	// Comments lists issue (or PR) comments.
