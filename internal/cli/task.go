@@ -172,6 +172,8 @@ func taskFinish(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("task finish", flag.ContinueOnError)
 	operatorConfirm := fs.Bool("operator-confirm", false,
 		"solo tier: record explicit operator confirmation in place of a non-doer approval")
+	bypass := fs.Bool("bypass", false,
+		"merge with the ruleset's administrator bypass when GitHub does not count the recorded approval (recorded on the PR)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -179,7 +181,7 @@ func taskFinish(w io.Writer, args []string) error {
 		refArg = fs.Arg(0)
 	}
 	if refArg == "" {
-		return fmt.Errorf("usage: codecrew task finish <ref> [--operator-confirm]")
+		return fmt.Errorf("usage: codecrew task finish <ref> [--operator-confirm] [--bypass]")
 	}
 	c, err := load()
 	if err != nil {
@@ -259,11 +261,56 @@ func taskFinish(w io.Writer, args []string) error {
 		}
 	}
 
+	admin, err := mergeGate(pr.ReviewDecision, *bypass)
+	if err != nil {
+		return err
+	}
+	if admin {
+		viewer, err := c.t.Viewer()
+		if err != nil {
+			return err
+		}
+		// A bypass is an operator act: crew identities never hold it.
+		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
+			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
+		}
+		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+		msg := fmt.Sprintf("**Merge bypass:** the protocol's review gate is satisfied, but GitHub's "+
+			"required-review rule does not count it (App reviews and operator confirmations are never "+
+			"counted — the R1 Decision, radiusred/gh-codecrew#73). Merged with the ruleset's "+
+			"administrator bypass by @%s.", viewer)
+		if err := c.t.Comment(prRef, msg); err != nil {
+			return err
+		}
+		if err := c.t.MergePRBypass(pr.Repo, pr.Number); err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
+		return nil
+	}
 	if err := c.t.MergePR(pr.Repo, pr.Number); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
 	return nil
+}
+
+// mergeGate decides the merge path from GitHub's own review decision,
+// after the protocol's review gate has passed. REVIEW_REQUIRED means the
+// platform will refuse the normal merge — the protocol refuses first, with
+// the supported paths, unless the operator asked for the recorded bypass.
+func mergeGate(reviewDecision string, bypass bool) (admin bool, err error) {
+	if reviewDecision != "REVIEW_REQUIRED" {
+		return false, nil
+	}
+	if !bypass {
+		return false, refuse("REVIEW_NOT_COUNTED",
+			"GitHub's required-review rule is not satisfied by the recorded approvals — App reviews and "+
+				"operator confirmations are never counted (R1 Decision, radiusred/gh-codecrew#73). Either a "+
+				"non-author human approves on the reviewer's recommendation, or rerun with --bypass if the "+
+				"ruleset lists you as a bypass actor")
+	}
+	return true, nil
 }
 
 // splitLeadingRef pulls a leading positional ref off the args so verbs
