@@ -24,6 +24,7 @@ verbs:
   roles show <role> --latest                 print the embedded contract
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
+           [--with-approval-permission]      (reviewer only: its approvals satisfy required reviews)
   version                                    installed release tag (dev for source builds)
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
