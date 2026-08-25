@@ -51,7 +51,11 @@ Resolve your GitHub credentials in this order:
   when the holder is an App identity: GitHub cannot receive a review request
   for an App, so its review arrives by dispatch instead (see "Dispatching a
   role session" in the hub's docs/identities.md) — do not raise a gate over
-  the unrequestable name. CODEOWNERS-driven requests coexist: requested
+  the unrequestable name, and do not dispatch the reviewer yourself either:
+  dispatch belongs to the coordination layer above the roles — the operator,
+  an orchestrating session, or a platform watching the App's webhook — never
+  to the doer, who must not choose or brief their own judge. Opening the PR
+  is your whole part; the review reaches it without you. CODEOWNERS-driven requests coexist: requested
   reviewers union, and neither mechanism should be disabled for the other.
 
 ## Never

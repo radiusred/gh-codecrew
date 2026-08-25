@@ -148,9 +148,16 @@ in this repo: `scripts/codecrew-token <app-slug>` — the **full** App slug
 
 ### Dispatching a role session
 
-A crew App never watches — webhooks are off by default and nothing polls on
-its behalf. Someone *dispatches* a session that acts as it: an orchestrator
-on a platform, or the operator by hand. What matters for the dispatch:
+A crew App acts when dispatched; what varies by tier is who notices there
+is work and starts the session. An App minted without `--with-webhook`
+never watches — nothing polls on its behalf, and the operator (solo) or an
+orchestrating session dispatches by hand, as the numberguess flight did.
+An App minted `--with-webhook` is watched *by its platform*: the receiver
+named at minting gets the protocol-traffic events (a PR opening among
+them) and the platform dispatches the role session itself — no human act,
+and nothing for the implementer to do in any tier: dispatch always belongs
+to the coordination layer, never to the doer. What matters for the
+dispatch, however it is triggered:
 
 - **Fresh context.** The role session starts clean — no implementation
   conversation, no shared scratch state. Independence is contextual as well
