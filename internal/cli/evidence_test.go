@@ -2,12 +2,15 @@ package cli
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestExtractURLs(t *testing.T) {
 	text := "See [the gate](https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-1) and " +
-		"https://example.com/page. Also <https://example.com/page> again, and (https://docs.github.com/x)."
+		"https://example.com/page. Also <https://example.com/page> again, **https://docs.github.com/x** bold."
 	got := extractURLs(text)
 	want := []string{
 		"https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-1",
@@ -64,5 +67,39 @@ func TestCheckURLRouting(t *testing.T) {
 	}
 	if len(httpURLs) != 1 || httpURLs[0] != "https://example.com/gone" {
 		t.Errorf("HTTP routing = %v", httpURLs)
+	}
+}
+
+// TestCheckHTTPAgainstRealServer exercises the real HTTP checker — the
+// plan promised an httptest round and the first commit shipped only
+// stubs (checky's PR #102 finding, in the spirit of the very obligation
+// this task adds).
+func TestCheckHTTPAgainstRealServer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ok":
+			w.WriteHeader(http.StatusOK)
+		case "/redirect":
+			http.Redirect(w, r, "/ok", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	if err := checkHTTP(srv.URL + "/ok"); err != nil {
+		t.Errorf("200 reported unreachable: %v", err)
+	}
+	if err := checkHTTP(srv.URL + "/redirect"); err != nil {
+		t.Errorf("redirect-to-200 reported unreachable: %v", err)
+	}
+	if err := checkHTTP(srv.URL + "/gone"); err == nil {
+		t.Error("404 reported reachable")
+	} else if !strings.Contains(err.Error(), "404") {
+		t.Errorf("404 classification lost: %v", err)
+	}
+	srv.Close()
+	if err := checkHTTP(srv.URL + "/ok"); err == nil {
+		t.Error("dead server reported reachable")
 	}
 }
