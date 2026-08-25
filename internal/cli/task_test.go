@@ -42,3 +42,16 @@ func TestMergeGate(t *testing.T) {
 		}
 	}
 }
+
+func TestHolderReviewed(t *testing.T) {
+	holds := func(login string) bool { return login == "radiusred-reviewy" || login == "radiusred-reviewy[bot]" }
+	if holderReviewed([]string{"davison", "someone"}, holds) {
+		t.Error("non-holder approvals satisfied the holder gate")
+	}
+	if !holderReviewed([]string{"davison", "radiusred-reviewy"}, holds) {
+		t.Error("holder approval not recognized among others")
+	}
+	if holderReviewed(nil, holds) {
+		t.Error("no approvals satisfied the holder gate")
+	}
+}
