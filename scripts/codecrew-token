@@ -47,11 +47,16 @@ fi
 
 if [[ -z "$inst_id" ]]; then
   # Legacy path (no stub, or discovery came up empty): account lookups via gh.
-  lookup() { gh api "$1" --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"" 2>/dev/null || true; }
+  # Shape-validated: on an API error gh can print the error JSON to stdout,
+  # which must not be mistaken for "app_id installation_id" (testy finding
+  # on PR #88 — a 403 body became a garbage JWT and a silent death).
+  lookup() { { gh api "$1" --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"" 2>/dev/null || true; } | grep -E '^[0-9]+ [0-9]+$' || true; }
   found=$(lookup "/orgs/$org/installations")
   [[ -n "$found" ]] || found=$(lookup "/user/installations")
   [[ -n "$found" ]] || {
-    echo "codecrew-token: could not resolve an installation for '$slug' (no stub at $stub; org '$org' and /user/installations lookups empty)." >&2
+    stub_state="no stub at $stub"
+    [[ -f "$stub" ]] && stub_state="stub at $stub did not resolve an installation — check its app_id"
+    echo "codecrew-token: could not resolve an installation for '$slug' ($stub_state; org '$org' and /user/installations lookups empty or unreadable)." >&2
     echo "codecrew-token: write the stub by hand — {\"slug\":\"$slug\",\"app_id\":<numeric App ID>} — and rerun." >&2
     exit 1
   }
