@@ -124,8 +124,13 @@ func (c *ctx) holdsRole(login, role string) bool {
 		if _, _, isTeam := config.TeamIdentity(id); isTeam {
 			return c.inTeam(id, login)
 		}
+		return c.rolesConfig().HoldsRole(login, role)
 	}
-	return c.rolesConfig().HoldsRole(login, role)
+	// Unrouted (~): the operator fallback must be crew-free through the
+	// team-aware lens too — config.RoleFor is team-blind by design, so a
+	// member of a role-holding team would otherwise hold every unrouted
+	// role (checky's finding on PR #101).
+	return c.rolesConfig().HoldsRole(login, role) && c.roleFor(login) == ""
 }
 
 // refusal is a blocked gate: a machine-readable code plus a human detail.
