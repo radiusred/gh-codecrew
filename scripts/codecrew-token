@@ -2,9 +2,12 @@
 # codecrew-token <app-slug> — mint a GitHub App installation token for a role identity.
 #
 # The app's private key must exist at ~/.config/codecrew/<app-slug>.*.private-key.pem
-# (never committed). App and installation IDs are resolved via `gh`, which must be
-# authenticated as someone who can list the org's installations. This script is
-# bootstrap tooling; the codecrew CLI will absorb it.
+# (never committed). The App ID comes from the credential stub `identity new` writes
+# beside the key (~/.config/codecrew/<app-slug>.json); with it, the installation is
+# discovered under the App's own JWT — no user credential involved. Without a stub,
+# discovery falls back to `gh` account lookups (org, then /user/installations), which
+# depend on what the operator's token can see. This script is bootstrap tooling; the
+# codecrew CLI will absorb it.
 set -euo pipefail
 
 slug=${1:?usage: codecrew-token <app-slug>}
@@ -13,22 +16,46 @@ org=${CODECREW_ORG:-$(gh repo view --json owner -q .owner.login)}
 pem=$(ls "$HOME/.config/codecrew/$slug".*.private-key.pem 2>/dev/null | head -1)
 [[ -n "$pem" ]] || { echo "codecrew-token: no private key for '$slug' in ~/.config/codecrew" >&2; exit 1; }
 
-# Installation discovery: the org endpoint sees org installations; the
-# /user/installations fallback covers Apps installed on a personal account
-# (found the hard way on gh-codecrew#73, finding 4).
-lookup() { gh api "$1" --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"" 2>/dev/null || true; }
-found=$(lookup "/orgs/$org/installations")
-[[ -n "$found" ]] || found=$(lookup "/user/installations")
-[[ -n "$found" ]] || { echo "codecrew-token: app '$slug' not installed on org '$org' nor visible via /user/installations" >&2; exit 1; }
-read -r app_id inst_id <<<"$found"
-
 b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
-now=$(date +%s)
-header=$(printf '{"alg":"RS256","typ":"JWT"}' | b64)
-payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "$app_id" | b64)
-sig=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$pem" -binary | b64)
+mint_jwt() {
+  local now header payload sig
+  now=$(date +%s)
+  header=$(printf '{"alg":"RS256","typ":"JWT"}' | b64)
+  payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "$1" | b64)
+  sig=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$pem" -binary | b64)
+  printf '%s.%s.%s' "$header" "$payload" "$sig"
+}
+
+app_id="" inst_id="" jwt=""
+stub="$HOME/.config/codecrew/$slug.json"
+if [[ -f "$stub" ]]; then
+  app_id=$(jq -r '.app_id // empty' "$stub")
+fi
+
+if [[ -n "$app_id" ]]; then
+  # Stub path: discover the installation with the App's own JWT — prefer the
+  # one on the current owner's account, else the App's only installation.
+  jwt=$(mint_jwt "$app_id")
+  inst_id=$(curl -sf -H "Authorization: Bearer $jwt" -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/app/installations?per_page=100" |
+    jq -r --arg owner "$org" '([.[] | select(.account.login == $owner)] + .)[0].id // empty')
+fi
+
+if [[ -z "$inst_id" ]]; then
+  # Legacy path (no stub, or discovery came up empty): account lookups via gh.
+  lookup() { gh api "$1" --jq ".installations[] | select(.app_slug == \"$slug\") | \"\(.app_id) \(.id)\"" 2>/dev/null || true; }
+  found=$(lookup "/orgs/$org/installations")
+  [[ -n "$found" ]] || found=$(lookup "/user/installations")
+  [[ -n "$found" ]] || {
+    echo "codecrew-token: could not resolve an installation for '$slug' (no stub at $stub; org '$org' and /user/installations lookups empty)." >&2
+    echo "codecrew-token: write the stub by hand — {\"slug\":\"$slug\",\"app_id\":<numeric App ID>} — and rerun." >&2
+    exit 1
+  }
+  read -r app_id inst_id <<<"$found"
+  jwt=$(mint_jwt "$app_id")
+fi
 
 curl -sf -X POST \
-  -H "Authorization: Bearer $header.$payload.$sig" \
+  -H "Authorization: Bearer $jwt" \
   -H "Accept: application/vnd.github+json" \
   "https://api.github.com/app/installations/$inst_id/access_tokens" | jq -r .token
