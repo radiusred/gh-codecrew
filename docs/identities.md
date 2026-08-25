@@ -189,6 +189,11 @@ however it is triggered:
   better, when available, is a different model or harness — `harness:` in
   the routing table is the declared intent, and de-correlated judgment is
   the point of splitting the seats.
+- **QA dispatches start with reachable evidence.** Before dispatching the
+  qa role, the coordination layer runs `codecrew milestone evidence <n>` —
+  citations that 404 cost a requirement its verdict once and the check is
+  deterministic, so it runs as code, not hope. The qa contract refuses past
+  an unreachable record from its side too.
 - **Credentials.** The env-var path from SPEC §5, or
   `scripts/codecrew-token <slug>`. Beside the private key, `identity new`
   writes a credential stub (`~/.config/codecrew/<slug>.json` — the App ID
