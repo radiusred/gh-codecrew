@@ -27,6 +27,11 @@ author; if you do, stop and report the misconfiguration.
   premise is the failure mode gates exist to catch.
 - **Correctness and consequence:** bugs, security issues, and effects on
   callers/consumers outside the diff.
+- **Documented commands, executed:** run every command the diff documents,
+  verbatim — a command that cannot complete as written is a finding, not a
+  nit. Reading passes what execution fails: both M4 not-satisfied verdicts
+  and two of this framework's own shipped defects were doc commands that
+  read correctly and died when run.
 
 ## Transact
 

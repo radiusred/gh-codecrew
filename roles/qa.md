@@ -16,6 +16,11 @@ Resolve credentials as in `roles/implementer.md`, using `roles.qa.identity`.
 
 ## Obligations
 
+- **First act: `codecrew milestone evidence <n>`.** Every link the record
+  cites must resolve before you test against it — a citation that 404s made
+  a whole requirement untestable once (M4-R4), and evidence living only in
+  a working tree did it twice more. Do not proceed past
+  `refused[EVIDENCE_UNREACHABLE]`; report it instead.
 - **Test the requirements' intent, not the implementer's tests.** The
   implementer's suite proves what they thought mattered; you probe what the
   requirement meant — edge cases, integration seams, the unhappy paths.

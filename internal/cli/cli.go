@@ -13,6 +13,7 @@ verbs:
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
   milestone close <n>                        close a milestone (gates: tasks closed, doc merged)
+  milestone evidence <n>                     verify every cited link in the milestone's record resolves
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch
@@ -58,6 +59,8 @@ func Run(args []string) error {
 			return milestoneNew(os.Stdout, rest[1:])
 		case "milestone close":
 			return milestoneClose(os.Stdout, rest[1:])
+		case "milestone evidence":
+			return milestoneEvidence(os.Stdout, rest[1:])
 		case "task new":
 			return taskNew(os.Stdout, rest[1:])
 		case "task start":
