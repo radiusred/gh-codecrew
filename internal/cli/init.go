@@ -17,8 +17,8 @@ hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all four at
 # onboarding. ~ routes the role to you, the human operator; replace it with
-# a GitHub App slug or a username to delegate. (A value with a slash is
-# reserved for team routing.)
+# a GitHub App slug or a username to delegate, or an org/team-slug to
+# route the role to any member of a GitHub team.
 roles:
   implementer: { identity: ~ }
   reviewer: { identity: ~ }

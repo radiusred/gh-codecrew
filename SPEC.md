@@ -311,9 +311,21 @@ onboarding starts explicit. The CLI tolerates an absent table (every role is
 then operator-held) but says so in its output.
 
 `identity` names the **GitHub App** — or the GitHub username of a specific
-human — the role acts as. A value containing a slash is reserved: it will
-name a GitHub team (`org/team-slug`), routing the role to any member
-([#44](https://github.com/radiusred/gh-codecrew/issues/44)). Each agent-staffed role gets its own app identity
+human — the role acts as. A value containing a slash names a **GitHub
+team** (`org/team-slug`): the role is held by **any member of the team**
+(child-team members included), for every purpose a string identity serves
+— the holder review gate, verdict counting, the crew-identity refusals,
+and branch rules ([#44](https://github.com/radiusred/gh-codecrew/issues/44)).
+Latest-wins verdict supersession runs **across members**: one teammate can
+supersede another's verdict — correct for a pool, and stated here so it is
+never merely implied. A team-held reviewer seat composes with GitHub's
+native required-review counts with zero framework code: repo rules demand
+N approving reviews from the nominated team, GitHub enforces the count,
+`task finish` merely reads the result. Platform footprint (per this
+section's tier-intentionality obligation): teams are org-only — a
+personal-account project cannot route to them and does not need to — and
+required-review *counts* on private repos are plan-gated, so the
+composition win is public-repo or paid-private territory. Each agent-staffed role gets its own app identity
 so agent-authored work is attributable and distinct from the operator —
 without this, every PR is authored by the operator's account and GitHub's
 prohibition on self-approval makes the non-doer review gate unsatisfiable.
