@@ -45,7 +45,9 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
   lists the workflow verbs. Blocked gates refuse with
   ` + "`refused[CODE]: detail`" + ` — act on the code, don't work around it.
 - Plans before commits, decisions recorded when made, and the verifier is
-  never the doer.
+  never the doer. Reviews are model reviews: a clean-context session under
+  the reviewer contract — even in pure solo, where its findings land as a
+  PR comment before the operator confirms.
 - **Contract drift.** ` + "`codecrew status`" + ` reports when a ` + "`roles/`" + ` contract
   differs from the one embedded in the installed CLI. When it does, the
   coordination layer compares (` + "`codecrew roles diff <role>`" + `, full upstream

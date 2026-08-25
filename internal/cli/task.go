@@ -237,7 +237,15 @@ func taskFinish(w io.Writer, args []string) error {
 			approved = true
 		}
 	}
-	if !approved && !*operatorConfirm {
+	// The model-review mandate (#73 Decision): where a distinct principal
+	// holds the reviewer seat, that holder's approving review is the gate —
+	// other approvals coexist but do not satisfy it, and the solo
+	// confirmation cannot stand in for a holder that exists.
+	if reviewerHolder, err := holder(c.rolesConfig().Roles, "reviewer"); err == nil && reviewerHolder != "~" {
+		if !holderReviewed(pr.ApprovedBy, func(login string) bool { return c.holdsRole(login, "reviewer") }) {
+			return refuse("NO_HOLDER_REVIEW", "PR #%d has no approving review from the reviewer role's holder (%s) — the role defines whose review counts; dispatch the reviewer (docs/identities.md)", pr.Number, reviewerHolder)
+		}
+	} else if !approved && !*operatorConfirm {
 		return refuse("NO_NONDOER_APPROVAL", "PR #%d has no approving review from a non-author (solo tier: rerun with --operator-confirm)", pr.Number)
 	}
 	// Decide the merge path before writing anything: a REVIEW_NOT_COUNTED
@@ -321,6 +329,18 @@ func mergeGate(reviewDecision string, bypass bool) (admin bool, err error) {
 				"approvals count, or rerun with --bypass if the ruleset lists you as a bypass actor")
 	}
 	return true, nil
+}
+
+// holderReviewed reports whether any approving login holds the reviewer
+// role per the routing table (holds wraps HoldsRole, which normalizes the
+// [bot] suffix) — the mandate half of the model-review Decision on #73.
+func holderReviewed(approvedBy []string, holds func(login string) bool) bool {
+	for _, login := range approvedBy {
+		if holds(login) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitLeadingRef pulls a leading positional ref off the args so verbs

@@ -60,8 +60,12 @@ Resolve your GitHub credentials in this order:
 
 ## Never
 
-- Approve, merge, or mark your own work verified. Green checks plus a
-  non-doer approval end the task — not your self-assessment.
+- Approve, merge, or mark your own work verified. Green checks plus the
+  reviewer role holder's approval end the task — not your self-assessment.
+  In pure solo (reviewer `~`, you author as the operator), the strongly
+  encouraged form is still a model review: a dispatched clean-context
+  session under roles/reviewer.md — optionally a different harness — whose
+  findings land as a PR comment before `--operator-confirm`.
 - Push directly to the default branch.
 - Edit requirement definitions or milestone gates. If they are wrong, raise a
   gate.
