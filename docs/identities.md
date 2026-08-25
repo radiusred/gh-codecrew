@@ -156,8 +156,18 @@ An App minted `--with-webhook` is watched *by its platform*: the receiver
 named at minting gets the protocol-traffic events (a PR opening among
 them) and the platform dispatches the role session itself — no human act,
 and nothing for the implementer to do in any tier: dispatch always belongs
-to the coordination layer, never to the doer. What matters for the
-dispatch, however it is triggered:
+to the coordination layer, never to the doer.
+
+The tiers differ only in where that layer lives. Solo, it is the same
+session changing hats: implementer while building, coordination layer when
+the review is due — and the fixed dispatch prompt below is what keeps the
+hat-switch honest, because the briefing channel is a standing template,
+not implementer-authored content. On a platform, the hats are separate
+processes with platform-assigned identities: every session is dispatched
+*as* a role, none is the operator's primary session, so the scaffold's
+dispatch authorization never applies to them — the platform watches the
+webhooks and does all dispatching itself. What matters for the dispatch,
+however it is triggered:
 
 - **Fresh context.** The role session starts clean — no implementation
   conversation, no shared scratch state. Independence is contextual as well
