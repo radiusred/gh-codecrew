@@ -20,6 +20,8 @@ verbs:
            [--bypass]                        (recorded admin merge when GitHub won't count the approval)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
+  roles diff <role>                          local contract vs the one embedded in the CLI
+  roles show <role> --latest                 print the embedded contract
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
   version                                    installed release tag (dev for source builds)
@@ -69,6 +71,8 @@ func Run(args []string) error {
 		return checkpoint(os.Stdout, rest)
 	case "role":
 		return roleHolder(os.Stdout, rest)
+	case "roles":
+		return rolesCmd(os.Stdout, rest)
 	case "version", "--version", "-v":
 		return versionCmd(os.Stdout)
 	case "help", "-h", "--help":
