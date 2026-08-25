@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// mergeGate implements the R1 Decision (radiusred/gh-codecrew#73): GitHub
-// never counts App reviews or operator confirmations toward a
-// required-review rule, so a REVIEW_REQUIRED decision refuses unless the
-// operator asked for the recorded bypass.
+// mergeGate implements the #73 Decisions: GitHub counts approvals only
+// from write-access principals — a read-only App's review and an operator
+// confirmation do not count — so a REVIEW_REQUIRED decision refuses
+// unless the operator asked for the recorded bypass.
 func TestMergeGate(t *testing.T) {
 	for _, tc := range []struct {
 		decision string
