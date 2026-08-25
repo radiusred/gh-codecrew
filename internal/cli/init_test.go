@@ -100,3 +100,29 @@ func TestScaffoldIdempotent(t *testing.T) {
 		t.Error("re-run clobbered an existing file")
 	}
 }
+
+// TestScaffoldedAgentsCarriesDispatchAuthorization: harness guardrails
+// defer to AGENTS.md, so the scaffold must state CodeCrew's dispatch
+// expectation explicitly — conditionally, so a platform-dispatched role
+// agent reads a prohibition, not a licence (finding 9 on #73).
+func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	flat := strings.Join(strings.Fields(string(data)), " ")
+	for _, want := range []string{
+		"Dispatch authorization",
+		"operator's primary session",
+		"authorized and expected",
+		"never dispatches another role",
+	} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("scaffolded AGENTS.md missing %q", want)
+		}
+	}
+}

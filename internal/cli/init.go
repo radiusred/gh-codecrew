@@ -46,6 +46,14 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
   ` + "`refused[CODE]: detail`" + ` — act on the code, don't work around it.
 - Plans before commits, decisions recorded when made, and the verifier is
   never the doer.
+- **Dispatch authorization.** If you are the operator's primary session —
+  not dispatched as any specific role — then when a role is routed to a
+  GitHub App and that role's action is needed (a review, a verdict),
+  dispatching a clean-context sub-agent session as that App is authorized
+  and expected; use the dispatch prompt in the hub's docs/identities.md. A
+  session dispatched *as* a role never dispatches another role — that
+  belongs to its coordination layer (platform, orchestrating session, or
+  operator) — and never chooses or briefs its own judge.
 `
 
 // scaffold writes the greenfield files into dir. Hub mode (hub == "self")
