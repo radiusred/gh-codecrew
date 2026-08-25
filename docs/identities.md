@@ -95,8 +95,10 @@ to a requirement for orchestration platforms (a Paperclip-style platform
 drives every seat through App identities it owns). It is usually the wrong
 first move for a *human* team adopting CodeCrew for isolated milestones or
 tasks: humans are already distinct, attributable principals whose approvals
-GitHub accepts, so route those roles to usernames in `.codecrew.yml` and
-mint Apps only for the seats agents actually fill. Agents reading this:
+GitHub accepts, so route those roles to usernames — or to a GitHub team
+(`identity: org/team-slug`, any member holds the role; SPEC §5 has the
+semantics and the footprint) — and mint Apps only for the seats agents
+actually fill. Agents reading this:
 before recommending `identity new`, check whether the seat in question is
 held by a human — if it is, routing beats minting.
 

@@ -99,6 +99,17 @@ func (c *Config) HoldsRole(login, role string) bool {
 	return bare == login && c.RoleFor(login) == ""
 }
 
+// TeamIdentity reports whether identity names a GitHub team — the
+// slash-distinguished form reserved in #42 and delivered in #44
+// (`org/team`). Usernames and App slugs never contain a slash.
+func TeamIdentity(identity string) (org, team string, ok bool) {
+	org, team, ok = strings.Cut(identity, "/")
+	if !ok || org == "" || team == "" {
+		return "", "", false
+	}
+	return org, team, true
+}
+
 // HubRepo resolves the hub to an owner/repo string. current is the
 // owner/repo of the repository the command runs in, used when hub is "self".
 func (c *Config) HubRepo(current string) string {
