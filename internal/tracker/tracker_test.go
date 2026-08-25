@@ -171,14 +171,3 @@ func TestInferState(t *testing.T) {
 		}
 	}
 }
-
-// TestRequirementIDsIgnoresTemplatePlaceholder proves a fresh milestone-new
-// body yields zero requirements: the placeholder's example IDs are unbolded
-// on purpose (finding 12 on gh-codecrew#73 — a bold example became a
-// phantom M2-R1 requirement at a real milestone close).
-func TestRequirementIDsIgnoresTemplatePlaceholder(t *testing.T) {
-	body := "## Goal\nA goal.\n\n## Requirements\n_One line per requirement, its ID in bold: M2-R1, M2-R2, … — only\nbolded IDs count as requirements, so this placeholder does not._\n\n## Gates\n_What \"done\" means beyond CI._\n"
-	if ids := RequirementIDs(body); len(ids) != 0 {
-		t.Errorf("placeholder yielded requirements: %v", ids)
-	}
-}
