@@ -118,6 +118,13 @@ quirk), the manual ritual it automates — one App per role:
 
    Add `Workflows: read & write` to the implementer if it will ever touch
    `.github/workflows/` files — `Contents` alone cannot push those.
+
+   The reviewer row's `Contents: read` is least-privilege and deliberate —
+   but GitHub counts approvals only from write-access principals, so a
+   read-only reviewer App's approval never satisfies a required-review
+   rule. Granting it `Contents: write` makes its approvals count, held by
+   an identity whose contract forbids editing code: an auditable trade of
+   privilege for an agent-gated merge. Per-project operator's choice.
 3. **Generate a private key** and store it outside any repo. Convention:
    `~/.config/codecrew/<app-slug>.<date>.private-key.pem`.
 4. **Install the App on the org**, scoped to all repositories or at least to
@@ -192,9 +199,9 @@ however it is triggered:
   contract says to stand down rather than gate on it. The dispatched session
   reads the PR cold and posts its review directly:
   `GH_TOKEN=$tok gh pr review <n> --request-changes --body …` and, when
-  satisfied, `--approve`. Whether an App's approval also *satisfies a
-  required-review count* is a platform question — verify it on your repo's
-  protection settings before wiring merge expectations to it.
+  satisfied, `--approve`. Whether that approval also *satisfies a
+  required-review count* turns on the App's access: write-access Apps
+  count, read-only Apps do not (see Known quirks below).
 
 A dispatch prompt proven in the field (the numberguess flight,
 davison/numberguess#8 — where the isolated reviewer caught a real encoding
@@ -219,11 +226,14 @@ fixed, then verified the exact reproduction before approving):
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
   the routing table names the bare slug; the CLI normalises this everywhere
   it resolves roles.
-- **Approvals from Apps and required-review rules:** verified — an App's
-  approving review does **not** count toward a ruleset's required-review
-  total (the R1 Decision on
-  [#73](https://github.com/radiusred/gh-codecrew/issues/73), proven live).
-  `task finish` refuses with `REVIEW_NOT_COUNTED` in that configuration;
-  the supported paths are a non-author human approving on the reviewer's
-  recommendation, or `task finish --bypass` where the ruleset lists the
-  operator as a bypass actor (the bypass is recorded on the PR).
+- **Approvals from Apps and required-review rules:** verified both ways —
+  approvals count only from principals with **write access**. An App with
+  `Contents: write` satisfies a required-review rule by its own approval
+  (proven live in the org); one with the reviewer table's read-only set
+  does not (proven live on numberguess) — the superseding Decision on
+  [#73](https://github.com/radiusred/gh-codecrew/issues/73). Where the
+  approval is uncounted, `task finish` refuses with `REVIEW_NOT_COUNTED`;
+  the paths are a non-author human approving on the reviewer's
+  recommendation, granting the reviewer App write access, or
+  `task finish --bypass` where the ruleset lists the operator as a bypass
+  actor (the bypass is recorded on the PR).

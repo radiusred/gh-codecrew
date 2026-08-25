@@ -284,10 +284,10 @@ func taskFinish(w io.Writer, args []string) error {
 		// record must not survive a refused bypass (testy finding on
 		// PR #89).
 		msg := fmt.Sprintf("**Merge bypass:** the protocol's review gate is satisfied, but GitHub's "+
-			"required-review rule does not count it (App reviews and operator confirmations are never "+
-			"counted — the R1 Decision, radiusred/gh-codecrew#73). Merging with the ruleset's "+
-			"administrator bypass as @%s; GitHub enforces eligibility — if this PR remains unmerged, "+
-			"the bypass was refused.", viewer)
+			"required-review rule does not count the recorded approvals — approvals count only from "+
+			"principals with write access (superseding Decision, radiusred/gh-codecrew#73). Merging with "+
+			"the ruleset's administrator bypass as @%s; GitHub enforces eligibility — if this PR remains "+
+			"unmerged, the bypass was refused.", viewer)
 		if err := c.t.Comment(prRef, msg); err != nil {
 			return err
 		}
@@ -314,10 +314,11 @@ func mergeGate(reviewDecision string, bypass bool) (admin bool, err error) {
 	}
 	if !bypass {
 		return false, refuse("REVIEW_NOT_COUNTED",
-			"GitHub's required-review rule is not satisfied by the recorded approvals — App reviews and "+
-				"operator confirmations are never counted (R1 Decision, radiusred/gh-codecrew#73). Either a "+
-				"non-author human approves on the reviewer's recommendation, or rerun with --bypass if the "+
-				"ruleset lists you as a bypass actor")
+			"GitHub's required-review rule is not satisfied by the recorded approvals — approvals count "+
+				"only from principals with write access, so a read-only App's review and an operator "+
+				"confirmation do not (superseding Decision, radiusred/gh-codecrew#73). Either a non-author "+
+				"human approves on the reviewer's recommendation, grant the reviewer App write access so its "+
+				"approvals count, or rerun with --bypass if the ruleset lists you as a bypass actor")
 	}
 	return true, nil
 }
