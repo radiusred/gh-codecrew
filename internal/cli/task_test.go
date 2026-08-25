@@ -21,7 +21,7 @@ func TestMergeGate(t *testing.T) {
 		{"APPROVED", false, false, ""},                          // counted approval satisfies GitHub
 		{"REVIEW_REQUIRED", false, false, "REVIEW_NOT_COUNTED"}, // the R1 configuration, no bypass asked
 		{"REVIEW_REQUIRED", true, true, ""},                     // recorded bypass path
-		{"CHANGES_REQUESTED", false, false, ""},                 // upstream review gates catch this first
+		{"CHANGES_REQUESTED", false, false, ""},                 // no approving review exists here in the common case, so the approval gate refuses earlier; with a separate non-author approval, GitHub itself refuses the merge
 	} {
 		admin, err := mergeGate(tc.decision, tc.bypass)
 		if tc.refused == "" {
