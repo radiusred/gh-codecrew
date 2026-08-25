@@ -18,7 +18,8 @@ const milestoneTemplate = `## Goal
 %s
 
 ## Requirements
-_Add requirements as **M%d-R1** — ... lines._
+_One line per requirement, its ID in bold: M%d-R1, M%d-R2, … — only
+bolded IDs count as requirements, so this placeholder does not._
 
 ## Gates
 _What "done" means beyond CI: e2e suites, manual UAT, sign-offs._
@@ -44,7 +45,7 @@ func milestoneNew(w io.Writer, args []string) error {
 	}
 	n := tracker.NextMilestoneNumber(titles)
 	fullTitle := fmt.Sprintf("M%d: %s", n, *title)
-	body := fmt.Sprintf(milestoneTemplate, *goal, n)
+	body := fmt.Sprintf(milestoneTemplate, *goal, n, n)
 	ref, err := c.t.CreateIssue(c.hub, fullTitle, body, []string{"cc:milestone"})
 	if err != nil {
 		return err
