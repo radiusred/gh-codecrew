@@ -46,6 +46,13 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
   ` + "`refused[CODE]: detail`" + ` — act on the code, don't work around it.
 - Plans before commits, decisions recorded when made, and the verifier is
   never the doer.
+- **Contract drift.** ` + "`codecrew status`" + ` reports when a ` + "`roles/`" + ` contract
+  differs from the one embedded in the installed CLI. When it does, the
+  coordination layer compares (` + "`codecrew roles diff <role>`" + `, full upstream
+  text via ` + "`codecrew roles show <role> --latest`" + `), decides what to adopt —
+  contracts are this project's own fork, and local conventions are
+  legitimate — and routes the reconciliation through a normal task and PR
+  with the decision recorded. Never overwrite blindly.
 - **Dispatch authorization.** If you are the operator's primary session —
   not dispatched as any specific role — then when a role is routed to a
   GitHub App and that role's action is needed (a review, a verdict),
@@ -77,7 +84,10 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 			if err != nil {
 				return nil, nil, err
 			}
-			files[filepath.Join("roles", e.Name())] = string(data)
+			// Provenance stamp: names the release these contracts shipped
+			// with, so drift can be judged three-way later (the base is
+			// fetchable from the upstream repo at this version).
+			files[filepath.Join("roles", e.Name())] = contractStamp(e.Name()) + string(data)
 		}
 	}
 	for rel, content := range files {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	codecrew "github.com/radiusred/gh-codecrew"
+
 	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/gh"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
@@ -64,5 +66,16 @@ func status(w io.Writer) error {
 			fmt.Fprintf(w, "  %s — %s\n", task.Ref, task.Title)
 		}
 	}
+
+	// Contract drift: purely local — the embedded contracts ride the
+	// binary, so status can say when a hub's roles/ fork has diverged
+	// from the installed release without touching the network.
+	if drifted, err := contractDrift(cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
+		fmt.Fprintln(w)
+		for _, role := range drifted {
+			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — codecrew roles diff %s\n", role, version, role)
+		}
+	}
+
 	return nil
 }
