@@ -429,9 +429,14 @@ Three independent layers, attacking different failure modes:
    reported checks refuses (`refused[NO_CHECKS]`, no override): this layer
    cannot be satisfied by absence, so every repo using `task finish`
    carries at least one `pull_request` workflow.
-2. **Independent review** — a non-doer approval required to merge. Catches
-   correlated self-evaluation failure: the model grading its own work shares
-   the blind spots of the model that did the work.
+2. **Independent review** — the reviewer role holder's approval required to
+   merge when the seat routes to a distinct principal; any non-doer approval
+   only when the role is operator-held. The norm is a model review: a
+   clean-context session under the reviewer contract, optionally a different
+   harness — even in pure solo, where its findings land as a PR comment
+   before the operator confirms. Catches correlated self-evaluation failure:
+   the model grading its own work shares the blind spots of the model that
+   did the work, and a briefed reviewer shares the briefing's.
 3. **Human gates** — pre-marked ask-the-human points plus ad-hoc
    `checkpoint`s. Catch the boundary cases where capability doesn't help:
    "should this task be done as specified at all." A `cc:needs-decision` label

@@ -120,6 +120,7 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 		"operator's primary session",
 		"authorized and expected",
 		"never dispatches another role",
+		"Reviews are model reviews",
 	} {
 		if !strings.Contains(flat, want) {
 			t.Errorf("scaffolded AGENTS.md missing %q", want)
