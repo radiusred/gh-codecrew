@@ -122,6 +122,38 @@ func pemPath(configDir, slug string, now time.Time) string {
 	return filepath.Join(configDir, "codecrew", fmt.Sprintf("%s.%s.private-key.pem", slug, now.Format("2006-01-02")))
 }
 
+// stubPath is the credential stub beside the key: the non-secret half of
+// the credential set (App ID, client ID), persisted at minting so
+// codecrew-token can mint installation tokens with the App's own JWT and
+// no user-credential API lookup (finding 11 on #73).
+func stubPath(configDir, slug string) string {
+	return filepath.Join(configDir, "codecrew", slug+".json")
+}
+
+// writeCredentials stores what the conversion returned and must persist:
+// the private key (0600) and the credential stub. Secrets other than the
+// key are never written.
+func writeCredentials(configDir string, creds *appCreds, now time.Time) (key, stub string, err error) {
+	key = pemPath(configDir, creds.Slug, now)
+	if err := os.MkdirAll(filepath.Dir(key), 0o755); err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(key, []byte(creds.PEM), 0o600); err != nil {
+		return "", "", err
+	}
+	stub = stubPath(configDir, creds.Slug)
+	data, err := json.MarshalIndent(map[string]any{
+		"slug": creds.Slug, "app_id": creds.ID, "client_id": creds.ClientID,
+	}, "", "  ")
+	if err != nil {
+		return "", "", err
+	}
+	if err := os.WriteFile(stub, append(data, '\n'), 0o644); err != nil {
+		return "", "", err
+	}
+	return key, stub, nil
+}
+
 // formPage serves the auto-submitting manifest form. The manifest flow is a
 // form POST, not a link, so the "one-click URL" the verb prints is this
 // loopback page; the button is the JavaScript-less fallback.
@@ -314,16 +346,14 @@ func identityNew(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	keyPath := pemPath(configDir, creds.Slug, time.Now())
-	if err := os.MkdirAll(filepath.Dir(keyPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(keyPath, []byte(creds.PEM), 0o600); err != nil {
+	keyPath, stub, err := writeCredentials(configDir, creds, time.Now())
+	if err != nil {
 		return err
 	}
 
 	fmt.Fprintf(w, "\ncreated %s (App ID %d, client ID %s)\n", creds.Slug, creds.ID, creds.ClientID)
 	fmt.Fprintf(w, "private key: %s\n", keyPath)
+	fmt.Fprintf(w, "credential stub: %s (lets codecrew-token mint without any account lookup)\n", stub)
 	if creds.WebhookSecret != "" {
 		fmt.Fprintf(w, "webhook secret (shown once, not stored): %s\n", creds.WebhookSecret)
 	}

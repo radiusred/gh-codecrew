@@ -275,3 +275,39 @@ func TestAppSettingsURL(t *testing.T) {
 		t.Errorf("personal settings URL = %q", got)
 	}
 }
+
+func TestWriteCredentials(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Date(2026, 8, 25, 12, 0, 0, 0, time.UTC)
+	creds := &appCreds{ID: 4704266, Slug: "davison-review-bot", ClientID: "Iv1.abc", PEM: "PEMDATA", ClientSecret: "never-on-disk", WebhookSecret: "nor-this"}
+	key, stub, err := writeCredentials(dir, creds, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key != filepath.Join(dir, "codecrew", "davison-review-bot.2026-08-25.private-key.pem") {
+		t.Errorf("key path = %q", key)
+	}
+	if stub != filepath.Join(dir, "codecrew", "davison-review-bot.json") {
+		t.Errorf("stub path = %q", stub)
+	}
+	info, err := os.Stat(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("key mode = %v, want 0600", info.Mode().Perm())
+	}
+	data, _ := os.ReadFile(stub)
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["app_id"] != float64(4704266) || got["slug"] != "davison-review-bot" || got["client_id"] != "Iv1.abc" {
+		t.Errorf("stub content = %v", got)
+	}
+	for _, secret := range []string{"never-on-disk", "nor-this"} {
+		if strings.Contains(string(data), secret) {
+			t.Errorf("secret %q written to the stub", secret)
+		}
+	}
+}

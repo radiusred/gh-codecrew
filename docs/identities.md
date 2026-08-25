@@ -178,8 +178,15 @@ however it is triggered:
   the routing table is the declared intent, and de-correlated judgment is
   the point of splitting the seats.
 - **Credentials.** The env-var path from SPEC §5, or
-  `scripts/codecrew-token <slug>` (which resolves installations on orgs and
-  personal accounts alike). The session exports `GH_TOKEN` and is the App.
+  `scripts/codecrew-token <slug>`. Beside the private key, `identity new`
+  writes a credential stub (`~/.config/codecrew/<slug>.json` — the App ID
+  and client ID, nothing secret): with it, the helper mints the App's JWT
+  and discovers the installation itself, touching no user credential. For
+  an App minted before the stub existed, write it by hand —
+  `{"slug":"<slug>","app_id":<numeric App ID>}` — the account-lookup
+  fallbacks depend on what the operator's token happens to see, and
+  personal-account installations have twice needed hand-fed IDs without
+  it. The session exports `GH_TOKEN` and is the App.
 - **The reviewer specifically** is never requested through GitHub's
   reviewers field — Apps are not review-requestable, and the implementer
   contract says to stand down rather than gate on it. The dispatched session
