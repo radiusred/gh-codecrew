@@ -83,6 +83,15 @@ func TestTeamHeldRole(t *testing.T) {
 	if !c.holdsRole("myorg-coder[bot]", "implementer") {
 		t.Error("App identity matching broke")
 	}
+	// A team member must NOT hold unrouted roles: the operator fallback
+	// is crew-free through the team-aware lens (checky's PR #101 finding —
+	// a reviewer-team member's verdict must not count as qa).
+	if c.holdsRole("alice", "qa") {
+		t.Error("team member holds the unrouted qa role")
+	}
+	if !c.holdsRole("mallory", "qa") {
+		t.Error("uncrewed human lost the unrouted-role fallback")
+	}
 	// Memoized: many checks, one fetch.
 	if *calls != 1 {
 		t.Errorf("team fetched %d times, want 1 (memoized per run)", *calls)
