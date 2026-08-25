@@ -124,7 +124,12 @@ quirk), the manual ritual it automates — one App per role:
    read-only reviewer App's approval never satisfies a required-review
    rule. Granting it `Contents: write` makes its approvals count, held by
    an identity whose contract forbids editing code: an auditable trade of
-   privilege for an agent-gated merge. Per-project operator's choice.
+   privilege for an agent-gated merge, and plainly trusted-agent territory
+   — which is why it is never the default. Per-project operator's choice,
+   made explicitly: at minting with
+   `identity new reviewer --with-approval-permission`, or mid-life by
+   bumping the App's Contents permission in its settings — an escalation
+   GitHub itself gates behind the installation's approval of the change.
 3. **Generate a private key** and store it outside any repo. Convention:
    `~/.config/codecrew/<app-slug>.<date>.private-key.pem`.
 4. **Install the App on the org**, scoped to all repositories or at least to

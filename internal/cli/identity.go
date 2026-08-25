@@ -45,10 +45,26 @@ var webhookEvents = []string{
 // webhook: a crew App acts, it never listens. withWebhook adds the object,
 // active, with the protocol-traffic events delivered to webhookURL (the
 // platform's receiver).
-func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string) (map[string]any, error) {
+func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string, withApproval bool) (map[string]any, error) {
 	perms, ok := rolePermissions[role]
 	if !ok {
 		return nil, fmt.Errorf("unknown role %q — one of implementer, reviewer, qa, doc-synthesizer", role)
+	}
+	if withApproval {
+		// The one permission that makes an App's approvals count toward
+		// required-review rules (#73, superseding Decision). Reviewer only:
+		// approvals gate merges nowhere else, so anywhere else the flag
+		// would be privilege without meaning. Never the default — privilege
+		// is not acquired by default (the #59 rule, inverted).
+		if role != "reviewer" {
+			return nil, fmt.Errorf("--with-approval-permission applies only to the reviewer role — approvals gate merges nowhere else")
+		}
+		granted := map[string]string{}
+		for k, v := range perms {
+			granted[k] = v
+		}
+		granted["contents"] = "write"
+		perms = granted
 	}
 	if name == "" {
 		return nil, fmt.Errorf("--name is required: Apps are named for crew members (myorg-coder), not roles")
@@ -285,6 +301,7 @@ func identityNew(w io.Writer, args []string) error {
 	noRoute := fs.Bool("no-route", false, "print the routing step instead of writing it into the hub's .codecrew.yml")
 	withWebhook := fs.Bool("with-webhook", false, "subscribe the App to protocol-traffic events (platform users)")
 	webhookURL := fs.String("webhook-url", "", "receiver for --with-webhook deliveries")
+	withApproval := fs.Bool("with-approval-permission", false, "reviewer only: grant contents: write so the App's approvals satisfy required-review rules")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -297,7 +314,7 @@ func identityNew(w io.Writer, args []string) error {
 	// Validate the manifest inputs before any repo or API work, so bad
 	// invocations refuse instantly; the real manifest (with the loopback
 	// redirect) is rebuilt once the listener's address is known.
-	if _, err := buildManifest(role, *name, "", "", *withWebhook, *webhookURL); err != nil {
+	if _, err := buildManifest(role, *name, "", "", *withWebhook, *webhookURL, *withApproval); err != nil {
 		return err
 	}
 
@@ -322,7 +339,7 @@ func identityNew(w io.Writer, args []string) error {
 	defer l.Close()
 	local := fmt.Sprintf("http://%s", l.Addr())
 
-	manifest, err := buildManifest(role, *name, "https://github.com/"+c.hub, local+"/callback", *withWebhook, *webhookURL)
+	manifest, err := buildManifest(role, *name, "https://github.com/"+c.hub, local+"/callback", *withWebhook, *webhookURL, *withApproval)
 	if err != nil {
 		return err
 	}
@@ -352,6 +369,10 @@ func identityNew(w io.Writer, args []string) error {
 	}
 
 	fmt.Fprintf(w, "\ncreated %s (App ID %d, client ID %s)\n", creds.Slug, creds.ID, creds.ClientID)
+	if *withApproval {
+		fmt.Fprintln(w, "contents: write granted — this App's approvals satisfy required-review rules;")
+		fmt.Fprintln(w, "its contract forbids editing code: the write grant exists only to make its judgment count")
+	}
 	fmt.Fprintf(w, "private key: %s\n", keyPath)
 	fmt.Fprintf(w, "credential stub: %s (lets codecrew-token mint without any account lookup)\n", stub)
 	if creds.WebhookSecret != "" {

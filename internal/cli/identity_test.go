@@ -18,7 +18,7 @@ import (
 
 func TestBuildManifestPermissionsPerRole(t *testing.T) {
 	for role, want := range rolePermissions {
-		m, err := buildManifest(role, "myorg-crew", "https://github.com/o/r", "http://127.0.0.1:1/callback", false, "")
+		m, err := buildManifest(role, "myorg-crew", "https://github.com/o/r", "http://127.0.0.1:1/callback", false, "", false)
 		if err != nil {
 			t.Fatalf("%s: %v", role, err)
 		}
@@ -35,22 +35,22 @@ func TestBuildManifestPermissionsPerRole(t *testing.T) {
 }
 
 func TestBuildManifestRefusals(t *testing.T) {
-	if _, err := buildManifest("navigator", "x", "u", "r", false, ""); err == nil {
+	if _, err := buildManifest("navigator", "x", "u", "r", false, "", false); err == nil {
 		t.Error("unknown role accepted")
 	}
-	if _, err := buildManifest("qa", "", "u", "r", false, ""); err == nil {
+	if _, err := buildManifest("qa", "", "u", "r", false, "", false); err == nil {
 		t.Error("empty name accepted")
 	}
-	if _, err := buildManifest("qa", "qa", "u", "r", false, ""); err == nil {
+	if _, err := buildManifest("qa", "qa", "u", "r", false, "", false); err == nil {
 		t.Error("role-named App accepted — identities outlive role reassignments")
 	}
-	if _, err := buildManifest("qa", "myorg-testy", "u", "r", true, ""); err == nil {
+	if _, err := buildManifest("qa", "myorg-testy", "u", "r", true, "", false); err == nil {
 		t.Error("--with-webhook without --webhook-url accepted")
 	}
 }
 
 func TestBuildManifestWebhookDefaultsOff(t *testing.T) {
-	m, _ := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "")
+	m, _ := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", false)
 	// GitHub requires hook_attributes.url whenever the object is present,
 	// regardless of active (the #73 finding) — a webhook-less manifest
 	// must omit the object entirely.
@@ -63,7 +63,7 @@ func TestBuildManifestWebhookDefaultsOff(t *testing.T) {
 }
 
 func TestBuildManifestWithWebhook(t *testing.T) {
-	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook")
+	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,5 +309,43 @@ func TestWriteCredentials(t *testing.T) {
 		if strings.Contains(string(data), secret) {
 			t.Errorf("secret %q written to the stub", secret)
 		}
+	}
+}
+
+func TestBuildManifestWithApprovalPermission(t *testing.T) {
+	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := m["default_permissions"].(map[string]string)
+	if got["contents"] != "write" {
+		t.Errorf("contents = %q, want write", got["contents"])
+	}
+	// Exactly one permission changes; the rest of the reviewer set stands.
+	for perm, want := range rolePermissions["reviewer"] {
+		if perm == "contents" {
+			continue
+		}
+		if got[perm] != want {
+			t.Errorf("permission %s = %q, want %q (only contents may change)", perm, got[perm], want)
+		}
+	}
+	if len(got) != len(rolePermissions["reviewer"]) {
+		t.Errorf("%d permissions, want %d — the flag adds no new scopes", len(got), len(rolePermissions["reviewer"]))
+	}
+	// The shared table itself must not be mutated by the grant.
+	if rolePermissions["reviewer"]["contents"] != "read" {
+		t.Error("rolePermissions table mutated — the grant must copy")
+	}
+	// Reviewer-only: approvals gate merges nowhere else.
+	for _, role := range []string{"implementer", "qa", "doc-synthesizer"} {
+		if _, err := buildManifest(role, "myorg-x", "u", "r", false, "", true); err == nil {
+			t.Errorf("--with-approval-permission accepted for %s", role)
+		}
+	}
+	// Default path unchanged.
+	m, _ = buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", false)
+	if m["default_permissions"].(map[string]string)["contents"] != "read" {
+		t.Error("default reviewer manifest no longer read-only")
 	}
 }
