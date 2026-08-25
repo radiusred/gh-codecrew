@@ -15,7 +15,7 @@ import (
 
 // urlPattern matches https?:// links in issue bodies and comments;
 // extractURLs trims the markdown and punctuation that ride along.
-var urlPattern = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `)\]]+`)
+var urlPattern = regexp.MustCompile(`https?://[^\s<>"'*` + "`" + `)\]]+`)
 
 // extractURLs pulls the deduplicated, ordered links from a piece of record
 // text. Trailing punctuation that prose attaches (., ,, ;, :) is trimmed.
@@ -159,6 +159,10 @@ func milestoneEvidence(w io.Writer, args []string) error {
 		}
 		return refuse("EVIDENCE_UNREACHABLE", "%d of %d cited links do not resolve — commit or repair the evidence before dispatching QA", len(unreachable), total)
 	}
-	fmt.Fprintf(w, "all %d cited links resolve across %d issues — evidence is reachable\n", total, len(refs))
+	noun := "links"
+	if total == 1 {
+		noun = "link"
+	}
+	fmt.Fprintf(w, "all %d cited %s resolve across %d issues — evidence is reachable\n", total, noun, len(refs))
 	return nil
 }
