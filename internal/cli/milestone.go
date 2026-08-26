@@ -163,14 +163,6 @@ func milestoneClose(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "note: qa is unrouted — verdicts counted from the human operator holding the role; declare role routing in the hub's .codecrew.yml at onboarding (SPEC §5)")
 	}
 
-	// Sweep the tasks' linked branches: merged or empty ones go, anything
-	// else is reported. Before the record is gathered so the close output
-	// carries what was removed (M6-R8).
-	swept, err := sweepBranches(w, c.t, milestone)
-	if err != nil {
-		return err
-	}
-
 	// Gather Decision/Deviation raw material for the doc-synthesizer.
 	records, summaries, err := gatherRecords(c, milestone)
 	if err != nil {
@@ -192,6 +184,11 @@ func milestoneClose(w io.Writer, args []string) error {
 		fmt.Fprintln(w)
 		return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer, merge its PR, rerun", n, c.hub)
 	}
+
+	// Every gate has passed: sweep the tasks' branches — merged or empty
+	// ones go, anything else is reported — so the successful close, and its
+	// closing comment, carry what was removed (M6-R8).
+	swept := sweepBranches(w, c.t, milestone)
 
 	comment := fmt.Sprintf("Closed by `codecrew milestone close %d`: all %d tasks done, milestone document merged.", n, len(milestone.Tasks))
 	if len(swept) > 0 {

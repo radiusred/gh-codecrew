@@ -206,6 +206,8 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		State          string `json:"state"`
 		ReviewDecision string `json:"reviewDecision"`
 		HeadRefName    string `json:"headRefName"`
+		HeadRefOid     string `json:"headRefOid"`
+		IsCrossRepo    bool   `json:"isCrossRepository"`
 		MergedAt       string `json:"mergedAt"`
 		Author         struct {
 			Login string `json:"login"`
@@ -218,17 +220,19 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		} `json:"reviews"`
 	}
 	err := gh.JSON(&view, "pr", "view", fmt.Sprint(number), "--repo", repo,
-		"--json", "state,author,reviews,reviewDecision,headRefName,mergedAt")
+		"--json", "state,author,reviews,reviewDecision,headRefName,headRefOid,isCrossRepository,mergedAt")
 	if err != nil {
 		return PR{}, err
 	}
 	pr := PR{
-		Repo:    repo,
-		Number:  number,
-		Author:  strings.TrimPrefix(view.Author.Login, "app/"),
-		HeadRef: view.HeadRefName,
-		Open:    view.State == "OPEN",
-		Merged:  view.MergedAt != "",
+		Repo:      repo,
+		Number:    number,
+		Author:    strings.TrimPrefix(view.Author.Login, "app/"),
+		HeadRef:   view.HeadRefName,
+		HeadSHA:   view.HeadRefOid,
+		CrossRepo: view.IsCrossRepo,
+		Open:      view.State == "OPEN",
+		Merged:    view.MergedAt != "",
 
 		ReviewDecision: view.ReviewDecision,
 	}
@@ -450,18 +454,29 @@ query($owner: String!, $repo: String!, $num: Int!) {
 	return names, nil
 }
 
-func (g GitHub) BranchAhead(repo, branch string) (int, error) {
+func (g GitHub) BranchAhead(repo, branch string) (int, string, error) {
 	info, err := g.RepoInfo(repo)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	var cmp struct {
 		AheadBy int `json:"ahead_by"`
+		Commits []struct {
+			SHA string `json:"sha"`
+		} `json:"commits"`
 	}
 	if err := gh.JSON(&cmp, "api", fmt.Sprintf("repos/%s/compare/%s...%s", repo, info.DefaultBranch, branch)); err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return cmp.AheadBy, nil
+	var ref struct {
+		Object struct {
+			SHA string `json:"sha"`
+		} `json:"object"`
+	}
+	if err := gh.JSON(&ref, "api", fmt.Sprintf("repos/%s/git/ref/heads/%s", repo, branch)); err != nil {
+		return 0, "", err
+	}
+	return cmp.AheadBy, ref.Object.SHA, nil
 }
 
 func (GitHub) DeleteBranch(repo, branch string) error {
