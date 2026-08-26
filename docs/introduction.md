@@ -47,10 +47,12 @@ per-milestone records of the decisions that shaped the system and why.
 `role`, `roles diff/show`, `identity new`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
-commits (qa, reviewer) get no linked development branch. Not yet here: any
-backend other than GitHub.
+commits (qa, reviewer) get no linked development branch. On main but not
+yet in a release: `roles show <role>` composing a contract with its
+`roles/<role>.local.md` extensions (#122) — it ships with the next release.
+Not yet here: any backend other than GitHub.
 
-**Who holds a seat.** Every role is always staffed, by exactly one of: the
+**Who holds a seat.** Every role is always staffed, by exactly one of four kinds of principal: the
 operator themselves (`~` in the routing table), a named human (a username),
 a GitHub team (`identity: org/team-slug` — any member holds the role), or a
 GitHub App identity. Solo is a routing configuration, not a degraded tier:
@@ -88,7 +90,7 @@ gh codecrew role reviewer  # who holds a role: an App, a username, or ~ (you)
 gh codecrew help           # the full verb list
 
 # or build from source (single static binary; requires gh on PATH):
-go build ./cmd/codecrew
+go build -o gh-codecrew ./cmd/codecrew
 ```
 
 ## Refusal codes
@@ -104,19 +106,18 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 
 **`task start`**
 
-- `NOT_FOUND` — as above, when resolving the task's milestone.
 - `NOT_A_TASK` — the issue is not labelled `cc:task`.
 - `CLOSED` — the task is already closed.
 - `NO_PLAN` — the Plan section is empty; plans come before work (SPEC §4).
 
-**`task finish`**
+**`task finish`** (in the order the gates are checked)
 
 - `CLOSED` — the task is already closed.
-- `NO_PR` — no open PR closes the task.
 - `GATED` — a `cc:needs-decision` gate is raised; a human resolves it and
   removes the label.
 - `GATE_UNRECORDED` — a gate was raised and the label removed, but no
   `**Gate resolved:**` comment records the decision (SPEC §8).
+- `NO_PR` — no open PR closes the task.
 - `NO_CHECKS` — the PR reports no CI checks at all; absence cannot satisfy
   the deterministic gate, and there is no override.
 - `CHECKS_PENDING` — checks are still running.

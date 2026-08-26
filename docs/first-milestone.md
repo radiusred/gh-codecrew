@@ -216,9 +216,10 @@ in the crew, and it's a ladder:
 1. **Split the roles across sessions.** Your agent doing the work and then
    verdicting its own milestone shares one context's blind spots. The cheap
    fix: have your harness launch a sub-agent per role, each briefed with the
-   role's contract — `gh codecrew roles show <role>` prints it with any
-   project extensions appended — so a fresh-context QA reading `roles/qa.md`
-   probes what the implementer's context wouldn't. Or cross model families:
+   role's contract from `roles/` (plus any `roles/<role>.local.md` beside
+   it — from the next release, `gh codecrew roles show <role>` prints the
+   two composed) — so a fresh-context QA reading `roles/qa.md` probes what
+   the implementer's context wouldn't. Or cross model families:
    dispatch another LLM through its own CLI for the reviewer or qa seat.
    Same identities, same commands — just different eyes.
 2. **Give crew members their own identities.** When you want the record to
