@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
@@ -105,5 +108,28 @@ func TestUnreadableTeamFailsClosed(t *testing.T) {
 	t.Cleanup(func() { teamMembers = orig })
 	if c.holdsRole("alice", "reviewer") {
 		t.Error("unreadable team granted the role — must fail closed")
+	}
+}
+
+// The pointer's protocol major gates every verb that loads it (SPEC §5):
+// another major refuses PROTOCOL_MISMATCH; 0.1 and a missing field proceed.
+func TestLoadConfigChecksProtocol(t *testing.T) {
+	for _, c := range []struct {
+		yml     string
+		refused bool
+	}{
+		{"codecrew: \"1.0\"\nhub: self\n", false},
+		{"codecrew: \"0.1\"\nhub: self\n", false},
+		{"hub: self\n", false},
+		{"codecrew: \"2.0\"\nhub: self\n", true},
+	} {
+		dir := t.TempDir()
+		os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte(c.yml), 0o644)
+		_, err := loadConfig(dir)
+		var r refusal
+		got := errors.As(err, &r) && r.Code == "PROTOCOL_MISMATCH"
+		if got != c.refused || (err != nil && !c.refused) {
+			t.Errorf("%q: err = %v, refused = %v, want refused %v", c.yml, err, got, c.refused)
+		}
 	}
 }

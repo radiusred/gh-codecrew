@@ -6,13 +6,12 @@ import (
 
 	codecrew "github.com/radiusred/gh-codecrew"
 
-	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/gh"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 func status(w io.Writer) error {
-	cfg, err := config.Load(".")
+	cfg, err := loadConfig(".")
 	if err != nil {
 		return err
 	}

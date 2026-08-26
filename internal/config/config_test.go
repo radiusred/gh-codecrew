@@ -110,3 +110,24 @@ func TestHubRepo(t *testing.T) {
 		t.Errorf("named hub = %q, want radiusred/hub", got)
 	}
 }
+
+func TestCompatible(t *testing.T) {
+	cases := []struct {
+		pointer  string
+		wantNote bool
+		wantErr  bool
+	}{
+		{"1.0", false, false},
+		{"1.4", false, false}, // same major, later minor
+		{"0.1", true, false},  // the pre-1.0 form of 1.0
+		{"", true, false},     // missing: assumed, noted
+		{"2.0", false, true},  // another major
+		{"0.2", false, true},  // not the frozen form
+	}
+	for _, c := range cases {
+		note, err := Compatible(c.pointer, "1.0")
+		if (err != nil) != c.wantErr || (note != "") != c.wantNote {
+			t.Errorf("Compatible(%q, 1.0) = note %q, err %v", c.pointer, note, err)
+		}
+	}
+}
