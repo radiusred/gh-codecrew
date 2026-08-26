@@ -122,12 +122,10 @@ actually done so far.
   describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
 
 Things we have not done yet, in the interest of not overselling: any
-backend other than GitHub; a full orchestration-platform run end to end;
-a gatherer that catches every record variant (the M5 close missed three
-of one issue's four Decisions because they were labelled `**Decision
-(…):**` — the fix is on the open milestone, and the M5 document says so);
-a 1.0. The [roadmap](ROADMAP.md) says which milestone is open and what it
-is for.
+backend other than GitHub, or GitHub Enterprise Server; a full
+orchestration-platform run end to end (it is on the open milestone). The
+[roadmap](ROADMAP.md) says which milestone is open and what it is for, and
+[CHANGELOG.md](CHANGELOG.md) what each release shipped.
 
 ## Read next
 

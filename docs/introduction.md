@@ -42,17 +42,18 @@ per-milestone records of the decisions that shaped the system and why.
 
 ## What exists
 
-**Shipped:** v0.5.0 of the `gh` extension. Verbs: `init`, `status`,
+**Shipped:** v1.0.0 of the `gh` extension, implementing protocol 1.0
+(`version` prints both: `v1.0.0 (protocol 1.0)`; the pointer's protocol
+major is checked, another major refuses). Verbs: `init`, `status`,
 `milestone new/evidence/close`, `task new/start/finish`, `checkpoint`,
 `role`, `roles diff/show`, `identity new`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
-commits (qa, reviewer) get no linked development branch. On main but not
-yet in a release: `roles show <role>` composing a contract with its
-`roles/<role>.local.md` extensions (#122), and protocol 1.0 — `version`
-printing `v1.0.0 (protocol 1.0)` and the pointer's major checked (#114) —
-both ship with the next release.
-Not yet here: any backend other than GitHub, and GitHub Enterprise Server —
+commits (qa, reviewer) get no linked development branch; `roles show <role>`
+prints a contract with its `roles/<role>.local.md` extensions appended;
+`task finish` deletes the branch it merged and `milestone close` sweeps what
+its tasks left. What changed and when: [CHANGELOG.md](../CHANGELOG.md). Not
+yet here: any backend other than GitHub, and GitHub Enterprise Server —
 github.com only.
 
 **Who holds a seat.** Every role is always staffed, by exactly one of four
