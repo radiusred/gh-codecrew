@@ -399,7 +399,7 @@ hub).
 | `codecrew task start <ref>` | Assigns the caller's identity, verifies a plan is present (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. |
 | `codecrew identity new <role> --name <app>` | Mints the role's App identity via the GitHub App manifest flow: generates a manifest with the role's minimal permission set, hands the operator a one-click loopback URL, stores the returned private key locally, writes the role's routing into the hub's `.codecrew.yml` (`--no-route` opts out; printed as an instruction when the table is not local), and prints the remaining manual steps (install — per-account — and optional display polish). Webhooks off by default; `--with-webhook` opts in to protocol-traffic event delivery for platform receivers (§9). |
-| `codecrew roles diff <role>` / `codecrew roles show <role> --latest` | Contract-drift tooling: `status` reports when a local `roles/` contract differs from the copy embedded in the installed CLI (scaffolded contracts carry a provenance stamp naming their release); `diff` shows the divergence, `show --latest` prints the embedded contract whole. Contracts are the project's own fork — reconciliation is a judgment routed through a task and PR, never an overwrite. |
+| `codecrew roles diff <role>` / `codecrew roles show <role> [--latest]` | Contract tooling: `show` prints the contract a dispatched session loads — the hub's `roles/<role>.md` with its local extensions appended in §7 order (hub, then spoke); `show --latest` prints the contract embedded in the installed CLI whole. Drift: `status` reports when a local `roles/` contract differs from the embedded copy (scaffolded contracts carry a provenance stamp naming their release) and `diff` shows the divergence; `roles/<role>.local.md` files are never drift. Contracts are the project's own fork — reconciliation is a judgment routed through a task and PR, never an overwrite. |
 | `codecrew role <name>` | Prints the identity holding a role — an App slug or username, or `~` for the operator (§5). Script-consumable; resolves from the hub's routing table when run in a spoke. The implementer uses it to request review from the reviewer role's holder at PR creation when the holder is review-requestable — a username or team; App-held seats are dispatched instead, Apps not being requestable (CODEOWNERS-driven requests coexist — requested reviewers union). |
 | `codecrew task finish <ref>` | The gatekeeper: verifies a PR exists, CI checks exist and are green (`refused[NO_CHECKS]` when a PR reports zero checks — the deterministic gate cannot be satisfied by absence, and there is no override), an approving review exists from the reviewer role's holder when the role routes to a distinct principal (`refused[NO_HOLDER_REVIEW]` otherwise — other approvals coexist but do not satisfy the gate; any non-doer approval suffices only when the role is operator-held), and deviations referenced in the PR body have recorded comments — then merges (rebase) and closes. When GitHub's own required-review rule is still unmet at that point (`reviewDecision: REVIEW_REQUIRED` — approvals count only from principals with write access: a write-access App's approval counts, a read-only App's and an operator confirmation do not), it refuses with `refused[REVIEW_NOT_COUNTED]` naming the supported paths; `--bypass` performs the ruleset's administrator merge instead, recorded as a PR comment, and only for a human operator the ruleset lists as a bypass actor. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (`[bot]` suffix or routed role) are refused with `refused[SELF_CONFIRM]`. |
 | `codecrew milestone evidence <n>` | Walks the milestone's record — tracking issue and every sub-issue, bodies and comments — and verifies every cited link resolves (github.com references via the API under the caller's auth, everything else by HTTP). `refused[EVIDENCE_UNREACHABLE]` otherwise. Run by the coordination layer before dispatching QA, and by QA as its first act: uncommitted evidence cost M4-R4 its verdict, and the check is deterministic, so it runs as code. |
@@ -428,6 +428,21 @@ App creation). v1 roles:
   findings as issue/PR comments.
 - **doc-synthesizer** — at milestone close, compiles the recorded decisions
   and deviations into the milestone document and opens its PR.
+
+**Local extensions.** A project's own instructions for a role — house
+style, local conventions, what its orchestrator injects — go in
+`roles/<role>.local.md`, never into the contract. The contract is the
+project's fork of the framework's (§6, `roles diff`); an extension is
+append-only text loaded *after* it, so reconciling the contract against a
+newer release never has to re-merge project additions, and `status`'s
+drift check never sees them. Load order is fixed: the hub's
+`roles/<role>.md`, then the hub's `roles/<role>.local.md`, then the working
+repo's `roles/<role>.local.md` when it is a spoke. There is no merge
+language and no precedence beyond that order — an extension that
+contradicts its contract is a review finding, not a resolver's job.
+`codecrew roles show <role>` prints the composition a dispatched session
+should load; a harness that reads `AGENTS.md` natively follows the same
+order by hand.
 
 The inter-agent protocol is **GitHub itself** — issue comments, PR reviews,
 labels. There is no other message bus, so any two harnesses interoperate by
