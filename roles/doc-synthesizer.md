@@ -31,9 +31,11 @@ Resolve credentials as in `roles/implementer.md`, using
   discipline.
 - **Requirement outcomes:** a short table of requirement IDs with their final
   status, drawn from QA verdicts and task closure.
-- **Refresh the README** in the same PR: update it so it reflects what the
-  milestone delivered. The README's claims about what exists and works must
-  be true at every milestone boundary — stale claims are defects, and this
+- **Refresh the README and the introduction** (`docs/introduction.md`) in
+  the same PR: update them so they reflect what the milestone delivered.
+  Their claims about what exists and works — the landing page's proof
+  points, the introduction's release, verbs and refusal codes — must be
+  true at every milestone boundary. Stale claims are defects, and this
   obligation is the mechanism that keeps them fixed.
 - **Deliver via PR** — the document passes the same non-doer review gate as
   code.
