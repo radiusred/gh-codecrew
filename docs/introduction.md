@@ -8,10 +8,10 @@ of the decisions that shaped the system and why.
 
 CodeCrew is three things:
 
-1. **A protocol** ([SPEC.md](SPEC.md)) — conventions for representing
+1. **A protocol** ([SPEC.md](../SPEC.md)) — conventions for representing
    milestones, tasks, plans, decisions, deviations, and gates in GitHub, and
    how agents and humans transact over them.
-2. **Role contracts** ([roles/](roles/)) — harness-neutral prompt files for
+2. **Role contracts** ([roles/](../roles/)) — harness-neutral prompt files for
    the implementer, reviewer, qa, and doc-synthesizer roles, loadable by any
    agent (Claude Code, Codex, Gemini CLI, or an orchestrator's company).
 3. **A CLI** — `codecrew`, a single static Go binary wrapping `gh`, providing
@@ -42,12 +42,12 @@ themselves; the qa holder's verdicts are the ones that count at close, and
 the reviewer holder's approving review is the one `task finish` requires. A
 solo operator therefore needs nothing but `gh auth login`; `codecrew init`
 scaffolds a new project with every role routed to `~`, and the
-[quickstart](docs/first-milestone.md) walks the first milestone end to end.
+[quickstart](first-milestone.md) walks the first milestone end to end.
 When a project outgrows solo, `identity new <role>` mints a dedicated
 GitHub App identity for a seat via the manifest flow and routes it for you
 — minted with `--with-approval-permission`, a reviewer App's approvals
 count toward GitHub's own required-review rules, making fully agent-gated
-merges possible (see [docs/identities.md](docs/identities.md)).
+merges possible (see [docs/identities.md](identities.md)).
 
 Five milestones have been delivered *with* the protocol — agent-authored
 PRs under GitHub App identities, non-doer review, deterministic CI gates, QA
@@ -63,7 +63,7 @@ The first stranger's project is public too:
 `gh codecrew init` to a closed milestone by one human and a Codex session
 working from the scaffold alone, transcripts included — and then through
 two more milestones as the proving ground for the dedicated reviewer-App
-seat. See [docs/milestones/](docs/milestones/) for the per-milestone
+seat. See [docs/milestones/](milestones/) for the per-milestone
 records.
 
 Not yet here: any backend other than GitHub.
@@ -86,23 +86,23 @@ Every repo in a CodeCrew project carries a `.codecrew.yml` pointing at the
 hub — a spoke's is a two-line pointer (`init --hub owner/repo`); this repo
 is its own hub (`hub: self`; see SPEC §3 for choosing yours). The hub's
 config also routes the four roles, and `init` writes that table for you.
-Agents dispatched into a CodeCrew repo start at [AGENTS.md](AGENTS.md).
+Agents dispatched into a CodeCrew repo start at [AGENTS.md](../AGENTS.md).
 Agent identities are GitHub Apps; short-lived tokens come from
 `scripts/codecrew-token` (see SPEC §5 and
-[docs/identities.md](docs/identities.md) for the identity tiers — a solo
+[docs/identities.md](identities.md) for the identity tiers — a solo
 operator needs nothing but `gh auth login`, self-confirmation recorded).
 
 ## Documents
 
-- [SPEC.md](SPEC.md) — the protocol
-- [docs/first-milestone.md](docs/first-milestone.md) — the quickstart: a
+- [SPEC.md](../SPEC.md) — the protocol
+- [docs/first-milestone.md](first-milestone.md) — the quickstart: a
   stranger's first milestone, end to end
-- [docs/identities.md](docs/identities.md) — running solo, and minting
+- [docs/identities.md](identities.md) — running solo, and minting
   per-role GitHub App identities
-- [docs/founding-decisions.md](docs/founding-decisions.md) — design decisions
+- [docs/founding-decisions.md](founding-decisions.md) — design decisions
   and their trade-offs
-- [docs/milestones/](docs/milestones/) — the per-milestone "why" records
-- [docs/gsd-vs-frontier-orchestration.md](docs/gsd-vs-frontier-orchestration.md)
+- [docs/milestones/](milestones/) — the per-milestone "why" records
+- [docs/gsd-vs-frontier-orchestration.md](gsd-vs-frontier-orchestration.md)
   — the analysis that motivated the project
 
-Licensed under [Apache 2.0](LICENSE).
+Licensed under [Apache 2.0](../LICENSE).
