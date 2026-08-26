@@ -70,6 +70,8 @@ type PR struct {
 	Number         int
 	Author         string
 	HeadRef        string // the PR's head branch name
+	HeadSHA        string // the head commit as GitHub last saw it — frozen at merge
+	CrossRepo      bool   // head lives in another repo (a fork)
 	Open           bool
 	Merged         bool
 	NoChecks       bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
@@ -138,8 +140,9 @@ type Tracker interface {
 	// relation task start creates through gh issue develop.
 	LinkedBranches(ref IssueRef) ([]string, error)
 	// BranchAhead reports how many commits branch carries beyond repo's
-	// default branch; an error when the branch does not exist.
-	BranchAhead(repo, branch string) (int, error)
+	// default branch and the branch's current tip; an error when the branch
+	// does not exist.
+	BranchAhead(repo, branch string) (ahead int, sha string, err error)
 	// DeleteBranch deletes a branch ref.
 	DeleteBranch(repo, branch string) error
 	// RepoInfo fetches the repo settings the verbs consult.
