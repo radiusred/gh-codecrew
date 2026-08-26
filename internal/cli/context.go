@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -29,7 +30,7 @@ type ctx struct {
 // one this binary implements: a different major refuses
 // (PROTOCOL_MISMATCH); "0.1" and a missing field proceed with a note on
 // stderr (SPEC §5).
-func loadConfig(dir string) (*config.Config, error) {
+func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 	cfg, err := config.Load(dir)
 	if err != nil {
 		return nil, err
@@ -39,13 +40,13 @@ func loadConfig(dir string) (*config.Config, error) {
 		return nil, refuse("PROTOCOL_MISMATCH", "%v", err)
 	}
 	if note != "" {
-		fmt.Fprintln(os.Stderr, note)
+		fmt.Fprintln(notes, note)
 	}
 	return cfg, nil
 }
 
 func load() (*ctx, error) {
-	cfg, err := loadConfig(".")
+	cfg, err := loadConfig(".", os.Stderr)
 	if err != nil {
 		return nil, err
 	}

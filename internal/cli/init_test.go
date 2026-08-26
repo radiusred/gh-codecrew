@@ -127,3 +127,18 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 		}
 	}
 }
+
+// Both scaffolds carry the protocol version this binary implements — a
+// hub pointer its own binary would refuse must be impossible to scaffold.
+func TestScaffoldsCarryProtocolVersion(t *testing.T) {
+	for _, hub := range []string{"self", "o/hub"} {
+		dir := t.TempDir()
+		if _, _, err := scaffold(dir, hub, fakeContracts); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+		if !strings.HasPrefix(string(data), "codecrew: \""+protocolVersion+"\"") {
+			t.Errorf("hub=%s: pointer starts %q, want codecrew: %q", hub, strings.SplitN(string(data), "\n", 2)[0], protocolVersion)
+		}
+	}
+}

@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 
 	codecrew "github.com/radiusred/gh-codecrew"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func status(w io.Writer) error {
-	cfg, err := loadConfig(".")
+	cfg, err := loadConfig(".", os.Stderr)
 	if err != nil {
 		return err
 	}
