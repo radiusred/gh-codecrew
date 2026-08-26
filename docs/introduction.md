@@ -52,7 +52,8 @@ yet in a release: `roles show <role>` composing a contract with its
 `roles/<role>.local.md` extensions (#122), and protocol 1.0 — `version`
 printing `v1.0.0 (protocol 1.0)` and the pointer's major checked (#114) —
 both ship with the next release.
-Not yet here: any backend other than GitHub.
+Not yet here: any backend other than GitHub, and GitHub Enterprise Server —
+github.com only.
 
 **Who holds a seat.** Every role is always staffed, by exactly one of four
 kinds of principal: the operator themselves (`~` in the routing table), a
