@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -51,6 +52,9 @@ func contractDrift(dir string, contracts fs.FS) ([]string, error) {
 	}
 	var drifted []string
 	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), localSuffix) {
+			continue // an extension is never a contract, whatever the embed holds
+		}
 		local, err := os.ReadFile(filepath.Join(dir, "roles", e.Name()))
 		if err != nil {
 			continue // no local copy — nothing to drift
@@ -176,16 +180,26 @@ func composeContract(base string, locals []localPart) string {
 // spoke. Missing extensions are skipped; a missing contract is an error.
 func composedContract(role string, hubRead func(string) ([]byte, error), spokeDir string) (string, error) {
 	base, err := hubRead("roles/" + role + ".md")
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return "", fmt.Errorf("no roles/%s.md in the hub", role)
+	} else if err != nil {
+		return "", fmt.Errorf("reading roles/%s.md from the hub: %w", role, err)
 	}
+	// An absent extension is the normal case and is skipped; any other
+	// failure surfaces, so a session never runs on a silently partial
+	// contract because a fetch failed.
 	var locals []localPart
-	if data, err := hubRead("roles/" + role + localSuffix); err == nil {
-		locals = append(locals, localPart{Source: "roles/" + role + localSuffix + " (hub)", Body: string(data)})
+	ext := "roles/" + role + localSuffix
+	if data, err := hubRead(ext); err == nil {
+		locals = append(locals, localPart{Source: ext + " (hub)", Body: string(data)})
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("reading %s from the hub: %w", ext, err)
 	}
 	if spokeDir != "" {
-		if data, err := os.ReadFile(filepath.Join(spokeDir, "roles", role+localSuffix)); err == nil {
-			locals = append(locals, localPart{Source: "roles/" + role + localSuffix + " (spoke)", Body: string(data)})
+		if data, err := os.ReadFile(filepath.Join(spokeDir, filepath.FromSlash(ext))); err == nil {
+			locals = append(locals, localPart{Source: ext + " (spoke)", Body: string(data)})
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return "", fmt.Errorf("reading %s in this repo: %w", ext, err)
 		}
 	}
 	return composeContract(string(base), locals), nil
@@ -227,9 +241,9 @@ func rolesCmd(w io.Writer, args []string) error {
 	case "diff":
 		return rolesDiff(w, cfg.Dir, codecrew.Roles, role)
 	case "show":
-		fs := flag.NewFlagSet("roles show", flag.ContinueOnError)
-		latest := fs.Bool("latest", false, "print the contract embedded in the installed binary")
-		if err := fs.Parse(args[2:]); err != nil {
+		flags := flag.NewFlagSet("roles show", flag.ContinueOnError)
+		latest := flags.Bool("latest", false, "print the contract embedded in the installed binary")
+		if err := flags.Parse(args[2:]); err != nil {
 			return err
 		}
 		// In the hub the contract and its extension are on disk; from a
@@ -241,7 +255,13 @@ func rolesCmd(w io.Writer, args []string) error {
 		spokeDir := ""
 		if cfg.Hub != "self" {
 			hub := cfg.Hub
-			hubRead = func(path string) ([]byte, error) { return tracker.GitHub{}.FileContent(hub, path) }
+			hubRead = func(path string) ([]byte, error) {
+				data, err := tracker.GitHub{}.FileContent(hub, path)
+				if err != nil && strings.Contains(err.Error(), "HTTP 404") {
+					return nil, fs.ErrNotExist // absent, as distinct from unreachable
+				}
+				return data, err
+			}
 			spokeDir = cfg.Dir
 		}
 		return rolesShow(w, role, *latest, codecrew.Roles, hubRead, spokeDir)

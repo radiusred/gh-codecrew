@@ -2,10 +2,15 @@ package cli
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
+
+	codecrew "github.com/radiusred/gh-codecrew"
 )
 
 func TestStampRoundTrip(t *testing.T) {
@@ -188,5 +193,85 @@ func TestComposedContractLayersHubThenSpoke(t *testing.T) {
 	// A role with no contract in the hub is an error, extension or not.
 	if _, err := composedContract("navigator", hubRead, spoke); err == nil {
 		t.Error("missing contract accepted")
+	}
+}
+
+// The shipped embed must hold contracts only: an extension inside the
+// binary would be scaffolded into every new project and counted as drift
+// (checky's finding on PR #123). Bound to the real codecrew.Roles, not a
+// fixture — a fixture cannot contain what the glob would have caught.
+func TestEmbeddedRolesHoldNoExtensions(t *testing.T) {
+	entries, err := fs.ReadDir(codecrew.Roles, "roles")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("no embedded contracts")
+	}
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), localSuffix) {
+			t.Errorf("embedded %s: extensions must not ship in the binary", e.Name())
+		}
+	}
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", codecrew.Roles); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "roles", "doc-synthesizer"+localSuffix)); err == nil {
+		t.Error("init scaffolded this project's editorial voice into a new project")
+	}
+}
+
+// Even if an extension found its way into an embed, scaffold and drift
+// ignore it by name.
+func TestExtensionInEmbedIsSkipped(t *testing.T) {
+	polluted := fstest.MapFS{
+		"roles/qa.md":       {Data: []byte("# Role: qa\n")},
+		"roles/qa.local.md": {Data: []byte("house style\n")},
+	}
+	dir := t.TempDir()
+	written, _, err := scaffold(dir, "self", polluted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range written {
+		if strings.HasSuffix(w, localSuffix) {
+			t.Errorf("scaffold wrote %s", w)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "roles", "qa"+localSuffix), []byte("customised\n"), 0o644)
+	drifted, err := contractDrift(dir, polluted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drifted) != 0 {
+		t.Errorf("drift = %v, want none", drifted)
+	}
+}
+
+// A fetch failure is not an absent file: the session must not run on a
+// partial contract because the hub was unreachable.
+func TestComposedContractSurfacesReadFailures(t *testing.T) {
+	base := "# Role: qa\n"
+	flaky := func(fail string) func(string) ([]byte, error) {
+		return func(path string) ([]byte, error) {
+			switch {
+			case path == fail:
+				return nil, errors.New("gh api: HTTP 500")
+			case strings.HasSuffix(path, ".local.md"):
+				return nil, fs.ErrNotExist
+			default:
+				return []byte(base), nil
+			}
+		}
+	}
+	if _, err := composedContract("qa", flaky("roles/qa.local.md"), ""); err == nil || !strings.Contains(err.Error(), "HTTP 500") {
+		t.Errorf("extension fetch failure swallowed: %v", err)
+	}
+	if _, err := composedContract("qa", flaky("roles/qa.md"), ""); err == nil || !strings.Contains(err.Error(), "reading roles/qa.md") {
+		t.Errorf("contract fetch failure misreported: %v", err)
+	}
+	if got, err := composedContract("qa", flaky("none"), ""); err != nil || got != base {
+		t.Errorf("absent extension should be skipped: %q, %v", got, err)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	codecrew "github.com/radiusred/gh-codecrew"
 )
@@ -82,6 +83,9 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 			return nil, nil, err
 		}
 		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), localSuffix) {
+				continue // never scaffold one project's extensions into another
+			}
 			data, err := fs.ReadFile(contracts, "roles/"+e.Name())
 			if err != nil {
 				return nil, nil, err
