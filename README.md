@@ -19,37 +19,52 @@ CodeCrew is three things:
 
 ## Status
 
-The protocol is specified and the CLI works — released as v0.2.3: `init`,
-`status`, `milestone new/close`, `task new/start/finish`, `checkpoint`,
-`role`, and `version` are all implemented, with machine-readable refusals
-(`refused[CODE]: detail`) when a gate blocks — `NO_CHECKS` when a PR reports
-no CI checks at all (the deterministic gate cannot be satisfied by absence,
-and there is no override), `GATE_UNRECORDED` when a raised gate lacks a
-recorded resolution, and `VERDICT_MISSING`/`VERDICT_UNSATISFIED` when a
-milestone tries to close without a satisfied QA verdict on every
-requirement. `task start` is role-aware: roles whose contracts forbid
-commits (qa, reviewer) get no linked development branch.
+The protocol is specified and the CLI works — released as v0.5.0: `init`,
+`status`, `milestone new/evidence/close`, `task new/start/finish`,
+`checkpoint`, `role`, `roles diff/show`, `identity new`, and `version` are
+all implemented, with machine-readable refusals (`refused[CODE]: detail`)
+when a gate blocks — `NO_CHECKS` when a PR reports no CI checks at all (the
+deterministic gate cannot be satisfied by absence, and there is no
+override), `GATE_UNRECORDED` when a raised gate lacks a recorded
+resolution, `VERDICT_MISSING`/`VERDICT_UNSATISFIED` when a milestone tries
+to close without a satisfied QA verdict on every requirement,
+`NO_HOLDER_REVIEW` when the routed reviewer's approving review is missing,
+`REVIEW_NOT_COUNTED` when GitHub's own required-review rule is still unmet
+(with a recorded `--bypass` path), and `EVIDENCE_UNREACHABLE` when a
+milestone's cited evidence links do not resolve. `task start` is
+role-aware: roles whose contracts forbid commits (qa, reviewer) get no
+linked development branch.
 
 Solo is a routing configuration, not a degraded tier: every role is always
-staffed, by a GitHub App, a named human, or — `~` — the operator themselves;
-the qa holder's verdicts are the ones that count at close, and the reviewer
-holder is who PRs ask to review. A solo operator therefore needs nothing but
-`gh auth login`; `codecrew init` scaffolds a new project with every role
-routed to `~`, and the [quickstart](docs/first-milestone.md) walks the first
-milestone end to end.
+staffed, by a GitHub App, a named human, a GitHub team (`identity:
+org/team-slug` — any member holds the role), or — `~` — the operator
+themselves; the qa holder's verdicts are the ones that count at close, and
+the reviewer holder's approving review is the one `task finish` requires. A
+solo operator therefore needs nothing but `gh auth login`; `codecrew init`
+scaffolds a new project with every role routed to `~`, and the
+[quickstart](docs/first-milestone.md) walks the first milestone end to end.
+When a project outgrows solo, `identity new <role>` mints a dedicated
+GitHub App identity for a seat via the manifest flow and routes it for you
+— minted with `--with-approval-permission`, a reviewer App's approvals
+count toward GitHub's own required-review rules, making fully agent-gated
+merges possible (see [docs/identities.md](docs/identities.md)).
 
-Four milestones have been delivered *with* the protocol — agent-authored
+Five milestones have been delivered *with* the protocol — agent-authored
 PRs under GitHub App identities, non-doer review, deterministic CI gates, QA
-verdicts enforced at close, and synthesized closing documents. The first
-spoke is live: [radiusred/www](https://github.com/radiusred/www) is driven
+verdicts enforced at close, and synthesized closing documents. This hub's
+four seats are all App-staffed, and its PRs merge on the reviewer App's
+counted approval. The first spoke is live:
+[radiusred/www](https://github.com/radiusred/www) is driven
 from this hub through the installed extension, and its first delivery was
 [a blog post introducing CodeCrew, published by the protocol it
 describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
 The first stranger's project is public too:
 [davison/numberguess](https://github.com/davison/numberguess) was taken from
 `gh codecrew init` to a closed milestone by one human and a Codex session
-working from the scaffold alone, transcript included. See
-[docs/milestones/](docs/milestones/) for the per-milestone records.
+working from the scaffold alone, transcripts included — and then through
+two more milestones as the proving ground for the dedicated reviewer-App
+seat. See [docs/milestones/](docs/milestones/) for the per-milestone
+records.
 
 Not yet here: any backend other than GitHub.
 
