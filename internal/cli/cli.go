@@ -22,7 +22,7 @@ verbs:
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
   roles diff <role>                          local contract vs the one embedded in the CLI
-  roles show <role> --latest                 print the embedded contract
+  roles show <role> [--latest]               the contract a session loads (with local extensions), or the embedded one
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
            [--with-approval-permission]      (reviewer only: its approvals satisfy required reviews)
