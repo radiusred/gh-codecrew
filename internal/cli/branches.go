@@ -40,42 +40,55 @@ func deleteHead(w io.Writer, t tracker.Tracker, pr tracker.PR) {
 	fmt.Fprintf(w, "deleted branch %s\n", pr.HeadRef)
 }
 
-// sweepBranches deletes the linked branches of a milestone's tasks that
-// branchAction allows and reports every other one, so the close output
-// records what was removed and what was left and why. Returns the names
-// deleted.
+// sweepBranches deletes the task branches a milestone leaves behind that
+// branchAction allows and reports every other one that still exists, so
+// the close output records what was removed and what was left and why.
+// Candidates come from three places, because GitHub drops the linked-
+// branch relation once an issue closes: the relation (open tasks), the
+// head refs of the task's PRs, and the conventional name task start used
+// (task/<n>-<slug>, for tasks that never had a PR). A candidate that no
+// longer exists — deleted at task finish, or never created — is skipped
+// silently. Returns the names deleted.
 func sweepBranches(w io.Writer, t tracker.Tracker, m *tracker.Milestone) ([]string, error) {
 	var deleted []string
 	for _, task := range m.Tasks {
-		branches, err := t.LinkedBranches(task)
+		linked, err := t.LinkedBranches(task)
 		if err != nil {
 			return deleted, err
 		}
-		if len(branches) == 0 {
-			continue
-		}
-		// One lookup of the task's PRs serves every linked branch.
 		prs, err := t.ClosingPRs(task, true)
 		if err != nil {
 			return deleted, err
 		}
 		byHead := map[string]tracker.PR{}
+		var names []string
+		seen := map[string]bool{}
+		add := func(n string) {
+			if n != "" && !seen[n] {
+				seen[n] = true
+				names = append(names, n)
+			}
+		}
+		for _, n := range linked {
+			add(n)
+		}
 		for _, num := range prs {
 			pr, err := t.PRInfo(task.Repo, num)
 			if err != nil {
 				return deleted, err
 			}
 			byHead[pr.HeadRef] = pr
+			add(pr.HeadRef)
 		}
-		for _, name := range branches {
-			pr, hasPR := byHead[name]
-			ahead := 0
-			if !hasPR || (!pr.Merged && !pr.Open) {
-				if ahead, err = t.BranchAhead(task.Repo, name); err != nil {
-					fmt.Fprintf(w, "branch %s: kept (%v)\n", name, err)
-					continue
-				}
+		if info, err := t.Task(task); err == nil {
+			add(fmt.Sprintf("task/%d-%s", task.Number, slug(info.Title)))
+		}
+		for _, name := range names {
+			ahead, err := t.BranchAhead(task.Repo, name)
+			if err != nil {
+				continue // gone already, or never made
 			}
+			pr, hasPR := byHead[name]
 			del, reason := branchAction(hasPR && pr.Merged, hasPR && pr.Open, ahead)
 			if !del {
 				fmt.Fprintf(w, "branch %s: kept (%s)\n", name, reason)
