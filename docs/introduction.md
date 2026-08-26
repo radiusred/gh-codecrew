@@ -52,16 +52,16 @@ yet in a release: `roles show <role>` composing a contract with its
 `roles/<role>.local.md` extensions (#122) — it ships with the next release.
 Not yet here: any backend other than GitHub.
 
-**Who holds a seat.** Every role is always staffed, by exactly one of four kinds of principal: the
-operator themselves (`~` in the routing table), a named human (a username),
-a GitHub team (`identity: org/team-slug` — any member holds the role), or a
-GitHub App identity. Solo is a routing configuration, not a degraded tier:
-the qa holder's verdicts are the ones that count at close, and the reviewer
-holder's approving review is the one `task finish` requires. A solo
-operator therefore needs nothing but `gh auth login`; `codecrew init`
-scaffolds a project with every role routed to `~`. When a project outgrows
-solo, `identity new <role>` mints a dedicated App identity through the
-manifest flow and routes it for you — minted with
+**Who holds a seat.** Every role is always staffed, by exactly one of four
+kinds of principal: the operator themselves (`~` in the routing table), a
+named human (a username), a GitHub team (`identity: org/team-slug` — any
+member holds the role), or a GitHub App identity. Solo is a routing
+configuration, not a degraded tier: the qa holder's verdicts are the ones
+that count at close, and the reviewer holder's approving review is the one
+`task finish` requires. A solo operator therefore needs nothing but `gh auth
+login`; `codecrew init` scaffolds a project with every role routed to `~`.
+When a project outgrows solo, `identity new <role>` mints a dedicated App
+identity through the manifest flow and routes it for you — minted with
 `--with-approval-permission`, a reviewer App's approvals count toward
 GitHub's own required-review rules, which makes fully agent-gated merges
 possible ([identities.md](identities.md)).
@@ -126,12 +126,12 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   holder has not approved; the role defines whose review counts.
 - `NO_NONDOER_APPROVAL` — the reviewer role is unrouted and no non-author
   has approved (solo: rerun with `--operator-confirm`).
-- `SELF_CONFIRM` — `--operator-confirm` was given by a crew identity; only a
-  human operator can waive review.
 - `REVIEW_NOT_COUNTED` — the protocol's review gate passed, but GitHub's
   own required-review rule is still unmet (an App's approval without write
   access); a non-author human approves on the reviewer's recommendation,
   the App gets write access, or `--bypass` where the ruleset allows it.
+- `SELF_CONFIRM` — `--operator-confirm` was given by a crew identity; only a
+  human operator can waive review.
 - `CREW_BYPASS` — `--bypass` was given by a crew identity; a bypass is an
   operator's act.
 
