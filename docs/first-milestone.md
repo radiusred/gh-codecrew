@@ -139,8 +139,8 @@ gh codecrew task finish 3 --operator-confirm
 ```
 
 This records an explicit confirmation comment on the PR — stating that
-author and operator are the same principal — then rebase-merges. The task
-issue closes via its `Closes #3` keyword.
+author and operator are the same principal — then rebase-merges and deletes
+the task branch. The task issue closes via its `Closes #3` keyword.
 
 If your repo has no CI yet, you'll meet one more refusal first:
 `refused[NO_CHECKS]`. The deterministic gate can't be satisfied by a repo
@@ -201,8 +201,10 @@ from plan — flip the ROADMAP row to Done, and merge it like any other change
 gh codecrew milestone close 1
 ```
 
-All gates pass: tasks closed, verdicts satisfied, document merged. The
-milestone issue closes with the record comment, and everything above — the
+All gates pass: tasks closed, verdicts satisfied, document merged. Any task
+branch still lying around is swept first (only merged or empty ones — the
+output says what went and what stayed), then the milestone issue closes
+with the record comment, and everything above — the
 plan, the decisions, the confirmation, the verdicts, the document — is
 permanent, linked, and public to whoever you choose.
 
