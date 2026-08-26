@@ -14,7 +14,7 @@ Resolve your GitHub credentials in this order:
    with its private key from `~/.config/codecrew/`, minted with the
    `codecrew-token` script from upstream — until an `identity token` verb
    exists, install it once with
-   `curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
+   `mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
    — then `codecrew-token <slug>`.
 3. The operator's existing `gh` auth (identity `~` — solo tier only).
 
