@@ -87,7 +87,7 @@ page](../README.md#the-receipts); the per-milestone records are in
 gh extension install radiusred/gh-codecrew   # precompiled, all platforms
 gh codecrew version        # confirm what you installed (gh never auto-updates extensions)
 gh codecrew init           # scaffold a new project (see first-milestone.md)
-gh codecrew status         # open milestones, inferred task states, raised gates
+gh codecrew status         # open milestones, inferred task states, raised gates, notes
 gh codecrew role reviewer  # who holds a role: an App, a username, or ~ (you)
 gh codecrew help           # the full verb list
 
