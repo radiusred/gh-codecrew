@@ -230,38 +230,63 @@ func section(body, heading string) string {
 // Record is one Decision or Deviation captured in a comment.
 type Record struct {
 	Kind   string // "Decision" or "Deviation"
+	Label  string // the label as written, e.g. "**Decision (superseding …):**"
 	Source string // the issue/PR ref the comment was found on
 	Author string
 	Body   string
 	URL    string
 }
 
-// ExtractRecords finds Decision/Deviation comments per the SPEC §4
-// convention (body starts with **Decision:** or **Deviation:**). A gate
-// resolution (**Gate resolved:**, SPEC §8) is a decision made at a human
-// gate, so it is captured as a Decision record.
+// recordLabel matches a record label at the start of a paragraph: the bare
+// SPEC §4 form (**Decision:**) or a qualified one (**Decision (…):**) — the
+// qualifier is kept verbatim in Record.Label and carries no semantics. A
+// gate resolution (**Gate resolved:**, SPEC §8) is a decision made at a
+// human gate, so it is captured as a Decision record.
+var recordLabel = regexp.MustCompile(`^\*\*(Decision|Deviation|Gate resolved)(\s*\([^\n]*?\))?:\*\*`)
+
+// continuationLabel opens a paragraph that belongs to the record before it.
+var continuationLabel = regexp.MustCompile(`^\*\*(Why|Trade-off|Rejected):\*\*`)
+
+// otherLabel is any other bold label opening a paragraph — it ends the
+// record before it without starting one.
+var otherLabel = regexp.MustCompile(`^\*\*[^*\n]+:\*\*`)
+
+var paragraphBreak = regexp.MustCompile(`\n[ \t]*\n`)
+
+// ExtractRecords finds Decision/Deviation records in comments per the SPEC
+// §4 convention, one record per labelled paragraph: a paragraph opening
+// with a record label starts a record; the unlabelled and **Why:** /
+// **Trade-off:** / **Rejected:** paragraphs after it belong to it until the
+// next label. A comment that is one record is one record; a record written
+// after other text in the same comment (a review round-up that ends with a
+// Deviation) is still gathered. A label mentioned mid-line is not a record.
 func ExtractRecords(source IssueRef, comments []Comment) []Record {
 	var records []Record
 	for _, c := range comments {
-		trimmed := strings.TrimSpace(c.Body)
-		var kind string
-		switch {
-		case strings.HasPrefix(trimmed, "**Decision:**"):
-			kind = "Decision"
-		case strings.HasPrefix(trimmed, "**Gate resolved:**"):
-			kind = "Decision"
-		case strings.HasPrefix(trimmed, "**Deviation:**"):
-			kind = "Deviation"
-		default:
-			continue
+		var open *Record
+		for _, para := range paragraphBreak.Split(strings.TrimSpace(c.Body), -1) {
+			para = strings.TrimSpace(para)
+			if para == "" {
+				continue
+			}
+			if m := recordLabel.FindStringSubmatch(para); m != nil {
+				kind := m[1]
+				if kind == "Gate resolved" {
+					kind = "Decision"
+				}
+				records = append(records, Record{Kind: kind, Label: m[0], Source: source.String(), Author: c.Author, Body: para, URL: c.URL})
+				open = &records[len(records)-1]
+				continue
+			}
+			if open == nil {
+				continue
+			}
+			if otherLabel.MatchString(para) && !continuationLabel.MatchString(para) {
+				open = nil
+				continue
+			}
+			open.Body += "\n\n" + para
 		}
-		records = append(records, Record{
-			Kind:   kind,
-			Source: source.String(),
-			Author: c.Author,
-			Body:   trimmed,
-			URL:    c.URL,
-		})
 	}
 	return records
 }
@@ -314,7 +339,8 @@ func ParseVerdicts(comments []Comment) []Verdict {
 }
 
 // UnresolvedGates returns the **Gate raised:** comments that have no later
-// resolution record (**Gate resolved:** or **Decision:**). A single trailing
+// resolution record (a comment opening **Gate resolved:** or **Decision:**,
+// qualified or bare). A single trailing
 // resolution covers every gate raised before it — a human may answer several
 // questions in one comment; the label removal remains the hard block.
 func UnresolvedGates(comments []Comment) []Comment {
@@ -322,7 +348,7 @@ func UnresolvedGates(comments []Comment) []Comment {
 	lastResolution := -1
 	for i := len(comments) - 1; i >= 0; i-- {
 		trimmed := strings.TrimSpace(comments[i].Body)
-		if strings.HasPrefix(trimmed, "**Gate resolved:**") || strings.HasPrefix(trimmed, "**Decision:**") {
+		if m := recordLabel.FindStringSubmatch(trimmed); m != nil && m[1] != "Deviation" {
 			lastResolution = i
 			break
 		}
