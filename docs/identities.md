@@ -1,6 +1,6 @@
 # Identities: running solo, staffing a crew
 
-Roles are contracts, not accounts. A seat is held by exactly one of three
+Roles are contracts, not accounts. A seat is held by exactly one of four
 kinds of principal: **you**, the operator (`~` in the routing table — the
 whole protocol runs on `gh auth login` alone); **a human or a team** (a
 username, or `identity: org/team-slug` where any member holds the seat);
