@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
@@ -125,7 +127,12 @@ func TestLoadConfigChecksProtocol(t *testing.T) {
 	} {
 		dir := t.TempDir()
 		os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte(c.yml), 0o644)
-		_, err := loadConfig(dir)
+		var notes bytes.Buffer
+		_, err := loadConfig(dir, &notes)
+		wantNote := !strings.Contains(c.yml, `"1.0"`) && !c.refused
+		if gotNote := strings.HasPrefix(notes.String(), "note:"); gotNote != wantNote {
+			t.Errorf("%q: note = %q, want note %v", c.yml, notes.String(), wantNote)
+		}
 		var r refusal
 		got := errors.As(err, &r) && r.Code == "PROTOCOL_MISMATCH"
 		if got != c.refused || (err != nil && !c.refused) {

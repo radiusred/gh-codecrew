@@ -13,7 +13,7 @@ import (
 	codecrew "github.com/radiusred/gh-codecrew"
 )
 
-const hubConfigScaffold = `codecrew: "1.0" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see codecrew version
+const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see codecrew version
 hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all four at
@@ -71,7 +71,7 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
 // are never touched — they are reported as skipped.
 func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err error) {
 	files := map[string]string{
-		".codecrew.yml": hubConfigScaffold,
+		".codecrew.yml": fmt.Sprintf(hubConfigScaffold, protocolVersion),
 	}
 	if hub != "self" {
 		files[".codecrew.yml"] = fmt.Sprintf("codecrew: \"%s\" # protocol version (SPEC.md §5): a different major is refused; not the CLI release\nhub: %s\n", protocolVersion, hub)
