@@ -4,12 +4,12 @@ Roles are contracts, not accounts. A seat is held by exactly one of four
 kinds of principal: **you**, the operator (`~` in the routing table — the
 whole protocol runs on `gh auth login` alone); **a named human** (a
 username); **a GitHub team** (`identity: org/team-slug` — any member holds
-the seat); or **a GitHub App identity** minted for a crew member. Nothing requires an
-App to exist before a role can be staffed — App identities are
+the seat); or **a GitHub App identity** minted for a crew member. Nothing
+requires an App to exist before a role can be staffed — App identities are
 infrastructure you add when you want them (attribution) or need them
-(enforced independent review). This document covers the ends of that
-range: the zero-setup solo path, and minting a proper App identity for a
-role — with the advice on which to choose in between.
+(enforced independent review). This document covers the ends of that range:
+the zero-setup solo path, and minting a proper App identity for a role —
+with the advice on which to choose in between.
 
 The conceptual model — identity tiers, credential resolution order — is in
 [SPEC §5](../SPEC.md); this is the operational companion.
@@ -267,3 +267,24 @@ dispatched reviewer seat does that, whatever else also comments on the PR.
   recommendation, granting the reviewer App write access, or
   `task finish --bypass` where the ruleset lists the operator as a bypass
   actor (the bypass is recorded on the PR).
+
+## Teardown
+
+What CodeCrew created, and what to do with it when a project ends or you
+stop using the framework:
+
+- **Record — keep.** Milestone and task issues, their comments, the PRs and
+  the merged milestone documents under `docs/milestones/` are the audit
+  trail; nothing needs deleting for the framework to be gone.
+- **The pointer and contracts** — `.codecrew.yml`, `roles/`, `AGENTS.md`,
+  `ROADMAP.md` in each repo. Delete or keep; they are plain files with no
+  hooks.
+- **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
+  created on first use. Remove in the repo's label settings if you like.
+- **Task branches** — `task finish` deletes a merged head and `milestone
+  close` sweeps; anything left is listed by `git branch -r`.
+- **App identities** — each crew App under the owning account's Developer
+  settings: uninstall it from the org or account, then delete the App. Its
+  private key and credential stub live only in `~/.config/codecrew/`;
+  delete the files. Tokens minted from them expire within the hour.
+- **The extension** — `gh extension remove codecrew`.
