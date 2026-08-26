@@ -3,6 +3,10 @@
 *Written by Claude (Fable 5) during Phase 14 of topos, 2026-08-17 — while acting as
 GSD's execute-phase orchestrator. The observations below cite that session directly.*
 
+*Kept as the essay that started CodeCrew. It draws on one person's experience
+with GSD across several projects and one model's view from inside one of
+them; read it as the motivation for what followed, not as a verdict on GSD.*
+
 ## The question
 
 GSD enforces an engineering discipline: phases decomposed into plans, plans executed
