@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 240" width="720" height="240" role="img" aria-labelledby="t">
+  <title id="t">One hub repo holds the contracts, routing table and milestones; spoke repos hold tasks, PRs and CI, each with a two-line pointer back to the hub.</title>
+  <style>
+    text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#8a8aa0}
+    .box{fill:#8a8aa0;fill-opacity:0.08;stroke:#8a8aa0;stroke-width:1.5}
+    .hub{stroke:#1ad1ff;stroke-width:2}
+    .line{stroke:#8a8aa0;stroke-width:1.5;fill:none}
+    .h{font-size:16px;font-weight:600}.s{font-size:14px}.m{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+  <rect rx="8" class="box hub" x="24" y="60" width="256" height="120"/>
+  <text class="h" x="40" y="88">hub</text>
+  <text class="s" x="40" y="112">roles/ — the four contracts</text>
+  <text class="s" x="40" y="132">.codecrew.yml — the routing table</text>
+  <text class="s" x="40" y="152">milestone issues and their records</text>
+  <text class="m" x="40" y="172" fill="#1ad1ff">hub: self</text>
+
+  <path class="line" d="M280 100 C330 100 330 60 380 60"/>
+  <path class="line" d="M280 120 L380 120"/>
+  <path class="line" d="M280 140 C330 140 330 180 380 180"/>
+
+  <rect rx="8" class="box" x="380" y="36" width="300" height="48"/>
+  <text class="s" x="396" y="56">spoke — tasks, PRs, CI required checks</text>
+  <text class="m" x="396" y="74">hub: owner/hub-repo</text>
+  <rect rx="8" class="box" x="380" y="96" width="300" height="48"/>
+  <text class="s" x="396" y="116">spoke — another repo, same pointer</text>
+  <text class="m" x="396" y="134">hub: owner/hub-repo</text>
+  <rect rx="8" class="box" x="380" y="156" width="300" height="48"/>
+  <text class="s" x="396" y="176">spoke — or the hub itself, solo</text>
+  <text class="m" x="396" y="194">hub: self</text>
+  <text class="s" x="24" y="222">State lives in issues and PRs. There is no other message bus.</text>
+</svg>

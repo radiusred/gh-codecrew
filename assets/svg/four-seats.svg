@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" width="720" height="230" role="img" aria-labelledby="t">
+  <title id="t">Four seats — implementer, reviewer, qa, doc-synthesizer — each a contract file, each held by you, a username, a team, or a GitHub App identity.</title>
+  <style>
+    text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#8a8aa0}
+    .box{fill:#8a8aa0;fill-opacity:0.08;stroke:#8a8aa0;stroke-width:1.5}
+    .h{font-size:16px;font-weight:600}.s{font-size:14px}.m{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .dot{fill:#1ad1ff}
+  </style>
+  <g>
+    <rect rx="8" class="box" x="12" y="24" width="168" height="96"/><circle class="dot" cx="32" cy="46" r="6"/>
+    <text class="h" x="46" y="51">implementer</text>
+    <text class="s" x="28" y="76">plans in the issue,</text><text class="s" x="28" y="94">commits, opens the PR</text>
+    <text class="m" x="28" y="112">implementer.md</text>
+  </g>
+  <g>
+    <rect rx="8" class="box" x="188" y="24" width="168" height="96"/><circle class="dot" cx="208" cy="46" r="6"/>
+    <text class="h" x="222" y="51">reviewer</text>
+    <text class="s" x="204" y="76">reads the diff cold,</text><text class="s" x="204" y="94">approves or refuses</text>
+    <text class="m" x="204" y="112">reviewer.md</text>
+  </g>
+  <g>
+    <rect rx="8" class="box" x="364" y="24" width="168" height="96"/><circle class="dot" cx="384" cy="46" r="6"/>
+    <text class="h" x="398" y="51">qa</text>
+    <text class="s" x="380" y="76">verdicts each</text><text class="s" x="380" y="94">requirement at close</text>
+    <text class="m" x="380" y="112">qa.md</text>
+  </g>
+  <g>
+    <rect rx="8" class="box" x="540" y="24" width="168" height="96"/><circle class="dot" cx="560" cy="46" r="6"/>
+    <text class="h" x="574" y="51">doc-synthesizer</text>
+    <text class="s" x="556" y="76">turns the record into</text><text class="s" x="556" y="94">the milestone doc</text>
+    <text class="m" x="556" y="112">doc-synthesizer.md</text>
+  </g>
+  <text class="s" x="12" y="156">Contracts live in roles/. Each seat is held by exactly one of:</text>
+  <text class="m" x="12" y="184" fill="#1ad1ff">~</text><text class="s" x="28" y="184">you</text>
+  <text class="m" x="118" y="184" fill="#1ad1ff">@username</text><text class="s" x="208" y="184">a colleague</text>
+  <text class="m" x="318" y="184" fill="#1ad1ff">org/team</text><text class="s" x="398" y="184">any member</text>
+  <text class="m" x="508" y="184" fill="#1ad1ff">an App</text><text class="s" x="568" y="184">a crew identity</text>
+  <text class="s" x="12" y="212">Solo is the table with every seat pointing at you — the same commands at every size.</text>
+</svg>
