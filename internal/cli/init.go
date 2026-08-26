@@ -13,7 +13,7 @@ import (
 	codecrew "github.com/radiusred/gh-codecrew"
 )
 
-const hubConfigScaffold = `codecrew: "0.1" # protocol version (SPEC.md), not the CLI release — see codecrew version
+const hubConfigScaffold = `codecrew: "1.0" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see codecrew version
 hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all four at
@@ -74,7 +74,7 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 		".codecrew.yml": hubConfigScaffold,
 	}
 	if hub != "self" {
-		files[".codecrew.yml"] = fmt.Sprintf("codecrew: \"0.1\" # protocol version (SPEC.md), not the CLI release\nhub: %s\n", hub)
+		files[".codecrew.yml"] = fmt.Sprintf("codecrew: \"%s\" # protocol version (SPEC.md §5): a different major is refused; not the CLI release\nhub: %s\n", protocolVersion, hub)
 	} else {
 		files["ROADMAP.md"] = roadmapScaffold
 		files["AGENTS.md"] = agentsScaffold

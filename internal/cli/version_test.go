@@ -10,7 +10,7 @@ func TestVersionCmd(t *testing.T) {
 	if err := versionCmd(&b); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(b.String()); got != "dev" {
-		t.Errorf("source build version = %q, want dev", got)
+	if got := strings.TrimSpace(b.String()); got != "dev (protocol 1.0)" {
+		t.Errorf("source build version = %q, want dev (protocol 1.0)", got)
 	}
 }

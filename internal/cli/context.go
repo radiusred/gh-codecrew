@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
@@ -24,8 +25,27 @@ type ctx struct {
 	teams map[string]map[string]bool
 }
 
+// loadConfig reads the pointer and checks its protocol version against the
+// one this binary implements: a different major refuses
+// (PROTOCOL_MISMATCH); "0.1" and a missing field proceed with a note on
+// stderr (SPEC §5).
+func loadConfig(dir string) (*config.Config, error) {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return nil, err
+	}
+	note, err := config.Compatible(cfg.Codecrew, protocolVersion)
+	if err != nil {
+		return nil, refuse("PROTOCOL_MISMATCH", "%v", err)
+	}
+	if note != "" {
+		fmt.Fprintln(os.Stderr, note)
+	}
+	return cfg, nil
+}
+
 func load() (*ctx, error) {
-	cfg, err := config.Load(".")
+	cfg, err := loadConfig(".")
 	if err != nil {
 		return nil, err
 	}

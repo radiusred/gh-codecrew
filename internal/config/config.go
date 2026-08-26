@@ -52,6 +52,33 @@ func Load(dir string) (*Config, error) {
 	}
 }
 
+// Compatible checks a pointer's protocol version against the one the
+// binary implements (SPEC §5). Same major: compatible. "0.1" — the
+// pre-1.0 form of the same conventions — is compatible with a 1.x binary,
+// with a note to update. A missing field is compatible with a note. Any
+// other major is an error: the pointer speaks conventions this binary does
+// not.
+func Compatible(pointer, implemented string) (note string, err error) {
+	implMajor := major(implemented)
+	switch {
+	case pointer == "":
+		return fmt.Sprintf("note: .codecrew.yml has no codecrew: protocol version — assuming %s; add codecrew: \"%s\" (SPEC §5)", implemented, implemented), nil
+	case pointer == "0.1" && implMajor == "1":
+		return fmt.Sprintf("note: .codecrew.yml says protocol 0.1, the pre-1.0 form of 1.0 — update it to codecrew: \"%s\" (SPEC §5)", implemented), nil
+	case major(pointer) == implMajor:
+		return "", nil
+	default:
+		return "", fmt.Errorf(".codecrew.yml speaks protocol %s; this codecrew implements protocol %s — upgrade the extension or the pointer (SPEC §5)", pointer, implemented)
+	}
+}
+
+func major(v string) string {
+	if i := strings.Index(v, "."); i >= 0 {
+		return v[:i]
+	}
+	return v
+}
+
 // Parse decodes pointer-file content.
 func Parse(data []byte) (*Config, error) {
 	var cfg Config
