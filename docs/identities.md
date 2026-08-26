@@ -2,9 +2,9 @@
 
 Roles are contracts, not accounts. A seat is held by exactly one of four
 kinds of principal: **you**, the operator (`~` in the routing table — the
-whole protocol runs on `gh auth login` alone); **a human or a team** (a
-username, or `identity: org/team-slug` where any member holds the seat);
-or **a GitHub App identity** minted for a crew member. Nothing requires an
+whole protocol runs on `gh auth login` alone); **a named human** (a
+username); **a GitHub team** (`identity: org/team-slug` — any member holds
+the seat); or **a GitHub App identity** minted for a crew member. Nothing requires an
 App to exist before a role can be staffed — App identities are
 infrastructure you add when you want them (attribution) or need them
 (enforced independent review). This document covers the ends of that
