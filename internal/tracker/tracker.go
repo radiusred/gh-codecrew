@@ -69,7 +69,9 @@ type PR struct {
 	Repo           string
 	Number         int
 	Author         string
+	HeadRef        string // the PR's head branch name
 	Open           bool
+	Merged         bool
 	NoChecks       bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
 	ChecksPending  bool
 	ChecksOK       bool
@@ -132,6 +134,22 @@ type Tracker interface {
 	HasMilestoneDoc(repo string, n int) (bool, error)
 	// FileContent fetches a file from the default branch of repo.
 	FileContent(repo, path string) ([]byte, error)
+	// LinkedBranches lists the branch names linked to an issue — the
+	// relation task start creates through gh issue develop.
+	LinkedBranches(ref IssueRef) ([]string, error)
+	// BranchAhead reports how many commits branch carries beyond repo's
+	// default branch; an error when the branch does not exist.
+	BranchAhead(repo, branch string) (int, error)
+	// DeleteBranch deletes a branch ref.
+	DeleteBranch(repo, branch string) error
+	// RepoInfo fetches the repo settings the verbs consult.
+	RepoInfo(repo string) (RepoInfo, error)
+}
+
+// RepoInfo is the slice of repository settings the verbs read.
+type RepoInfo struct {
+	DefaultBranch       string
+	DeleteBranchOnMerge bool
 }
 
 // InferState derives a task's lifecycle state from tracker signals, most
