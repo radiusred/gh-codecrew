@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	codecrew "github.com/radiusred/gh-codecrew"
 	"testing/fstest"
 )
 
@@ -139,6 +141,39 @@ func TestScaffoldsCarryProtocolVersion(t *testing.T) {
 		data, _ := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
 		if !strings.HasPrefix(string(data), "codecrew: \""+protocolVersion+"\"") {
 			t.Errorf("hub=%s: pointer starts %q, want codecrew: %q", hub, strings.SplitN(string(data), "\n", 2)[0], protocolVersion)
+		}
+	}
+}
+
+// Nothing init writes may point at a file the adopter's repo does not
+// have: the protocol and its docs live upstream (Codex pre-launch scan,
+// #131).
+func TestScaffoldReferencesResolveUpstream(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", codecrew.Roles); err != nil {
+		t.Fatal(err)
+	}
+	var files []string
+	filepath.Walk(dir, func(p string, info os.FileInfo, _ error) error {
+		if !info.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	for _, f := range files {
+		data, _ := os.ReadFile(f)
+		for _, bad := range []string{"the hub's docs/", "hub's `SPEC.md`", "hub's SPEC.md", "`scripts/codecrew-token"} {
+			if strings.Contains(string(data), bad) {
+				t.Errorf("%s contains hub-relative reference %q", strings.TrimPrefix(f, dir), bad)
+			}
+		}
+	}
+}
+
+func TestHelpIsNotAnError(t *testing.T) {
+	for _, args := range [][]string{{"task", "finish", "--help"}, {"task", "new", "--help"}, {"init", "--help"}, {"roles", "show", "x", "--help"}, {"milestone", "close", "--help"}, {"checkpoint", "-h"}} {
+		if err := Run(args); err != nil {
+			t.Errorf("%v: %v", args, err)
 		}
 	}
 }

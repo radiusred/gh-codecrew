@@ -13,6 +13,10 @@ import (
 	codecrew "github.com/radiusred/gh-codecrew"
 )
 
+// U is the upstream repository every scaffolded reference resolves to —
+// an adopter's hub holds no copy of the protocol or its docs.
+const U = "https://github.com/radiusred/gh-codecrew/blob/main"
+
 const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see codecrew version
 hub: self
 
@@ -60,7 +64,8 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
   not dispatched as any specific role — then when a role is routed to a
   GitHub App and that role's action is needed (a review, a verdict),
   dispatching a clean-context sub-agent session as that App is authorized
-  and expected; use the dispatch prompt in the hub's docs/identities.md. A
+  and expected; use the dispatch prompt in
+  https://github.com/radiusred/gh-codecrew/blob/main/docs/identities.md. A
   session dispatched *as* a role never dispatches another role — that
   belongs to its coordination layer (platform, orchestrating session, or
   operator) — and never chooses or briefs its own judge.
@@ -148,7 +153,8 @@ func initCmd(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "       gh repo create <owner>/<name> --private --source=. --push")
 	}
 	if *hub == "self" {
-		fmt.Fprintln(w, "\nnext: declare who holds each role in .codecrew.yml (~ = you),")
+		fmt.Fprintln(w, "\nnext: every seat is routed to you (~ in .codecrew.yml); to hand one to a")
+		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
 		fmt.Fprintln(w, "commit, then `codecrew milestone new --title \"...\" --goal \"...\"`")
 	} else {
 		fmt.Fprintf(w, "\nnext: commit the pointer; tasks for this spoke attach to milestones in %s\n", *hub)

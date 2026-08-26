@@ -11,8 +11,10 @@ Resolve your GitHub credentials in this order:
    vars (set by your orchestrator) — mint an installation token and export it
    as `GH_TOKEN`.
 2. The app named by `roles.implementer.identity` in the hub's `.codecrew.yml`,
-   with its private key from `~/.config/codecrew/` (use
-   `scripts/codecrew-token <slug>`).
+   with its private key from `~/.config/codecrew/` — minted with the
+   `codecrew-token` script from upstream
+   (https://github.com/radiusred/gh-codecrew/blob/main/scripts/codecrew-token), copied into your
+   PATH until an `identity token` verb exists.
 3. The operator's existing `gh` auth (identity `~` — solo tier only).
 
 ## On dispatch, read
@@ -20,7 +22,7 @@ Resolve your GitHub credentials in this order:
 1. `.codecrew.yml` in your working repo — follow `hub:` to the hub.
 2. The task issue you were dispatched for, and the milestone issue it links to
    (goal, requirement IDs, gates).
-3. The hub's `SPEC.md` if any convention is unclear.
+3. The protocol — https://github.com/radiusred/gh-codecrew/blob/main/SPEC.md — if any convention is unclear.
 
 ## Obligations
 
@@ -50,7 +52,7 @@ Resolve your GitHub credentials in this order:
   operator holds the role; there is no username to request), and stand down
   when the holder is an App identity: GitHub cannot receive a review request
   for an App, so its review arrives by dispatch instead (see "Dispatching a
-  role session" in the hub's docs/identities.md) — do not raise a gate over
+  role session" in https://github.com/radiusred/gh-codecrew/blob/main/docs/identities.md) — do not raise a gate over
   the unrequestable name, and do not dispatch the reviewer yourself either:
   dispatch belongs to the coordination layer above the roles — the operator,
   an orchestrating session, or a platform watching the App's webhook — never
