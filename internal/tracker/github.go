@@ -205,6 +205,8 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 	var view struct {
 		State          string `json:"state"`
 		ReviewDecision string `json:"reviewDecision"`
+		HeadRefName    string `json:"headRefName"`
+		MergedAt       string `json:"mergedAt"`
 		Author         struct {
 			Login string `json:"login"`
 		} `json:"author"`
@@ -216,15 +218,17 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		} `json:"reviews"`
 	}
 	err := gh.JSON(&view, "pr", "view", fmt.Sprint(number), "--repo", repo,
-		"--json", "state,author,reviews,reviewDecision")
+		"--json", "state,author,reviews,reviewDecision,headRefName,mergedAt")
 	if err != nil {
 		return PR{}, err
 	}
 	pr := PR{
-		Repo:   repo,
-		Number: number,
-		Author: strings.TrimPrefix(view.Author.Login, "app/"),
-		Open:   view.State == "OPEN",
+		Repo:    repo,
+		Number:  number,
+		Author:  strings.TrimPrefix(view.Author.Login, "app/"),
+		HeadRef: view.HeadRefName,
+		Open:    view.State == "OPEN",
+		Merged:  view.MergedAt != "",
 
 		ReviewDecision: view.ReviewDecision,
 	}
@@ -405,4 +409,73 @@ func (GitHub) Task(ref IssueRef) (Task, error) {
 		}
 	}
 	return t, nil
+}
+
+func (GitHub) LinkedBranches(ref IssueRef) ([]string, error) {
+	owner, repo, ok := strings.Cut(ref.Repo, "/")
+	if !ok {
+		return nil, fmt.Errorf("bad repo ref %q", ref.Repo)
+	}
+	var resp struct {
+		Data struct {
+			Repository struct {
+				Issue struct {
+					LinkedBranches struct {
+						Nodes []struct {
+							Ref struct {
+								Name string `json:"name"`
+							} `json:"ref"`
+						} `json:"nodes"`
+					} `json:"linkedBranches"`
+				} `json:"issue"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+	query := `
+query($owner: String!, $repo: String!, $num: Int!) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $num) { linkedBranches(first: 20) { nodes { ref { name } } } }
+  }
+}`
+	if err := gh.JSON(&resp, "api", "graphql", "-f", "query="+query,
+		"-F", "owner="+owner, "-F", "repo="+repo, "-F", fmt.Sprintf("num=%d", ref.Number)); err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, n := range resp.Data.Repository.Issue.LinkedBranches.Nodes {
+		if n.Ref.Name != "" {
+			names = append(names, n.Ref.Name)
+		}
+	}
+	return names, nil
+}
+
+func (g GitHub) BranchAhead(repo, branch string) (int, error) {
+	info, err := g.RepoInfo(repo)
+	if err != nil {
+		return 0, err
+	}
+	var cmp struct {
+		AheadBy int `json:"ahead_by"`
+	}
+	if err := gh.JSON(&cmp, "api", fmt.Sprintf("repos/%s/compare/%s...%s", repo, info.DefaultBranch, branch)); err != nil {
+		return 0, err
+	}
+	return cmp.AheadBy, nil
+}
+
+func (GitHub) DeleteBranch(repo, branch string) error {
+	_, err := gh.Run("api", "-X", "DELETE", fmt.Sprintf("repos/%s/git/refs/heads/%s", repo, branch))
+	return err
+}
+
+func (GitHub) RepoInfo(repo string) (RepoInfo, error) {
+	var r struct {
+		DefaultBranch       string `json:"default_branch"`
+		DeleteBranchOnMerge bool   `json:"delete_branch_on_merge"`
+	}
+	if err := gh.JSON(&r, "api", "repos/"+repo); err != nil {
+		return RepoInfo{}, err
+	}
+	return RepoInfo{DefaultBranch: r.DefaultBranch, DeleteBranchOnMerge: r.DeleteBranchOnMerge}, nil
 }
