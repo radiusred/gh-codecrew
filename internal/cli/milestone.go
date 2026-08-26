@@ -164,7 +164,7 @@ func milestoneClose(w io.Writer, args []string) error {
 	}
 
 	// Gather Decision/Deviation raw material for the doc-synthesizer.
-	records, err := gatherRecords(c, milestone)
+	records, summaries, err := gatherRecords(c, milestone)
 	if err != nil {
 		return err
 	}
@@ -177,6 +177,11 @@ func milestoneClose(w io.Writer, args []string) error {
 	if !hasDoc {
 		fmt.Fprintf(w, "raw material for docs/milestones/%d-<slug>.md (%d records):\n\n", n, len(records))
 		writeRecords(w, records)
+		fmt.Fprintf(w, "task summaries (merged PR descriptions — read directly, never gathered; SPEC §4):\n")
+		for _, line := range summaries {
+			fmt.Fprintf(w, "  %s\n", line)
+		}
+		fmt.Fprintln(w)
 		return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer, merge its PR, rerun", n, c.hub)
 	}
 
@@ -188,34 +193,48 @@ func milestoneClose(w io.Writer, args []string) error {
 	return nil
 }
 
-// gatherRecords collects Decision/Deviation comments from every task issue
-// in the milestone and each task's PRs (open and closed).
-func gatherRecords(c *ctx, m *tracker.Milestone) ([]tracker.Record, error) {
+// gatherRecords collects Decision/Deviation records from every task issue
+// in the milestone and each task's PRs (open and closed), and lists each
+// task's PRs so the doc-synthesizer has the summary pointers without
+// another walk. PR bodies are never gathered (SPEC §4).
+func gatherRecords(c *ctx, m *tracker.Milestone) ([]tracker.Record, []string, error) {
 	var records []tracker.Record
+	var summaries []string
 	for _, ref := range m.Tasks {
 		comments, err := c.t.Comments(ref)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		records = append(records, tracker.ExtractRecords(ref, comments)...)
 		prs, err := c.t.ClosingPRs(ref, true)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		var prRefs []string
 		for _, num := range prs {
 			prRef := tracker.IssueRef{Repo: ref.Repo, Number: num}
 			prComments, err := c.t.Comments(prRef)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			records = append(records, tracker.ExtractRecords(prRef, prComments)...)
+			prRefs = append(prRefs, prRef.String())
+		}
+		if len(prRefs) > 0 {
+			summaries = append(summaries, fmt.Sprintf("%s: %s", ref, strings.Join(prRefs, ", ")))
+		} else {
+			summaries = append(summaries, fmt.Sprintf("%s: no PR", ref))
 		}
 	}
-	return records, nil
+	return records, summaries, nil
 }
 
 func writeRecords(w io.Writer, records []tracker.Record) {
 	for _, r := range records {
-		fmt.Fprintf(w, "---\n%s on %s by @%s (%s)\n\n%s\n\n", r.Kind, r.Source, r.Author, r.URL, r.Body)
+		label := r.Label
+		if label == "" {
+			label = r.Kind
+		}
+		fmt.Fprintf(w, "---\n%s on %s by @%s (%s)\n\n%s\n\n", label, r.Source, r.Author, r.URL, r.Body)
 	}
 }
