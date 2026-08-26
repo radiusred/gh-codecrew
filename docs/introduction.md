@@ -75,8 +75,9 @@ possible ([identities.md](identities.md)).
 on choosing yours). The hub's config also routes the four roles, and `init`
 writes that table for you. Agents dispatched into a CodeCrew repo start at
 [AGENTS.md](../AGENTS.md). Agent identities are GitHub Apps; short-lived
-tokens come from `scripts/codecrew-token` (SPEC §5 and
-[identities.md](identities.md) for the tiers).
+tokens come from the `codecrew-token` script this repo ships — your project
+installs it from upstream, see [identities.md](identities.md) (SPEC §5 for
+the tiers).
 
 **What it has done** — the receipts are on the [landing
 page](../README.md#the-receipts); the per-milestone records are in

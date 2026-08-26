@@ -154,12 +154,17 @@ func TestScaffoldReferencesResolveUpstream(t *testing.T) {
 		t.Fatal(err)
 	}
 	var files []string
-	filepath.Walk(dir, func(p string, info os.FileInfo, _ error) error {
-		if !info.IsDir() {
+	if err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
 			files = append(files, p)
 		}
 		return nil
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	for _, f := range files {
 		data, _ := os.ReadFile(f)
 		for _, bad := range []string{"the hub's docs/", "hub's `SPEC.md`", "hub's SPEC.md", "`scripts/codecrew-token"} {
@@ -171,9 +176,19 @@ func TestScaffoldReferencesResolveUpstream(t *testing.T) {
 }
 
 func TestHelpIsNotAnError(t *testing.T) {
-	for _, args := range [][]string{{"task", "finish", "--help"}, {"task", "new", "--help"}, {"init", "--help"}, {"roles", "show", "x", "--help"}, {"milestone", "close", "--help"}, {"checkpoint", "-h"}} {
+	for _, args := range [][]string{
+		{"task", "finish", "--help"}, {"task", "new", "--help"}, {"init", "--help"},
+		{"roles", "show", "x", "--help"}, {"milestone", "close", "--help"}, {"checkpoint", "-h"},
+		{"task", "new", "--milestone", "999", "--title", "--help"}, // help wins before the verb runs
+	} {
 		if err := Run(args); err != nil {
 			t.Errorf("%v: %v", args, err)
+		}
+	}
+	// A genuine bad argument is still a failure — help must not swallow it.
+	for _, args := range [][]string{{"milestone", "close", "notanumber"}, {"bogusverb"}, {"roles", "show"}} {
+		if err := Run(args); err == nil {
+			t.Errorf("%v: accepted", args)
 		}
 	}
 }

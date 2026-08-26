@@ -41,7 +41,7 @@ const agentsScaffold = `# Agents
 
 This repository is part of a CodeCrew project — coordination state lives in
 GitHub issues and PRs, per the protocol at
-https://github.com/radiusred/gh-codecrew (SPEC.md).
+` + U + `/SPEC.md.
 
 - ` + "`.codecrew.yml`" + ` names the hub; the hub's ` + "`roles/`" + ` holds the role
   contracts. Read the contract for the role you were dispatched as before
@@ -65,7 +65,7 @@ https://github.com/radiusred/gh-codecrew (SPEC.md).
   GitHub App and that role's action is needed (a review, a verdict),
   dispatching a clean-context sub-agent session as that App is authorized
   and expected; use the dispatch prompt in
-  https://github.com/radiusred/gh-codecrew/blob/main/docs/identities.md. A
+  ` + U + `/docs/identities.md. A
   session dispatched *as* a role never dispatches another role — that
   belongs to its coordination layer (platform, orchestrating session, or
   operator) — and never chooses or briefs its own judge.

@@ -11,6 +11,7 @@
   permission set ([docs/identities.md](docs/identities.md)); a reviewer
   App's write access, when granted, is an explicit operator choice that is
   recorded.
-- **Reporting.** Email security@radiusred.uk, or open a private
-  vulnerability report on this repository. Please do not open a public
-  issue for a credential or permission flaw.
+- **Reporting.** Open a private vulnerability report on this repository
+  (Security → Report a vulnerability; enabled), or email
+  opensource@radiusred.uk. Please do not open a public issue for a
+  credential or permission flaw.

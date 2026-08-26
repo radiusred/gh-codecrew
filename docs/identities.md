@@ -152,8 +152,10 @@ quirk), the manual ritual it automates — one App per role:
 Mint a short-lived installation token per invocation — either via the
 env-var path from SPEC §5 (`GITHUB_CLIENT_ID` / `GITHUB_PRIVATE_KEY` /
 `GITHUB_INSTALLATION_ID`, for orchestrators), or with the bootstrap script
-in this repo: `scripts/codecrew-token <app-slug>` — the **full** App slug
-(`myorg-coder`, not `coder`). Then:
+this repo ships — in your own project, install it once with
+`curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
+— then `codecrew-token <app-slug>`, the **full** App slug (`myorg-coder`,
+not `coder`). Then:
 
 - `GH_TOKEN=$tok gh codecrew …` / `GH_TOKEN=$tok gh …` for API actions.
 - Push over HTTPS as `https://x-access-token:$TOKEN@github.com/owner/repo.git`.
@@ -203,7 +205,7 @@ however it is triggered:
   deterministic, so it runs as code, not hope. The qa contract refuses past
   an unreachable record from its side too.
 - **Credentials.** The env-var path from SPEC §5, or
-  `scripts/codecrew-token <slug>`. Beside the private key, `identity new`
+  `codecrew-token <slug>` (the script above). Beside the private key, `identity new`
   writes a credential stub (`~/.config/codecrew/<slug>.json` — the App ID
   and client ID, nothing secret): with it, the helper mints the App's JWT
   and discovers the installation itself, touching no user credential. For
