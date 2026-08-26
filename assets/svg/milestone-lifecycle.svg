@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" width="720" height="210" role="img" aria-labelledby="t">
+  <title id="t">A milestone from open to record: milestone new, task new with a plan, task start, PR, review, task finish, qa verdicts, milestone close, the synthesized document.</title>
+  <style>
+    text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#8a8aa0}
+    .box{fill:#8a8aa0;fill-opacity:0.08;stroke:#8a8aa0;stroke-width:1.5}
+    .m{font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.s{font-size:14px}
+    .arrow{stroke:#8a8aa0;stroke-width:1.5;fill:none;marker-end:url(#a)}
+    .rec{stroke:#1ad1ff}
+  </style>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a8aa0"/></marker></defs>
+  <g>
+    <rect rx="8" class="box" x="16" y="30" width="160" height="44"/><text class="m" x="28" y="57">milestone new</text>
+    <rect rx="8" class="box" x="196" y="30" width="160" height="44"/><text class="m" x="208" y="57">task new + plan</text>
+    <rect rx="8" class="box" x="376" y="30" width="160" height="44"/><text class="m" x="388" y="57">task start</text>
+    <rect rx="8" class="box" x="556" y="30" width="160" height="44"/><text class="m" x="568" y="57">PR + review</text>
+    <path class="arrow" d="M176 52 L194 52"/><path class="arrow" d="M356 52 L374 52"/><path class="arrow" d="M536 52 L554 52"/>
+    <path class="arrow" d="M636 74 C636 100 96 90 96 118"/>
+    <rect rx="8" class="box" x="16" y="120" width="160" height="44"/><text class="m" x="28" y="147">task finish</text>
+    <rect rx="8" class="box" x="196" y="120" width="160" height="44"/><text class="m" x="208" y="147">qa verdicts</text>
+    <rect rx="8" class="box" x="376" y="120" width="160" height="44"/><text class="m" x="388" y="147">milestone close</text>
+    <rect rx="8" class="box rec" x="556" y="120" width="160" height="44"/><text class="m" x="568" y="147" fill="#1ad1ff">milestones/N.md</text>
+    <path class="arrow" d="M176 142 L194 142"/><path class="arrow" d="M356 142 L374 142"/><path class="arrow" d="M536 142 L554 142"/>
+  </g>
+  <text class="s" x="16" y="194">Decisions and deviations are comments written when they happen; close gathers them into the document.</text>
+</svg>
