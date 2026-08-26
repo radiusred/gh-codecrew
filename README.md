@@ -59,8 +59,8 @@ protocol does not change — only the table does.
 hangs tasks off it; the implementer writes a plan into the task before the
 first commit; `task start` cuts the branch; a PR closes the task; `task
 finish` is the one merge point. The qa seat posts a verdict per
-requirement. `milestone close` gathers every recorded decision and
-deviation for the doc-synthesizer, and refuses to close until the
+requirement. `milestone close` gathers the recorded decisions and
+deviations for the doc-synthesizer, and refuses to close until the
 milestone document exists on the default branch.
 
 ### 4. Gates that refuse
@@ -73,8 +73,11 @@ satisfy a gate, and there is no override), `refused[NO_HOLDER_REVIEW]`
 when the routed reviewer has not approved, `refused[VERDICT_MISSING]` when
 a milestone tries to close without a verdict on every requirement,
 `refused[EVIDENCE_UNREACHABLE]` when a link the record cites no longer
-resolves. An agent acts on the code; a human reads the detail. The full
-list is in the [introduction](docs/introduction.md).
+resolves. An agent acts on the code; a human reads the detail. Those are
+four of twenty; the [introduction](docs/introduction.md) shows the ones
+you will meet first, and every code is grep-able in the source as
+`refuse("CODE"` — a proper catalogue is on the docs-polish list, not yet
+written.
 
 ## Start solo in five minutes
 
@@ -121,9 +124,12 @@ actually done so far.
   describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
 
 Things we have not done yet, in the interest of not overselling: any
-backend other than GitHub; a full orchestration-platform run end to end
-(it is on the open milestone); a 1.0. The [roadmap](ROADMAP.md) says which
-milestone is open and what it is for.
+backend other than GitHub; a full orchestration-platform run end to end;
+a gatherer that catches every record variant (the M5 close missed three
+of one issue's four Decisions because they were labelled `**Decision
+(…):**` — the fix is on the open milestone, and the M5 document says so);
+a 1.0. The [roadmap](ROADMAP.md) says which milestone is open and what it
+is for.
 
 ## Read next
 
