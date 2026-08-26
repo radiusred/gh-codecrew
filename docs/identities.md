@@ -82,11 +82,7 @@ opt-in `--with-webhook --webhook-url <receiver>` that subscribes the App to
 the protocol-traffic events for platform users, whose orchestrators watch
 through webhooks on the identity Apps they already own (the watch seam,
 [#54](https://github.com/radiusred/gh-codecrew/issues/54)). The webhook
-secret is printed once at creation and never written to disk. The alternatives weighed — a published manifest template with no
-verb, docs-only tier-sharpening, fine-grained PATs from a second account —
-are recorded there; a shared App published by radiusred stays off the table
-by prior decision, because the framework must never be key custodian for an
-adopter's org.
+secret is printed once at creation and never written to disk.
 
 **Who should climb this way, and who shouldn't:** guided App creation is
 the natural progression for a solo operator whose project is growing in
@@ -230,6 +226,16 @@ fixed, then verified the exact reproduction before approving):
 > review as the App: approve only if sound, otherwise request changes with
 > concrete findings. Report your verdict and evidence back. Do not merge or
 > run task finish.
+
+### Coexistence with Copilot code review
+
+Some teams have Copilot's PR auto-review enabled. Keep it if you like it —
+but it is an **advisory signal alongside** the reviewer role, never the
+role itself: it cannot be role-routed, its comments are not crew-attributed,
+its reviews do not count toward required approvals (GitHub documents this),
+and it needs a paid Copilot plan — platform-tier intentionality applies.
+Nothing about it satisfies SPEC §8's independent-review layer; the
+dispatched reviewer seat does that, whatever else also comments on the PR.
 
 ### Known quirks
 
