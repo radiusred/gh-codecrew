@@ -255,11 +255,20 @@ a Decision:
 A deviation that changes what a requirement means, or an ask-the-human point
 being reached, raises a human gate (§8) instead of being silently recorded.
 
+The label may carry a parenthetical qualifier — `**Decision (superseding the
+R1 counting claim):**` — which is gathered verbatim and carries no
+semantics. Gathering is per labelled *paragraph*: a comment that is one
+record is one record, and a record written after other text in the same
+comment is still found; a label mentioned mid-line is not a record. One
+record per comment remains the practice to prefer.
+
 ### Summary
 
 The PR description, finalized at merge time: what was done, which requirements
 it satisfies, and any deviations (linking the deviation comments). The merged
-PR *is* the task's summary artifact; no separate file is written.
+PR *is* the task's summary artifact; no separate file is written. It is read
+by the doc-synthesizer directly and never gathered as a record: records live
+in comments, and a decision that exists only in a PR body is unrecorded.
 
 ### Commits
 
