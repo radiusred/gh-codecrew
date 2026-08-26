@@ -42,7 +42,7 @@ per-milestone records of the decisions that shaped the system and why.
 
 ## What exists
 
-**Shipped:** v0.5.0 of the `gh` extension. Verbs: `init`, `status`,
+**Shipped:** v0.5.0 of the `gh` extension, implementing protocol 1.0 (SPEC.md; `version` prints both). Verbs: `init`, `status`,
 `milestone new/evidence/close`, `task new/start/finish`, `checkpoint`,
 `role`, `roles diff/show`, `identity new`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
@@ -96,9 +96,15 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty, by the verb that raises
+the agent; the detail is for the human. All twenty-one, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
+
+**any verb that loads `.codecrew.yml`**
+
+- `PROTOCOL_MISMATCH` — the pointer's protocol major differs from the one
+  this binary implements (SPEC §5); `"0.1"` and a missing field proceed
+  with a note.
 
 **`task new`**
 
