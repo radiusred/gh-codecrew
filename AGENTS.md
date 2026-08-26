@@ -9,7 +9,10 @@ to work here:
    dispatched as one of: [implementer](roles/implementer.md),
    [reviewer](roles/reviewer.md), [qa](roles/qa.md),
    [doc-synthesizer](roles/doc-synthesizer.md). If no role was named, you are
-   the implementer.
+   the implementer. Then load the project's extensions to it, in order: the
+   hub's `roles/<role>.local.md`, then the same file in your working repo if
+   it is a spoke — `gh codecrew roles show <role>` prints the whole
+   composition (SPEC §7).
 3. **Resolve your identity** per the contract: orchestrator-injected env vars
    (`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`, `GITHUB_INSTALLATION_ID`) first,
    then the role's app key in `~/.config/codecrew/` via

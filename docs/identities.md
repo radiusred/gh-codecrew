@@ -180,6 +180,11 @@ dispatch authorization never applies to them — the platform watches the
 webhooks and does all dispatching itself. What matters for the dispatch,
 however it is triggered:
 
+- **The contract, composed.** What the session loads is the hub's
+  contract plus the project's local extensions (`roles/<role>.local.md`,
+  hub then spoke — SPEC §7): `gh codecrew roles show <role>` prints exactly
+  that, so a dispatch prompt can point at one command instead of a file
+  list.
 - **Fresh context.** The role session starts clean — no implementation
   conversation, no shared scratch state. Independence is contextual as well
   as credential: an approval means little if the approver watched the code
