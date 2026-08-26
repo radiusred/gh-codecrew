@@ -264,7 +264,8 @@ func ExtractRecords(source IssueRef, comments []Comment) []Record {
 	var records []Record
 	for _, c := range comments {
 		var open *Record
-		for _, para := range paragraphBreak.Split(strings.TrimSpace(c.Body), -1) {
+		body := strings.ReplaceAll(c.Body, "\r\n", "\n") // web-UI comments arrive CRLF
+		for _, para := range paragraphBreak.Split(strings.TrimSpace(body), -1) {
 			para = strings.TrimSpace(para)
 			if para == "" {
 				continue

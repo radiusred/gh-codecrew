@@ -177,7 +177,7 @@ func milestoneClose(w io.Writer, args []string) error {
 	if !hasDoc {
 		fmt.Fprintf(w, "raw material for docs/milestones/%d-<slug>.md (%d records):\n\n", n, len(records))
 		writeRecords(w, records)
-		fmt.Fprintf(w, "task summaries (merged PR descriptions — read directly, never gathered; SPEC §4):\n")
+		fmt.Fprintf(w, "task PRs (open and merged — their descriptions are the task summaries, read directly, never gathered; SPEC §4):\n")
 		for _, line := range summaries {
 			fmt.Fprintf(w, "  %s\n", line)
 		}

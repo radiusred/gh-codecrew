@@ -122,6 +122,15 @@ func TestExtractRecordsVariants(t *testing.T) {
 	}
 }
 
+// A comment typed in GitHub's web UI arrives with CRLF line endings; the
+// paragraph split must still find a record after other text.
+func TestExtractRecordsCRLF(t *testing.T) {
+	records := ExtractRecords(IssueRef{"o/r", 1}, []Comment{{Body: "**Review findings addressed:** done.\r\n\r\n**Deviation:** skipped W.\r\n**Why:** unnecessary.\r\n"}})
+	if len(records) != 1 || records[0].Kind != "Deviation" || !strings.Contains(records[0].Body, "**Why:** unnecessary.") {
+		t.Errorf("CRLF comment: got %+v", records)
+	}
+}
+
 func TestUnresolvedGatesAcceptsQualifiedResolution(t *testing.T) {
 	comments := []Comment{
 		{Body: "**Gate raised:** which path?"},
