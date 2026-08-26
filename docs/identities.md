@@ -68,7 +68,8 @@ pointer-only spoke it prints the routing line instead), and prints what
 stays manual: installing the App (per-account — see step 4 below) and,
 optionally, giving it the crew logo — the manifest has no avatar field and
 no API uploads one, so Display information on the App's settings page is
-where a logo lands.
+where a logo lands. If you want the CodeCrew mark for your own crew, it is
+in the hub's [`assets/`](../assets/) — `codecrew-mark.png` is avatar-sized.
 The App is owned by the hub's account unless `--owner` says otherwise, and
 the verb refuses an App named after a role — crew-member names only. The
 alternatives weighed at the gate — a published manifest template with no
