@@ -74,10 +74,8 @@ when the routed reviewer has not approved, `refused[VERDICT_MISSING]` when
 a milestone tries to close without a verdict on every requirement,
 `refused[EVIDENCE_UNREACHABLE]` when a link the record cites no longer
 resolves. An agent acts on the code; a human reads the detail. Those are
-four of twenty; the [introduction](docs/introduction.md) shows the ones
-you will meet first, and every code is grep-able in the source as
-`refuse("CODE"` — a proper catalogue is on the docs-polish list, not yet
-written.
+four of twenty — the [introduction](docs/introduction.md#refusal-codes)
+catalogues them all, by the verb that raises each.
 
 ## Start solo in five minutes
 
