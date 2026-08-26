@@ -2,6 +2,8 @@
 package cli
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 )
@@ -31,8 +33,25 @@ verbs:
 Blocked gates exit nonzero with "refused[CODE]: detail".
 `
 
-// Run executes one verb.
+// Run executes one verb. --help on any verb prints its usage and is not
+// a failure: flag.ErrHelp maps to a clean exit.
 func Run(args []string) error {
+	err := run(args)
+	if err == nil || errors.Is(err, flag.ErrHelp) {
+		return nil
+	}
+	// Verbs without a flag set take positionals; --help reaches them as a
+	// bad argument. Asking for help is still not a failure.
+	for _, a := range args {
+		if a == "--help" || a == "-h" {
+			fmt.Fprint(os.Stderr, usage)
+			return nil
+		}
+	}
+	return err
+}
+
+func run(args []string) error {
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, usage)
 		return fmt.Errorf("no verb given")
