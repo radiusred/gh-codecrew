@@ -67,6 +67,13 @@ func status(w io.Writer) error {
 		}
 	}
 
+	// The repo's own branch hygiene setting: advisory, like routing — the
+	// verbs clean up regardless (task finish deletes the merged head,
+	// milestone close sweeps), so an unreadable setting is skipped.
+	if info, err := t.RepoInfo(current); err == nil && !info.DeleteBranchOnMerge {
+		fmt.Fprintf(w, "note: %s does not delete branches on merge (GitHub setting) — task finish and milestone close clean up task branches; enable it for other PRs\n", current)
+	}
+
 	// Contract drift: purely local — the embedded contracts ride the
 	// binary, so status can say when a hub's roles/ fork has diverged
 	// from the installed release without touching the network.

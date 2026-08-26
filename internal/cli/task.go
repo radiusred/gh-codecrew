@@ -303,12 +303,14 @@ func taskFinish(w io.Writer, args []string) error {
 			return err
 		}
 		fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
+		deleteHead(w, c.t, pr)
 		return nil
 	}
 	if err := c.t.MergePR(pr.Repo, pr.Number); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
+	deleteHead(w, c.t, pr)
 	return nil
 }
 
