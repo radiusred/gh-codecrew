@@ -1,0 +1,512 @@
+{
+ "milestone": "radiusred/gh-codecrew#67",
+ "gathered_at": "2026-08-26",
+ "sources": [
+  {
+   "ref": "radiusred/gh-codecrew#68",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-5395546592",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-5395550079",
+     "body": "**Gate raised:** Which no-App-fleet onboarding path should CodeCrew offer for role identities? (a) guided creation via the App manifest flow — an 'identity new <role>' verb generating a manifest with the role's minimal permission set and a one-click creation URL; (b) a published, parameterized manifest template in the docs, no CLI verb; (c) lower the need — sharpen the identity-tier docs so adopters mint Apps only when a gate demands independent review, possibly composed with team routing (#44); (d) something else, e.g. fine-grained PATs from a second account (weak attribution — enumerate, likely reject). A radiusred-published shared App is off the table by prior decision. Whichever wins, #34's reviewer-App minting is the proving ground, and docs/identities.md will carry the resolution plus the M4 account-boundary finding.\n\nResolve by replying with a comment starting `**Gate resolved:**` — the decision, and the trade-off if one was weighed — then removing the `cc:needs-decision` label. The resolution is gathered into the milestone record; `task finish` refuses while the label is present or the gate lacks a resolution comment."
+    },
+    {
+     "author": "davison",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-5395599850",
+     "body": "**Gate resolved:**\n\nThe CLI should offer guided app creation; `gh codecrew identity new [role]`\n\nThis is the logical progression for solo operators expanding in sophisitcation with their project. It's almost a requirement for orchestration platforms like `paperclip`. However, it may be a poor option for human teams using codecrew to handle isolated milestones or tasks in the product and the docs should be clear on the recommendations both for human and agent consumption."
+    },
+    {
+     "author": "davison",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/68#issuecomment-5395628341",
+     "body": "There should probably be an optional `---with-webhook` or similar switch to enable the correct events to be received. Most relevant for platform users"
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#69",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#70",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/70#issuecomment-5395821739",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-testy[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/70#issuecomment-5418764507",
+     "body": "**Finding (M5 QA, released v0.5.0):** docs/identities.md carries a duplicated, mid-sentence-spliced passage. What I did: read the guided-creation section at main while verifying the M5-R2 doc obligations. What happened: the \"alternatives weighed\" passage appears twice — once correctly (\"The alternatives weighed at the gate — a published manifest template with no verb, docs-only tier-sharpening, fine-grained PATs from a second account — are recorded there…\"), and a second copy spliced directly after \"The webhook secret is printed once at creation and never written to disk.\" on the same line, garbling the webhook paragraph. Blame: commit bccec89 (this task) added the second copy of the sentence commit 767486e (#68) had already placed. What should happen: the passage appears once, and the webhook paragraph ends at its own sentence. The R2 decision, rejected alternatives, and account-boundary fact are all still carried, so this is a doc-quality defect, not an R2 gap — filed for remediation, verdict on #67 unaffected.\n"
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#71",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#72",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/72#issuecomment-5396611915",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/72#issuecomment-5396637197",
+     "body": "**Release verified.** The v0.3.0 workflow succeeded on the tag (run 32733*, `completed success`); the release is published, not draft, with 5 assets. `gh extension upgrade codecrew` reported v0.2.3 → v0.3.0; `gh codecrew version` prints `v0.3.0`; the help text carries the `identity new` verb; and all four of its refusal paths answer from the released binary — usage without a role, `unknown role`, the role-named-App refusal, and `--with-webhook` without `--webhook-url`. Release parity holds for M5-R1: #34's reviewer-App minting can now exercise the shipped verb. In protocol order throughout: plan, start, tag, verify. No repo change, no PR — closing directly per the release-task precedent (the linked branch stays unused; the known ops-task friction stands).\n"
+    }
+   ],
+   "closing_prs": []
+  },
+  {
+   "ref": "radiusred/gh-codecrew#73",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5398340272",
+     "body": "**Finding (live fire of the shipped v0.3.0 verb):** the minting leg failed at GitHub's manifest validation with `Invalid GitHub App configuration … Error \"url\" wasn't supplied.` The top-level `url` (homepage) was present — the served form decodes to a complete manifest. The actual defect: the webhook-off default sends `\"hook_attributes\": {\"active\": false}` with no `url`, and per the manifest docs `hook_attributes.url` is **required whenever the object is supplied, regardless of `active`** — GitHub's error just doesn't say which `url` it means. Fix: omit `hook_attributes` entirely unless `--with-webhook`; a manifest without it registers an App with no webhook, which is exactly the \"a crew App acts, it never listens\" default. Remediation task follows.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5398340528",
+     "body": "**Decision:** Release parity binds proof runs, not iteration (operator, 2026-08-24, on this task's first live-fire finding). The M4 principle — QA verdicts and stranger-path evidence must cite the binary an adopter installs — stands, scoped: during a live-fire proving loop, discovery runs use local source builds (`codecrew version` prints `dev`, keeping the tier honest in any transcript), and fold-back fixes ride normal tasks with no release per iteration. A single release precedes the recorded proof run: the critical path (minting, first review dispatch, the required-review experiment) re-runs end to end against the shipped binary, and that run is what the Decision and verdicts cite — so release-build-only defects (the #51/#55 class) are still caught where the record depends on them. Trade-off: intermediate iterations lose release-pipeline coverage per cycle. Rejected: a public patch release per fold-back (an ops task and version churn per bug — the friction this task surfaced); prerelease tags with `--pin` (keeps per-iteration pipeline coverage, but retains the ceremony without the proof-run benefit, since the final proof run covers release-build behaviour anyway).\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5398479264",
+     "body": "**Finding (second live fire, source build with the #74 fix):** minting succeeded end to end — manifest accepted, App created, key stored, next steps printed. Two observations: (1) the operator's first name choice was reserved by GitHub; the flow coped — the rejection surfaced on GitHub's confirm page and a rerun with a new name completed cleanly, so no change needed. (2) Ergonomics (operator direction, 2026-08-24): next-step 2 — \"route the role in the hub's .codecrew.yml\" — should not be an instruction. When the verb runs in the hub, the routing table is local; the verb should write the routing itself and say so, with an opt-out for the rare case it's unwanted, falling back to the printed instruction when the table isn't local (pointer-only spokes) or the edit can't be applied safely. Remediation task follows.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5402963241",
+     "body": "**Findings (third live fire: the Codex reviewer dispatch on numberguess M2, PR davison/numberguess#8):**\n\n3. **App holders are not review-requestable.** With `reviewer:` routed to `davison-review-bot`, the implementer obligation from #45 (`--reviewer $(codecrew role reviewer)`) failed — GitHub cannot resolve an App as a review-requestable user. The protocol behaved exactly as designed: Codex raised a checkpoint gate rather than working around it, and the operator resolved it — the App acts through its installation credential and posts its review directly. The obligation's wording and the docs must make the split explicit: human/team holders are requested; App-held seats are *dispatched*.\n4. **`codecrew-token` installation discovery is org-only.** `/orgs/{org}/installations` cannot see an App installed on a personal account, so a second gate had the operator hand-feed App ID 4704266 and installation 156249032. `/user/installations` covers the personal-account case; the script should fall back to it.\n5. **The routing edit lived only in the working tree.** numberguess main's `.codecrew.yml` still reads `reviewer: ~` — the `davison-review-bot` routing was never committed, so the record's role-gated claims aren't checkable against committed config. The M4 \"record exists only in a working tree\" gap, config variant. (#76's routed-then-commit output nudges this; the numberguess commit is the operator's to make.)\n6. **The dispatch model for a sole rider, stated (operator direction, 2026-08-25):** the minimum is the main model assuming the reviewer role in a *separate session with no implementation context*, using the App's credentials; better is the orchestrator dispatching a different model/harness with that App and key — the routing table's `harness:` field is the declared intent. Independence is contextual as well as credential.\n\n**Empirical status of the required-review question:** the App **can** post an approving review (davison-review-bot APPROVED on numberguess#8, which then merged) — capability confirmed. But numberguess main has **no branch protection or ruleset**, so nothing yet tests whether that approval *satisfies a required-review count*. The experiment still needs protection requiring one approving review, then a rerun on the next PR, before the R1 Decision can be recorded.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5402974446",
+     "body": "**Finding 7:** the M2 (\"colourful\") session transcript is not committed anywhere in davison/numberguess — main's SESSION_TRANSCRIPT.md (2ab727a4) ends at M1, and no branch carries an M2 record. Finding 5's pattern repeating on the record itself, and the exact defect that made M4-R4 untestable until remedied. The transcript is the operator's to commit; the fold-back task for the systemic gap (evidence reachable before QA dispatch) is M5-R4's, still to come.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5403029004",
+     "body": "**Finding 8 (from the committed M2 transcript, numberguess task/7 branch c12d9ef3):** the transcript shows more than the PR record does, in three ways that matter to R1.\n\n- **The dispatch model already ran, and well.** The primary Codex session delegated to an isolated reviewer sub-agent with a clean-context prompt — contract first, diff before description, identity-differs-from-author check, token never printed, approve only if sound, no merge, no task finish. That prompt shape is now carried into docs/identities.md (PR #79) as the proven recipe.\n- **The independent review caught a real bug the implementer's tests missed:** styled-mode detection ignored stream encoding, and an ASCII pseudo-TTY crashed with UnicodeEncodeError on the icon set. The reviewer refused approval, the implementer fixed it with a regression test, and the re-review reproduced the exact failing case before approving. De-correlated review demonstrably earned its seat — first hard evidence for the M5-R1 premise.\n- **The request-changes half never reached GitHub.** The first review's verdict (request changes) could not be submitted as the App — the token helper 404'd on the org-only lookup at exactly that moment — so it was reported to the primary agent and addressed via a PR comment; only the final APPROVE exists as an App-posted review. R1 promises \"changes requested, then an approving review\" end to end: the proof run must show both halves as App-posted reviews, on a protected branch.\n\nAlso in the transcript, worth a line each: the reviewer sub-agent independently refused to approve while `cc:needs-decision` was unresolved (the contract held under delegation); it declined to fall back to the operator's credential when the App token failed (no identity smearing under pressure); and `task new --milestone 6` (the GitHub issue number) was refused and self-corrected to `--milestone 2` — the refusal message did its job.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5412720900",
+     "body": "**Decision (M5-R1, the required-review question — answered empirically on the numberguess M3 proof run):** an App's review is protocol review, never GitHub's counted approval. On davison/numberguess#11, CodeCrew's gate accepted `davison-review-bot`'s approval while GitHub held `reviewDecision: REVIEW_REQUIRED`; auto-merge would have waited indefinitely; `--admin` was rejected (`bypass_actors: []` — rulesets have no implicit administrator override); the merge required a bypass actor, added temporarily under a gate and later made standing policy by the operator. The deeper structural finding: the fallback #34 predicted — operator approves on the agent's recommendation — is unavailable exactly in pure solo, because the operator authored the PR and GitHub forbids self-approval.\n\n**Supported configurations, to be documented with platform footprint:** (i) solo, operator-authored PRs — a required-review rule needs the operator as a ruleset bypass actor (numberguess's standing policy), or no count rule at all, with CodeCrew's own gate as the review floor; (ii) crew hubs, App-authored PRs — the App reviews first and any non-author human's approval satisfies the count on its recommendation (this hub's configuration; the reviewer seat can flip to a radiusred App under it); (iii) teams — GitHub's native counts compose with team routing (#44).\n\n**Trade-off:** the bypass path concentrates merge power in the operator where solo already concentrates everything; it is visible in the ruleset and recorded at each use. **Rejected:** wiring `task finish` to expect App approvals to count (the platform says no); telling adopters to drop required-review rules everywhere (loses GitHub-native enforcement precisely where humans participate).\n\n*(Both halves of the R1 review promise landed as App-posted reviews on davison/numberguess#15: changes requested twice — audit-trail chronology findings, held until fixed — then approved.)*\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5412721150",
+     "body": "**Findings 9–12 (the M3 proof run, from M3_SESSION_TRANSCRIPT.md):**\n\n9. **Harness guardrails don't know CodeCrew authorizes dispatch.** Codex declined to auto-dispatch the reviewer: its runtime guardrail requires the user or AGENTS.md to explicitly ask for sub-agents, and nothing in the scaffold does. Remedy: a conditional standing authorization in the AGENTS.md scaffold — addressed to the operator's primary session only; a session dispatched *as* a role never dispatches another role — with the solo/platform tier gradient stated in identities.md. (Operator-confirmed 2026-08-25 that the conditional form preserves the platform invariant: platform-dispatched role agents all fail the condition.)\n10. **`task finish` cannot complete in the App-reviewer + required-review configuration.** Its gates passed, GitHub refused the normal merge, and PRs #11/#13/#15 were merged around the protocol verb with `gh pr merge --admin` — three bypasses of the one merge point the protocol owns. Remedy: refuse with a precise code when the only approvals are uncounted App reviews, and offer an explicit, recorded bypass path inside the verb.\n11. **The v0.3.1 token-helper fallback fails in practice.** Both the M2 and M3 reviewer sessions found `/user/installations` rejected under the operator's gh credential; they minted via raw JWT with operator-supplied IDs. Remedy: `identity new` knows the App ID at creation — persist a credential stub beside the key and discover installations by JWT, removing the user-credential dependence.\n12. **The milestone template's Requirements placeholder matches the requirement parser** (its example `**M2-R1**` is bold), so M2's close refused on a phantom requirement until a verdict was recorded against placeholder text. Remedy: a non-matching placeholder. The record coped honestly — the M2 document preserves the never-defined-requirement gap rather than rewriting it.\n\nPositive notes for the milestone record: the reviewer enforced audit-trail chronology on the milestone document itself (two changes-requested rounds on #15); operator-held QA verdicts and the `DOC_MISSING` chain behaved exactly as designed; and the `--milestone <issue-number>` refusal self-corrected twice.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5413715331",
+     "body": "**Decision (superseding the R1 Decision's counting claim; operator hypothesis 2026-08-25, proven live):** \"an App's review is never GitHub's counted approval\" was too strong. Probe evidence (throwaway radiusred/cc-approval-probe#1, since deleted): under the org ruleset, `reviewDecision` flipped REVIEW_REQUIRED → APPROVED on `radiusred-testy[bot]`'s approval alone. Testy holds `contents: write`; `davison-review-bot` — whose approval did not count on numberguess — holds the reviewer table's deliberate `contents: read`. **Corrected statement: an App's approving review counts toward required-review rules when the App has write access; a read-only App's does not.** (Write access is the documented criterion for counted reviews; org-vs-personal is not fully excluded as a co-factor — the discriminating experiment, bumping davison-review-bot to `contents: write` and probing numberguess, is recorded here for whoever wants the last word.)\n\nConsequences: `task finish`'s merge gate needs no code change — it keys on `reviewDecision`, which is mechanism-agnostic — but the \"never counted\" prose in SPEC §6, docs/identities.md, and the `REVIEW_NOT_COUNTED`/bypass messages must be corrected; and the #34 hub flip calculus changes — a reviewer App minted with `contents: write` can fully satisfy the org gate, making agent-gated merges possible with no bypass. Trade-off to decide at that point: granting write to a role whose contract forbids editing code (privilege beyond contract need, held by an auditable identity) versus keeping least-privilege and the human-approval/bypass paths.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5413733166",
+     "body": "**Decision (operator direction, 2026-08-25):** a model review — clean context, the reviewer role contract, optionally a different harness — is the protocol's expected review, whether or not a human gate also applies. Mechanized where a distinct principal holds the seat: `task finish`'s review gate tightens from \"any non-doer approval\" to *an approving review from the reviewer role's holder* (roles define whose acts count — the #42/#45 rule qa verdicts already follow; other approvals, CODEOWNERS included, remain welcome but not sufficient). In pure solo (reviewer `~`, operator authors), a mandate has no second principal to bind, so the contract and scaffold strongly encourage dispatching a clean-context reviewer session whose findings land as a PR comment before `--operator-confirm`. Evidence base: the numberguess M2/M3 reviews and the hub's own four-PR batch, where clean-context App review caught implementer-blind defects in every round it ran. Trade-off: teams lose the flexibility of \"anyone senior approves\" unless they route the reviewer seat accordingly — routing is the declared intent, so that is a feature.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5413945476",
+     "body": "**Finding 13 (the superseding Decision, operationalized same-day):** PRs #92 and #93 are the hub's first fully agent-gated merges — `task finish` merged both with `reviewDecision: APPROVED` on `radiusred-testy[bot]`'s approval alone (write-access App; no human approval, no bypass). The operator directed the merges; no gate was waived — CodeCrew's non-doer gate and GitHub's required-review rule were both satisfied by the counted App review. Testy remains the qa seat standing in for review by operator direction while #34's dedicated reviewer App is pending; the review cycle it ran (six PRs, three finding rounds, every fix verified by re-experiment) is the M5-R1 premise demonstrated on the hub itself.\n"
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5418240955",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-testy[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/73#issuecomment-5418764382",
+     "body": "**Finding (M5 QA, released v0.5.0):** R1's closing doc clause — \"Coexistence with Copilot code review is stated in the docs\" — is not delivered. What I did: searched every markdown file at main (`grep -rni copilot` over SPEC.md, README.md, docs/, roles/, docs/milestones/) and the full history (`git log --all -i -S copilot`), plus adjacent phrasings (\"advisory\", \"third-party review\"). What happened: zero matches — no statement about Copilot code review exists anywhere in the repository, under that name or any other; CODEOWNERS coexistence is stated (SPEC §6, roles/implementer.md), Copilot's is not. What the record says should happen: M5-R1 (#67) ends \"Coexistence with Copilot code review is stated in the docs\", and this task's plan step 4 asserts \"Fold-backs already merged carry the docs (dispatch recipe, counting rules, coexistence)\" — the dispatch recipe and counting rules are verifiably present in docs/identities.md; the coexistence statement is not. Everything else R1 promises verified live; see the verdict on #67.\n"
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#100",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#74",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/74#issuecomment-5398343754",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#75",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#76",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/76#issuecomment-5398482918",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/76#issuecomment-5398503549",
+     "body": "**Deviation:** one next-step line added beyond the plan — `3. optional: give it the crew logo under Display information: <settings URL>` (org- vs personal-account URL chosen by owner type). Prompted by the operator mid-task (2026-08-24): a CodeCrew project logo is coming and should dress every crew App. The manifest has no avatar field and no API uploads one — the logo is a manual step on the App's settings page — so the verb's best move is handing over the right URL. Tested alongside the routing work.\n"
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#77",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#78",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/78#issuecomment-5402965810",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#79",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#80",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/80#issuecomment-5403262425",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/80#issuecomment-5403278741",
+     "body": "**Release verified.** The v0.3.1 workflow succeeded on the tag (`completed success`); the release is published, not draft, with 5 assets. The dev-loop source install was removed and the released extension installed: `gh codecrew version` prints `v0.3.1`. The fold-back surface answers from the shipped binary — `--no-route` and `--with-webhook` in the verb's usage, `--with-webhook` without `--webhook-url` refused, unknown role refused; the webhook-less hook_attributes omission (#74) and auto-routing (#76) are in the tagged tree, unit-verified at the merged SHAs. Discovery loop closed per the Decision on #73: the numberguess proof run now exercises exactly what an adopter installs. In protocol order: plan, start, tag, verify. No repo change, no PR — closing directly per the release-task precedent.\n"
+    }
+   ],
+   "closing_prs": []
+  },
+  {
+   "ref": "radiusred/gh-codecrew#81",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/81#issuecomment-5412748413",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#87",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#82",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/82#issuecomment-5412802855",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#89",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/89#issuecomment-5413420257",
+       "body": "**Review findings addressed:** (1) the bypass record is now worded as the act, not the outcome — \"Merging with the ruleset's administrator bypass as @X; GitHub enforces eligibility — if this PR remains unmerged, the bypass was refused\" — so a refused bypass leaves a truthful record. (2) `mergeGate` is evaluated before any comment posts: a `REVIEW_NOT_COUNTED` refusal now lands before the operator confirmation is recorded, so a rerun with `--bypass` records the confirmation once. The non-blocking CHANGES_REQUESTED observation is acknowledged in the test's comment, corrected to describe what is actually guaranteed."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#83",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/83#issuecomment-5412770645",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#88",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/88#issuecomment-5413420059",
+       "body": "**Review findings addressed:** (1) the stub-path discovery is now tolerant — a bad stub (wrong App ID, revoked key) falls through to the legacy lookups and their hand-write-a-stub guidance instead of dying under `set -e`; verified live by minting with a deliberately corrupt stub (falls through, still mints via org lookup). (2) owner resolution is lazy and tolerant (`2>/dev/null || true`), so the stub path completes with no gh auth involvement at all — owner remains only a jq preference, falling back to the App's sole installation. The M5-R2 scope note stands: this PR is groundwork under the #68 decision's verb, not the #47 decision itself (that Decision is recorded on #68)."
+      },
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/88#issuecomment-5413474044",
+       "body": "**Review finding addressed:** `lookup()` output is now shape-validated (`grep -E '^[0-9]+ [0-9]+$'`) so an API error body on stdout can never be mistaken for IDs — reproduced your condition (bad stub + failing lookups via a gh shim printing an error JSON) and it now ends with the hand-write-a-stub guidance at exit 1 instead of a garbage JWT and silence. The message nit is fixed too: a present-but-bad stub is reported as such (\"stub at … did not resolve an installation — check its app_id\") rather than \"no stub\". Good-stub and bad-stub-with-org-fallback paths re-smoked, both still mint."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#84",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/84#issuecomment-5412737576",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#86",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/86#issuecomment-5413419871",
+       "body": "**Review finding addressed:** the regression guard now renders the real `milestoneTemplate` (`fmt.Sprintf(milestoneTemplate, \"A goal.\", 2, 2)`) and asserts zero requirement IDs — re-bolding the placeholder now fails the test regardless of wording. The hand-transcribed tracker-package test is removed; the guard lives in the cli package beside the template it guards. Recorded as the deviation the review named: the plan promised a rendered-template guard and the first commit did not deliver one."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#85",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/85#issuecomment-5413693836",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#93",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#90",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/90#issuecomment-5413720397",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#92",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/92#issuecomment-5413891706",
+       "body": "**Review finding addressed:** the two stale sites are corrected — `TestMergeGate`'s doc comment and the `PR.ReviewDecision` field doc both now state the write-access rule and cite the superseding Decision. A full `git grep` sweep for the falsified claim (\"never counts\"/\"are never counted\") comes back clean across Go and docs (milestone documents excepted — they are point-in-time records and stay as written). Your process suggestion is adopted: prose-correction task plans get a grep-sweep step; recorded here for the milestone gatherer."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#91",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/91#issuecomment-5413946344",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#95",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/95#issuecomment-5414046988",
+       "body": "**Review findings addressed:** (1) SPEC §8 layer 2 now states the holder mandate and the model-review norm — the contradiction with the §6 row is gone, and the layer's rationale gains the clause the Decision earned (\"a briefed reviewer shares the briefing's\" blind spots). (2) The new AGENTS scaffold prose gains a phrase assertion in the scaffold test, per your non-blocking note.\n\n**Deviation:** plan step 2 promised refusal-path tests; the cli package has no Tracker fake, so `taskFinish`'s refusal paths are not directly testable today — the pure `holderReviewed` extraction covers the decision logic, and the refusal wiring is inspection-verified (your review's adversarial trace). **Why:** building a Tracker fake is real harness work that deserves its own task rather than riding this one; captured for the backlog. Recording this on the PR per the contract rather than leaving it undeclared.\n\nOn the recurring-theme tally: the sweep step is amended as you suggest — prose-correction and gate-change plans sweep the plan's own named doc targets, not just falsified phrases. The fail-open advisory-routing posture stands as designed; noted for the milestone record."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#94",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/94#issuecomment-5413959868",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#96",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#97",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/97#issuecomment-5418343233",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#101",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/101#issuecomment-5418505489",
+       "body": "**Review finding addressed:** the unrouted-role leak is fixed — the operator fallback now also requires the team-aware `roleFor` to clear the login, so a member of a role-holding team holds no unrouted role; your probe scenario is the new regression test (alice/review-crew refused for unrouted qa, mallory keeps the fallback). On the non-blocking notes: the swallowed-error indistinguishability stands as the documented advisory-routing posture; the \"nested membership verified\" claim is corrected to what it is — the API contract's documented behavior, cited not experimentally verified — and your gh-version observation on `--paginate` raw-mode merging is recorded here for the milestone gatherer (unpinned dependency, worth a capture if it ever bites)."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#98",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/98#issuecomment-5418360986",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#102",
+     "comments": [
+      {
+       "author": "radiusred-cody[bot]",
+       "url": "https://github.com/radiusred/gh-codecrew/pull/102#issuecomment-5418505680",
+       "body": "**Review finding addressed:** the promised httptest round now exists and exercises the real `checkHTTP` — 200, redirect-to-200, 404 (classification asserted), and dead-server — so the deviation is cleared by delivery rather than declaration. Also taken from your non-blocking list, cheaply: `*` joins the excluded charset (bold-wrapped bare URLs extract clean, test updated) and the count grammar is singular-aware. Standing as designed, fail-toward-refusal: paren-containing and slash-branch blob URLs (the ref/path boundary is unknowable without an API call — a false refusal is visible and cheap, a false pass is not), anonymous HTTP for unmapped github.com links (platform-footprint note belongs with a private-hub adopter's docs), and no retry (a gate should be deterministic, not patient)."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#99",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/99#issuecomment-5418121886",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/99#issuecomment-5418141298",
+     "body": "**Release verified.** The v0.4.0 workflow succeeded on the tag (`completed success`); release published, not draft, 5 assets. `gh extension upgrade codecrew` reported v0.3.1 → v0.4.0; `gh codecrew version` prints `v0.4.0`. The M5 surface answers from the shipped binary: `roles diff implementer` reports a match against the embedded v0.4.0 contract (the drift tooling's first live run on a release build); `identity new` refuses `--with-approval-permission` off-reviewer and `--with-webhook` without a URL; usage carries `--bypass`, `--with-approval-permission`, and the `roles` verbs. In protocol order: plan, start, tag, verify. No repo change, no PR — closing directly per the release-task precedent.\n"
+    }
+   ],
+   "closing_prs": []
+  },
+  {
+   "ref": "radiusred/gh-codecrew#103",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/103#issuecomment-5418694810",
+     "body": "**Started by** @radiusred-cody[bot]."
+    },
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/103#issuecomment-5418707460",
+     "body": "**Release verified.** The v0.5.0 workflow succeeded on the tag (`completed success`); release published, 5 assets. `gh extension upgrade codecrew` reported v0.4.0 → v0.5.0; `codecrew version` prints `v0.5.0`; `milestone evidence 5` runs clean from the shipped binary (`all 1 cited link resolve across 21 issues`); and the contract-drift report that v0.4.0's embed produced — the #85 detector's first live catch — clears, as predicted: embedded contracts now match main. In protocol order throughout. No repo change, no PR — closing directly per the release-task precedent.\n"
+    }
+   ],
+   "closing_prs": []
+  },
+  {
+   "ref": "radiusred/gh-codecrew#104",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-cody[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/104#issuecomment-5418775678",
+     "body": "**Started by** @radiusred-cody[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#105",
+     "comments": []
+    }
+   ]
+  },
+  {
+   "ref": "radiusred/gh-codecrew#106",
+   "kind": "issue",
+   "comments": [
+    {
+     "author": "radiusred-wordy[bot]",
+     "url": "https://github.com/radiusred/gh-codecrew/issues/106#issuecomment-5418823407",
+     "body": "**Started by** @radiusred-wordy[bot]."
+    }
+   ],
+   "closing_prs": [
+    {
+     "ref": "radiusred/gh-codecrew#107",
+     "comments": []
+    }
+   ]
+  }
+ ]
+}
