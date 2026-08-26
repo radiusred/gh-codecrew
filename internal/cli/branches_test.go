@@ -36,8 +36,13 @@ type fakeTracker struct {
 	prs     map[int][]int
 	info    map[int]tracker.PR
 	ahead   map[string]int
+	titles  map[int]string
 	deleted []string
 	failDel string
+}
+
+func (f *fakeTracker) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	return tracker.Task{Title: f.titles[ref.Number]}, nil
 }
 
 func (f *fakeTracker) LinkedBranches(ref tracker.IssueRef) ([]string, error) {
@@ -64,23 +69,21 @@ func (f *fakeTracker) DeleteBranch(_, b string) error {
 
 func TestSweepBranches(t *testing.T) {
 	ft := &fakeTracker{
-		linked: map[int][]string{
-			1: {"task/1-merged"},
-			2: {"task/2-release"},   // no PR, nothing ahead
-			3: {"task/3-unmerged"},  // no PR, work on it
-			4: {"task/4-open"},      // open PR
-			5: {"task/5-closed-pr"}, // PR closed unmerged, branch has work
-			6: {"task/6-gone"},      // linked but already deleted
-			7: {"task/7-forbidden"}, // merged, but deletion fails
-		},
-		prs: map[int][]int{1: {11}, 4: {14}, 5: {15}, 7: {17}},
+		// The relation survives only for open tasks: #1's merged branch is
+		// known solely from its PR's head, #2's only from the convention.
+		linked: map[int][]string{4: {"task/4-open"}, 6: {"task/6-gone"}},
+		titles: map[int]string{2: "Release v0.3.0 of the gh extension", 3: "Unmerged work"},
+		prs:    map[int][]int{1: {11}, 4: {14}, 5: {15}, 7: {17}},
 		info: map[int]tracker.PR{
 			11: {HeadRef: "task/1-merged", Merged: true},
 			14: {HeadRef: "task/4-open", Open: true},
 			15: {HeadRef: "task/5-closed-pr"},
 			17: {HeadRef: "task/7-forbidden", Merged: true},
 		},
-		ahead:   map[string]int{"task/2-release": 0, "task/3-unmerged": 2, "task/5-closed-pr": 1},
+		ahead: map[string]int{
+			"task/1-merged": 4, "task/2-release-v0-3-0-of-the-gh-extension": 0,
+			"task/3-unmerged-work": 2, "task/4-open": 1, "task/5-closed-pr": 1, "task/7-forbidden": 3,
+		},
 		failDel: "task/7-forbidden",
 	}
 	m := &tracker.Milestone{}
@@ -92,21 +95,23 @@ func TestSweepBranches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(deleted, ",") != "task/1-merged,task/2-release" {
+	if strings.Join(deleted, ",") != "task/1-merged,task/2-release-v0-3-0-of-the-gh-extension" {
 		t.Errorf("deleted = %v", deleted)
 	}
 	for _, want := range []string{
-		"task/1-merged: deleted (PR merged)",
-		"task/2-release: deleted (no PR, nothing beyond the default branch)",
-		"task/3-unmerged: kept (2 commit(s) not on the default branch, no merged PR)",
+		"task/1-merged: deleted (PR merged)", // 4 ahead — ancestry never mattered
+		"task/2-release-v0-3-0-of-the-gh-extension: deleted (no PR, nothing beyond the default branch)",
+		"task/3-unmerged-work: kept (2 commit(s) not on the default branch, no merged PR)",
 		"task/4-open: kept (open PR)",
 		"task/5-closed-pr: kept (1 commit(s)",
-		"task/6-gone: kept (branch not found)",
 		"task/7-forbidden: kept (PR merged; delete failed",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, out.String())
 		}
+	}
+	if strings.Contains(out.String(), "task/6-gone") {
+		t.Errorf("a branch that no longer exists must be skipped silently:\n%s", out.String())
 	}
 }
 
