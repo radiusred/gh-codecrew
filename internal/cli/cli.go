@@ -36,17 +36,18 @@ Blocked gates exit nonzero with "refused[CODE]: detail".
 // Run executes one verb. --help on any verb prints its usage and is not
 // a failure: flag.ErrHelp maps to a clean exit.
 func Run(args []string) error {
-	err := run(args)
-	if err == nil || errors.Is(err, flag.ErrHelp) {
-		return nil
-	}
-	// Verbs without a flag set take positionals; --help reaches them as a
-	// bad argument. Asking for help is still not a failure.
+	// Asking for help never runs the verb: a --help anywhere in the
+	// arguments prints usage and exits 0 — before any gate, refusal or
+	// side effect could be mistaken for it.
 	for _, a := range args {
 		if a == "--help" || a == "-h" {
 			fmt.Fprint(os.Stderr, usage)
 			return nil
 		}
+	}
+	err := run(args)
+	if errors.Is(err, flag.ErrHelp) {
+		return nil
 	}
 	return err
 }

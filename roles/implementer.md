@@ -11,10 +11,11 @@ Resolve your GitHub credentials in this order:
    vars (set by your orchestrator) — mint an installation token and export it
    as `GH_TOKEN`.
 2. The app named by `roles.implementer.identity` in the hub's `.codecrew.yml`,
-   with its private key from `~/.config/codecrew/` — minted with the
-   `codecrew-token` script from upstream
-   (https://github.com/radiusred/gh-codecrew/blob/main/scripts/codecrew-token), copied into your
-   PATH until an `identity token` verb exists.
+   with its private key from `~/.config/codecrew/`, minted with the
+   `codecrew-token` script from upstream — until an `identity token` verb
+   exists, install it once with
+   `curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
+   — then `codecrew-token <slug>`.
 3. The operator's existing `gh` auth (identity `~` — solo tier only).
 
 ## On dispatch, read
@@ -57,7 +58,8 @@ Resolve your GitHub credentials in this order:
   dispatch belongs to the coordination layer above the roles — the operator,
   an orchestrating session, or a platform watching the App's webhook — never
   to the doer, who must not choose or brief their own judge. Opening the PR
-  is your whole part; the review reaches it without you. CODEOWNERS-driven requests coexist: requested
+  is your whole part; the review reaches it without you. CODEOWNERS-driven
+  requests coexist: requested
   reviewers union, and neither mechanism should be disabled for the other.
 
 ## Never
