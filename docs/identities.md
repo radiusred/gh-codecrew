@@ -1,11 +1,15 @@
 # Identities: running solo, staffing a crew
 
-Roles are contracts, not accounts. Nothing in CodeCrew requires a GitHub App
-to exist before a role can be staffed — a role with no identity acts as the
-human operator, and the whole protocol runs on `gh auth login` alone. App
-identities are infrastructure you add when you want them (attribution) or
-need them (enforced independent review). This document covers both ends:
-the zero-setup solo path, and minting a proper App identity for a role.
+Roles are contracts, not accounts. A seat is held by exactly one of three
+kinds of principal: **you**, the operator (`~` in the routing table — the
+whole protocol runs on `gh auth login` alone); **a human or a team** (a
+username, or `identity: org/team-slug` where any member holds the seat);
+or **a GitHub App identity** minted for a crew member. Nothing requires an
+App to exist before a role can be staffed — App identities are
+infrastructure you add when you want them (attribution) or need them
+(enforced independent review). This document covers the ends of that
+range: the zero-setup solo path, and minting a proper App identity for a
+role — with the advice on which to choose in between.
 
 The conceptual model — identity tiers, credential resolution order — is in
 [SPEC §5](../SPEC.md); this is the operational companion.
@@ -46,6 +50,20 @@ Two honesty notes:
 
 ## Minting a crew member
 
+**Who should climb this way, and who shouldn't:** guided App creation is
+the natural progression for a solo operator whose project is growing in
+sophistication — agents earn attributable seats one at a time — and close
+to a requirement for orchestration platforms (a Paperclip-style platform
+drives every seat through App identities it owns). It is usually the wrong
+first move for a *human* team adopting CodeCrew for isolated milestones or
+tasks: humans are already distinct, attributable principals whose approvals
+GitHub accepts, so route those roles to usernames — or to a GitHub team
+(`identity: org/team-slug`, any member holds the role; SPEC §5 has the
+semantics and the footprint) — and mint Apps only for the seats agents
+actually fill. Agents reading this:
+before recommending `identity new`, check whether the seat in question is
+held by a human — if it is, routing beats minting.
+
 When a role should act as itself — attributable work, and an approver
 distinct from the author — it gets its own **GitHub App**. One App per role,
 named for the crew member, not the role (`myorg-coder`, not
@@ -84,20 +102,6 @@ the protocol-traffic events for platform users, whose orchestrators watch
 through webhooks on the identity Apps they already own (the watch seam,
 [#54](https://github.com/radiusred/gh-codecrew/issues/54)). The webhook
 secret is printed once at creation and never written to disk.
-
-**Who should climb this way, and who shouldn't:** guided App creation is
-the natural progression for a solo operator whose project is growing in
-sophistication — agents earn attributable seats one at a time — and close
-to a requirement for orchestration platforms (a Paperclip-style platform
-drives every seat through App identities it owns). It is usually the wrong
-first move for a *human* team adopting CodeCrew for isolated milestones or
-tasks: humans are already distinct, attributable principals whose approvals
-GitHub accepts, so route those roles to usernames — or to a GitHub team
-(`identity: org/team-slug`, any member holds the role; SPEC §5 has the
-semantics and the footprint) — and mint Apps only for the seats agents
-actually fill. Agents reading this:
-before recommending `identity new`, check whether the seat in question is
-held by a human — if it is, routing beats minting.
 
 When the guided flow can't serve (no browser at hand, an enterprise
 quirk), the manual ritual it automates — one App per role:
@@ -250,11 +254,13 @@ dispatched reviewer seat does that, whatever else also comments on the PR.
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
   the routing table names the bare slug; the CLI normalises this everywhere
   it resolves roles.
-- **Approvals from Apps and required-review rules:** verified both ways —
-  approvals count only from principals with **write access**. An App with
-  `Contents: write` satisfies a required-review rule by its own approval
-  (proven live in the org); one with the reviewer table's read-only set
-  does not (proven live on numberguess) — the superseding Decision on
+- **Approvals from Apps and required-review rules:** count only from
+  principals with **write access** — the full rule, the trade it implies
+  and the `--with-approval-permission` path are in step 2 of the manual
+  ritual above. Verified both ways: an App with `Contents: write`
+  satisfies a required-review rule by its own approval (proven live in the
+  org); one with the read-only set does not (proven live on numberguess) —
+  the superseding Decision on
   [#73](https://github.com/radiusred/gh-codecrew/issues/73). Where the
   approval is uncounted, `task finish` refuses with `REVIEW_NOT_COUNTED`;
   the paths are a non-author human approving on the reviewer's
