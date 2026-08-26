@@ -99,16 +99,94 @@ func TestRolesDiffAndShow(t *testing.T) {
 		}
 	}
 	buf.Reset()
-	if err := rolesShow(&buf, fakeContracts, "qa", true); err != nil {
+	diskRead := func(path string) ([]byte, error) { return os.ReadFile(filepath.Join(dir, path)) }
+	if err := rolesShow(&buf, "qa", true, fakeContracts, diskRead, ""); err != nil {
 		t.Fatal(err)
 	}
 	if buf.String() != "# Role: qa\n" {
 		t.Errorf("show --latest = %q", buf.String())
 	}
-	if err := rolesShow(&buf, fakeContracts, "qa", false); err == nil {
-		t.Error("show without --latest accepted")
+	// Without --latest, the hub's own (stamped) file is what a session loads.
+	buf.Reset()
+	if err := rolesShow(&buf, "qa", false, fakeContracts, diskRead, ""); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(buf.String(), stampPrefix) || !strings.Contains(buf.String(), "# Role: qa\n") {
+		t.Errorf("show (composed, no extension) = %q", buf.String())
+	}
+	if err := rolesShow(&buf, "navigator", false, fakeContracts, diskRead, ""); err == nil {
+		t.Error("show of a role with no hub contract accepted")
 	}
 	if err := rolesDiff(&buf, dir, fakeContracts, "navigator"); err == nil {
 		t.Error("unknown role accepted")
+	}
+}
+
+func TestComposeContractOrder(t *testing.T) {
+	base := "# Role: qa\nBody.\n"
+	if got := composeContract(base, nil); got != base {
+		t.Errorf("no extensions altered the contract: %q", got)
+	}
+	got := composeContract(base, []localPart{
+		{Source: "roles/qa.local.md (hub)", Body: "hub line"},
+		{Source: "roles/qa.local.md (spoke)", Body: "   \n"}, // blank: skipped
+		{Source: "roles/qa.local.md (spoke)", Body: "spoke line\n"},
+	})
+	want := "# Role: qa\nBody.\n\n<!-- extension: roles/qa.local.md (hub) -->\n\nhub line\n\n<!-- extension: roles/qa.local.md (spoke) -->\n\nspoke line\n"
+	if got != want {
+		t.Errorf("composeContract =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestLocalExtensionIsNotDrift(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "roles", "qa"+localSuffix), []byte("- House style.\n"), 0o644)
+	drifted, err := contractDrift(dir, fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drifted) != 0 {
+		t.Errorf("a local extension reported as drift: %v — extensions have no embedded counterpart and must stay invisible to the drift check", drifted)
+	}
+}
+
+func TestComposedContractLayersHubThenSpoke(t *testing.T) {
+	hub, spoke := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(hub, "roles"), 0o755)
+	os.MkdirAll(filepath.Join(spoke, "roles"), 0o755)
+	os.WriteFile(filepath.Join(hub, "roles", "qa.md"), []byte("# Role: qa\n"), 0o644)
+	os.WriteFile(filepath.Join(hub, "roles", "qa"+localSuffix), []byte("hub voice\n"), 0o644)
+	os.WriteFile(filepath.Join(spoke, "roles", "qa"+localSuffix), []byte("spoke voice\n"), 0o644)
+	// From a spoke the hub is read through a fetcher (the tracker in
+	// production); here it reads the hub directory.
+	hubRead := func(path string) ([]byte, error) { return os.ReadFile(filepath.Join(hub, path)) }
+
+	got, err := composedContract("qa", hubRead, spoke)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, s := strings.Index(got, "hub voice"), strings.Index(got, "spoke voice")
+	if !strings.HasPrefix(got, "# Role: qa\n") || h < 0 || s < 0 || h > s {
+		t.Errorf("layering wrong (contract, hub, spoke):\n%s", got)
+	}
+	for _, marker := range []string{"(hub)", "(spoke)"} {
+		if !strings.Contains(got, "<!-- extension: roles/qa.local.md "+marker+" -->") {
+			t.Errorf("missing %s marker:\n%s", marker, got)
+		}
+	}
+	// In the hub itself there is no spoke layer.
+	got, err = composedContract("qa", hubRead, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got, "spoke voice") || !strings.Contains(got, "hub voice") {
+		t.Errorf("hub-mode composition wrong:\n%s", got)
+	}
+	// A role with no contract in the hub is an error, extension or not.
+	if _, err := composedContract("navigator", hubRead, spoke); err == nil {
+		t.Error("missing contract accepted")
 	}
 }

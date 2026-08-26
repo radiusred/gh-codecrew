@@ -11,6 +11,7 @@ import (
 
 	codecrew "github.com/radiusred/gh-codecrew"
 	"github.com/radiusred/gh-codecrew/internal/config"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // stampPrefix opens every provenance stamp contractStamp writes; stripStamp
@@ -132,17 +133,82 @@ func rolesDiff(w io.Writer, dir string, contracts fs.FS, role string) error {
 	return nil
 }
 
-// rolesShow prints the embedded contract whole: the virtual "latest",
-// materialized on demand instead of shadow-copied into the repo.
-func rolesShow(w io.Writer, contracts fs.FS, role string, latest bool) error {
-	if !latest {
-		return fmt.Errorf("usage: codecrew roles show <role> --latest (the local file is readable directly)")
+// localSuffix names a project's append-only extension to a role contract:
+// roles/<role>.local.md, loaded after the contract itself (SPEC §7). It has
+// no embedded counterpart, so contractDrift never sees it — extensions are
+// not drift, and reconciling the contract never has to re-merge them.
+const localSuffix = ".local.md"
+
+// localPart is one extension in load order, labelled by where it came
+// from so the composed text says which repo added each part.
+type localPart struct {
+	Source string // e.g. "roles/qa.local.md (hub)"
+	Body   string
+}
+
+// composeContract appends each non-empty extension to the contract after
+// a blank line and an HTML-comment marker naming its source. Append-only:
+// neither side is parsed, and an extension that contradicts its contract
+// is a review finding, not something a resolver decides.
+func composeContract(base string, locals []localPart) string {
+	var out strings.Builder
+	out.WriteString(base)
+	for _, l := range locals {
+		if strings.TrimSpace(l.Body) == "" {
+			continue
+		}
+		if !strings.HasSuffix(out.String(), "\n") {
+			out.WriteString("\n")
+		}
+		fmt.Fprintf(&out, "\n<!-- extension: %s -->\n\n%s", l.Source, l.Body)
+		if !strings.HasSuffix(l.Body, "\n") {
+			out.WriteString("\n")
+		}
 	}
-	data, err := fs.ReadFile(contracts, "roles/"+role+".md")
+	return out.String()
+}
+
+// composedContract assembles what a dispatched session loads for role:
+// the hub's roles/<role>.md (the project's fork of the contract), then the
+// hub's roles/<role>.local.md, then the working repo's roles/<role>.local.md
+// when it is a spoke (spokeDir non-empty). hubRead fetches a hub path —
+// from disk when the working repo is the hub, through the tracker from a
+// spoke. Missing extensions are skipped; a missing contract is an error.
+func composedContract(role string, hubRead func(string) ([]byte, error), spokeDir string) (string, error) {
+	base, err := hubRead("roles/" + role + ".md")
 	if err != nil {
-		return fmt.Errorf("no embedded contract for role %q", role)
+		return "", fmt.Errorf("no roles/%s.md in the hub", role)
 	}
-	_, err = w.Write(data)
+	var locals []localPart
+	if data, err := hubRead("roles/" + role + localSuffix); err == nil {
+		locals = append(locals, localPart{Source: "roles/" + role + localSuffix + " (hub)", Body: string(data)})
+	}
+	if spokeDir != "" {
+		if data, err := os.ReadFile(filepath.Join(spokeDir, "roles", role+localSuffix)); err == nil {
+			locals = append(locals, localPart{Source: "roles/" + role + localSuffix + " (spoke)", Body: string(data)})
+		}
+	}
+	return composeContract(string(base), locals), nil
+}
+
+// rolesShow prints the contract a dispatched session loads — the hub's
+// contract with its local extensions appended in order — or, with latest,
+// the embedded contract whole: the virtual "latest", materialized on demand
+// instead of shadow-copied into the repo.
+func rolesShow(w io.Writer, role string, latest bool, contracts fs.FS, hubRead func(string) ([]byte, error), spokeDir string) error {
+	if latest {
+		data, err := fs.ReadFile(contracts, "roles/"+role+".md")
+		if err != nil {
+			return fmt.Errorf("no embedded contract for role %q", role)
+		}
+		_, err = w.Write(data)
+		return err
+	}
+	composed, err := composedContract(role, hubRead, spokeDir)
+	if err != nil {
+		return err
+	}
+	_, err = io.WriteString(w, composed)
 	return err
 }
 
@@ -150,7 +216,7 @@ func rolesShow(w io.Writer, contracts fs.FS, role string, latest bool) error {
 // embedded contracts and the local hub checkout.
 func rolesCmd(w io.Writer, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: codecrew roles diff <role> | codecrew roles show <role> --latest")
+		return fmt.Errorf("usage: codecrew roles diff <role> | codecrew roles show <role> [--latest]")
 	}
 	sub, role := args[0], args[1]
 	cfg, err := config.Load(".")
@@ -166,7 +232,19 @@ func rolesCmd(w io.Writer, args []string) error {
 		if err := fs.Parse(args[2:]); err != nil {
 			return err
 		}
-		return rolesShow(w, codecrew.Roles, role, *latest)
+		// In the hub the contract and its extension are on disk; from a
+		// spoke they live in the hub repo (fetched from its default branch)
+		// and only the spoke's own extension is local.
+		hubRead := func(path string) ([]byte, error) {
+			return os.ReadFile(filepath.Join(cfg.Dir, filepath.FromSlash(path)))
+		}
+		spokeDir := ""
+		if cfg.Hub != "self" {
+			hub := cfg.Hub
+			hubRead = func(path string) ([]byte, error) { return tracker.GitHub{}.FileContent(hub, path) }
+			spokeDir = cfg.Dir
+		}
+		return rolesShow(w, role, *latest, codecrew.Roles, hubRead, spokeDir)
 	default:
 		return fmt.Errorf("unknown subcommand roles %s", sub)
 	}
