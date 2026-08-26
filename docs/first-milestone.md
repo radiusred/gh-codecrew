@@ -33,6 +33,9 @@ the agent does the typing and the record proves what happened.
 
 A GitHub account, [`gh`](https://cli.github.com/) installed and signed in
 (`gh auth login`), `git`, and (recommended) your coding agent of choice.
+One thing to know before your first PR: `task finish` refuses a PR that
+reports no CI check at all, with no override — `init` does not write a
+workflow, so step 5 shows the ten-line one you add yourself.
 You and your agent are the whole crew today (SPEC §5 calls this solo
 routing; the [What next](#what-next) ladder covers expanding it).
 
