@@ -259,8 +259,10 @@ The label may carry a parenthetical qualifier — `**Decision (superseding the
 R1 counting claim):**` — which is gathered verbatim and carries no
 semantics. Gathering is per labelled *paragraph*: a comment that is one
 record is one record, and a record written after other text in the same
-comment is still found; a label mentioned mid-line is not a record. One
-record per comment remains the practice to prefer.
+comment is still found. A label that does not open a paragraph — mid-line,
+or at the start of a line inside a paragraph — is not a record, and any
+other bold label opening a later paragraph (`**Finding 3:**`) ends the
+record before it. One record per comment remains the practice to prefer.
 
 ### Summary
 
