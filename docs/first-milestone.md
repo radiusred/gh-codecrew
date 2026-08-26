@@ -120,8 +120,10 @@ gh pr create --fill --body "Closes #3"
 The PR description is the task's summary artifact — say what was done and
 which requirement it satisfies. If a decision came up mid-task (a trade-off,
 a rejected alternative), record it as an issue or PR comment starting
-`**Decision:**` *at the moment you make it* — these comments are collected
-automatically at milestone close.
+`**Decision:**` *at the moment you make it*; if the work departs from the
+plan, a comment starting `**Deviation:**` with a `**Why:**` line. Both
+shapes are collected automatically at milestone close — one record per
+comment, so give each its own.
 
 ## 5. Finish the task
 
@@ -214,14 +216,16 @@ in the crew, and it's a ladder:
 1. **Split the roles across sessions.** Your agent doing the work and then
    verdicting its own milestone shares one context's blind spots. The cheap
    fix: have your harness launch a sub-agent per role, each briefed with the
-   role's contract from `roles/` — a fresh-context QA reading `roles/qa.md`
+   role's contract — `gh codecrew roles show <role>` prints it with any
+   project extensions appended — so a fresh-context QA reading `roles/qa.md`
    probes what the implementer's context wouldn't. Or cross model families:
    dispatch another LLM through its own CLI for the reviewer or qa seat.
    Same identities, same commands — just different eyes.
 2. **Give crew members their own identities.** When you want the record to
    show *which* agent did what — and GitHub itself to enforce that the
-   approver isn't the author — route roles to GitHub App identities (or
-   other humans, by username): [identities.md](identities.md). The protocol
+   approver isn't the author — route roles to other humans by username, to
+   a GitHub team (`identity: org/team-slug`, any member holds the seat), or
+   to GitHub App identities: [identities.md](identities.md). The protocol
    doesn't change; only the routing table does.
 3. **Full orchestration platforms** — an orchestrator dispatching the whole
    crew against the routing table, webhooks instead of polling. Works today
