@@ -23,6 +23,7 @@ func TestBranchAction(t *testing.T) {
 	}{
 		{"merged, tip untouched", merged, true, 5, "abc", true}, // ancestry never mattered
 		{"merged, commits after", merged, true, 7, "def", false},
+		{"merged, no SHA known", tracker.PR{Merged: true}, true, 5, "", false}, // empty == empty must not read as untouched
 		{"open PR", open, true, 0, "x", false},
 		{"closed unmerged, empty", closed, true, 0, "x", true},
 		{"closed unmerged, work", closed, true, 1, "x", false},
@@ -100,7 +101,7 @@ func TestSweepBranches(t *testing.T) {
 		// convention, #9's only from the relation.
 		linked: map[int][]string{6: {"task/6-gone"}, 9: {"task/9-linked-only"}},
 		titles: map[int]string{2: "Release v0.3.0 of the gh extension", 3: "Unmerged work", 10: "Main"},
-		prs:    map[int][]int{1: {11}, 4: {14, 15}, 5: {16}, 7: {17}, 8: {18}, 11: {19}},
+		prs:    map[int][]int{1: {11}, 4: {14, 15}, 5: {16}, 7: {17}, 8: {18}, 11: {19}, 12: {20}},
 		info: map[int]tracker.PR{
 			11: {HeadRef: "task/1-merged", Merged: true, HeadSHA: "m1"},
 			14: {HeadRef: "task/4-open", Merged: true, HeadSHA: "m4"}, // an earlier merged PR…
@@ -109,17 +110,18 @@ func TestSweepBranches(t *testing.T) {
 			17: {HeadRef: "task/7-forbidden", Merged: true, HeadSHA: "m7"},
 			18: {HeadRef: "task/8-moved", Merged: true, HeadSHA: "m8"},
 			19: {HeadRef: "task/11-fork", Merged: true, CrossRepo: true},
+			20: {HeadRef: "main", Merged: true, HeadSHA: "mm"}, // a PR from the default branch itself
 		},
 		ahead: map[string]int{
 			"task/1-merged": 4, "task/2-release-v0-3-0-of-the-gh-extension": 0, "task/3-unmerged-work": 2,
 			"task/4-open": 1, "task/5-closed-pr": 0, "task/7-forbidden": 3, "task/8-moved": 9,
 			"task/9-linked-only": 0, "main": 0, "task/10-main": 0, "task/11-fork": 2,
 		},
-		tips:    map[string]string{"task/1-merged": "m1", "task/7-forbidden": "m7", "task/8-moved": "later"},
+		tips:    map[string]string{"task/1-merged": "m1", "task/7-forbidden": "m7", "task/8-moved": "later", "main": "mm"},
 		failDel: "task/7-forbidden",
 	}
 	m := &tracker.Milestone{}
-	for n := 1; n <= 11; n++ {
+	for n := 1; n <= 12; n++ {
 		m.Tasks = append(m.Tasks, tracker.IssueRef{Repo: "o/r", Number: n})
 	}
 	var out bytes.Buffer

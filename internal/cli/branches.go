@@ -17,7 +17,7 @@ func branchAction(pr tracker.PR, hasPR bool, ahead int, tip string) (del bool, r
 	switch {
 	case hasPR && pr.Open:
 		return false, "open PR"
-	case hasPR && pr.Merged && tip == pr.HeadSHA:
+	case hasPR && pr.Merged && pr.HeadSHA != "" && tip == pr.HeadSHA:
 		return true, "PR merged"
 	case hasPR && pr.Merged:
 		return false, "commits pushed after the PR merged"
