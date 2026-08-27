@@ -27,6 +27,35 @@ review as code.
 There is no server, no dashboard, no new place to look. It is `gh`,
 issues, PRs, and four short role contracts any agent harness can read.
 
+## Start now
+
+Four lines, then one sentence to your agent:
+
+```sh
+gh extension install radiusred/gh-codecrew
+cd my-project            # any repo on GitHub, brand new or years old
+gh codecrew init         # writes .codecrew.yml, roles/, AGENTS.md, CLAUDE.md, ROADMAP.md
+claude                   # or codex, or whichever coding agent you run
+```
+
+> Let's build this project!
+
+That is the whole onboarding. The scaffold tells the agent it is in a
+CodeCrew project and where the rules are; from there it opens the first
+milestone, writes a plan into a task before touching code, does the
+work, opens the PR, and stops at every gate — because the CLI refuses to
+let it do otherwise. **You do not run the verbs. Your agent does.** You
+are needed at exactly three moments: when a gate asks you a question,
+when a PR wants your review, and when a milestone wants your verdict.
+Everything else, including the record of why things happened, takes care
+of itself.
+
+There is one prerequisite worth knowing before the first PR: the repo
+needs pull-request CI of some kind, because `task finish` refuses a PR
+that reports no checks at all (absence never satisfies a gate). Ten lines
+of workflow do; the [quickstart](docs/first-milestone.md#5-finish-the-task)
+shows them, and a project that already has CI is done.
+
 ## How it works, in four beats
 
 ### 1. A hub, and spokes
@@ -77,23 +106,18 @@ resolves. An agent acts on the code; a human reads the detail. Those are
 four of twenty-one — the [introduction](docs/introduction.md#refusal-codes)
 catalogues them all, by the verb that raises each.
 
-## Start solo in five minutes
+## Where it goes from here
 
-```sh
-gh extension install radiusred/gh-codecrew
-gh codecrew version     # gh never auto-updates extensions; know what you have
-gh codecrew init        # scaffold: .codecrew.yml, roles/, AGENTS.md (+ CLAUDE.md, v1.0.1+), ROADMAP.md
-gh codecrew status      # open milestones, task states, raised gates
-gh codecrew help        # the full verb list
-```
-
-That is a working hub with every seat routed to you. The
-[quickstart](docs/first-milestone.md) walks a first milestone end to end —
-open it, plan a task, do the work, verdict it, close it, read the document
-the close produced. From there the
-[ladder](docs/first-milestone.md#what-next) is: split the seats across
-sessions, give crew members their own identities, hand dispatch to an
-orchestrator. Same commands at every rung.
+Every seat starts routed to you (`~` in `.codecrew.yml`): solo is a
+routing configuration, not a reduced protocol. The
+[quickstart](docs/first-milestone.md) walks one milestone end to end with
+that setup — open it, plan a task, do the work, verdict it, close it,
+read the document the close produced. When the project outgrows one
+session, the [ladder](docs/first-milestone.md#what-next) is: split the
+seats across sessions, give crew members their own App identities, hand
+dispatch to an orchestrator. Same commands at every rung; only the
+routing table changes. And `gh` never auto-updates extensions —
+`gh codecrew version` tells you what you have.
 
 ## The receipts
 
