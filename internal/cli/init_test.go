@@ -25,7 +25,7 @@ func TestScaffoldHub(t *testing.T) {
 	if len(skipped) != 0 {
 		t.Errorf("fresh dir skipped %v", skipped)
 	}
-	for _, want := range []string{".codecrew.yml", "ROADMAP.md", "AGENTS.md", filepath.Join("roles", "qa.md")} {
+	for _, want := range []string{".codecrew.yml", "ROADMAP.md", "AGENTS.md", "CLAUDE.md", filepath.Join("roles", "qa.md")} {
 		if !slices.Contains(written, want) {
 			t.Errorf("missing %s from written %v", want, written)
 		}
@@ -190,5 +190,57 @@ func TestHelpIsNotAnError(t *testing.T) {
 		if err := Run(args); err == nil {
 			t.Errorf("%v: accepted", args)
 		}
+	}
+}
+
+// Claude Code loads CLAUDE.md and never AGENTS.md, so the hub scaffold must
+// write a CLAUDE.md whose first line imports the shared entry point — else
+// "gh codecrew init && claude" starts blind (#141).
+func TestScaffoldedClaudeImportsAgents(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _, _ := strings.Cut(string(data), "\n")
+	if first != "@AGENTS.md" {
+		t.Errorf("CLAUDE.md first line = %q, want %q", first, "@AGENTS.md")
+	}
+	if strings.Contains(string(data), "`@AGENTS.md`") {
+		t.Error("the import must not be wrapped in backticks — Claude Code treats that as literal text")
+	}
+}
+
+func TestScaffoldSpokeWritesNoClaude(t *testing.T) {
+	dir := t.TempDir()
+	written, _, err := scaffold(dir, "owner/hub", fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range written {
+		if f == "CLAUDE.md" || f == "AGENTS.md" {
+			t.Errorf("spoke scaffold wrote %s; spokes get only the pointer", f)
+		}
+	}
+}
+
+func TestScaffoldKeepsExistingClaude(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "CLAUDE.md")
+	if err := os.WriteFile(marker, []byte("mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, skipped, err := scaffold(dir, "self", fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(skipped, "CLAUDE.md") {
+		t.Errorf("existing CLAUDE.md not reported as skipped: %v", skipped)
+	}
+	if data, _ := os.ReadFile(marker); string(data) != "mine\n" {
+		t.Error("existing CLAUDE.md was overwritten")
 	}
 }
