@@ -71,6 +71,17 @@ GitHub issues and PRs, per the protocol at
   operator) — and never chooses or briefs its own judge.
 `
 
+// claudeScaffold bridges Claude Code to the harness-neutral entry point:
+// Claude Code loads CLAUDE.md, never AGENTS.md (code.claude.com/docs/en/memory),
+// so without this file a fresh scaffold is invisible to it. The import must
+// be the first line; anything Claude-specific goes below it.
+const claudeScaffold = `@AGENTS.md
+
+<!-- CodeCrew: Claude Code reads CLAUDE.md, not AGENTS.md; the import above
+     loads the entry point every harness shares. Add Claude-specific
+     instructions below it. -->
+`
+
 // scaffold writes the greenfield files into dir. Hub mode (hub == "self")
 // writes the full set; spoke mode writes only the pointer. Existing files
 // are never touched — they are reported as skipped.
@@ -83,6 +94,7 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 	} else {
 		files["ROADMAP.md"] = roadmapScaffold
 		files["AGENTS.md"] = agentsScaffold
+		files["CLAUDE.md"] = claudeScaffold
 		entries, err := fs.ReadDir(contracts, "roles")
 		if err != nil {
 			return nil, nil, err
