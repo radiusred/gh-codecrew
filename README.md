@@ -82,7 +82,7 @@ catalogues them all, by the verb that raises each.
 ```sh
 gh extension install radiusred/gh-codecrew
 gh codecrew version     # gh never auto-updates extensions; know what you have
-gh codecrew init        # scaffold: .codecrew.yml, roles/, AGENTS.md, ROADMAP.md
+gh codecrew init        # scaffold: .codecrew.yml, roles/, AGENTS.md (+ CLAUDE.md, v1.0.1+), ROADMAP.md
 gh codecrew status      # open milestones, task states, raised gates
 gh codecrew help        # the full verb list
 ```

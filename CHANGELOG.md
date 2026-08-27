@@ -6,6 +6,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Launch readiness
+- `init` also writes `CLAUDE.md`, whose first line imports `AGENTS.md`:
+  Claude Code loads `CLAUDE.md` and never `AGENTS.md`, so a fresh scaffold
+  was invisible to the harness most adopters reach for — `gh codecrew init`
+  then `claude` started blind. Found while assessing the README brief
+  (#140). Idempotent like the rest of the scaffold; spokes are unchanged.
+  (#141)
+
 ## [1.0.0] — 2026-08-27
 
 The first stable release of the `gh` extension and of the protocol it
