@@ -41,14 +41,18 @@ claude                   # or codex, or whichever coding agent you run
 > Let's build this project!
 
 That is the whole onboarding. The scaffold tells the agent it is in a
-CodeCrew project and where the rules are; from there it opens the first
-milestone, writes a plan into a task before touching code, does the
-work, opens the PR, and stops at every gate — because the CLI refuses to
-let it do otherwise. **You do not run the verbs. Your agent does.** You
-are needed at exactly three moments: when a gate asks you a question,
-when a PR wants your review, and when a milestone wants your verdict.
-Everything else, including the record of why things happened, takes care
-of itself.
+CodeCrew project and where the contracts are; the contracts give the work
+its shape — a milestone issue, tasks with a plan in them, decisions
+recorded as they happen, a PR per task; and the verbs refuse when a gate
+is not met: `task start` without a plan, `task finish` without green
+checks and an independent approval, `milestone close` without a verdict
+on every requirement. An agent that follows the shape moves through it
+unhindered; one that tries to skip a step meets a refusal it can read.
+**You do not run the verbs. Your agent does.** You are needed at three
+moments: when a gate asks you a question, when a PR wants your review,
+and when a milestone wants your verdict. The record — plans, decisions,
+deviations, and the document synthesized from them at close — is what
+that workflow leaves behind, not something you maintain.
 
 There is one prerequisite worth knowing before the first PR: the repo
 needs pull-request CI of some kind, because `task finish` refuses a PR
