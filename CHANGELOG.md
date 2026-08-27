@@ -6,13 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-08-27
+
 ### Launch readiness
 - `init` also writes `CLAUDE.md`, whose first line imports `AGENTS.md`:
   Claude Code loads `CLAUDE.md` and never `AGENTS.md`, so a fresh scaffold
   was invisible to the harness most adopters reach for — `gh codecrew init`
   then `claude` started blind. Found while assessing the README brief
   (#140). Idempotent like the rest of the scaffold; spokes are unchanged.
-  (#141)
+  (#141, PR #142)
+- The README leads with the four-line start — install, `init`, start your
+  agent, "Let's build this project!" — and says who does what: the agent
+  runs the verbs, the operator answers the gates. (#140)
 
 ## [1.0.0] — 2026-08-27
 
@@ -82,5 +87,6 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/radiusred/gh-codecrew/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/radiusred/gh-codecrew/compare/v0.5.0...v1.0.0
