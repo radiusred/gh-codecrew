@@ -279,8 +279,9 @@ stop using the framework:
   the merged milestone documents under `docs/milestones/` are the audit
   trail; nothing needs deleting for the framework to be gone.
 - **The pointer and contracts** — `.codecrew.yml`, `roles/`, `AGENTS.md`,
-  `ROADMAP.md` in each repo. Delete or keep; they are plain files with no
-  hooks.
+  `CLAUDE.md` (hub only; it imports `AGENTS.md` for Claude Code — keep it
+  if you had one of your own), `ROADMAP.md` in each repo. Delete or keep;
+  they are plain files with no hooks.
 - **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
   created on first use. Remove in the repo's label settings if you like.
 - **Task branches** — `task finish` deletes a merged head and `milestone
