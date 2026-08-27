@@ -20,9 +20,11 @@ The expected division of labour: **your agent runs the loop, you make the
 calls**. The agent acts as orchestrator and implementer in one session — it
 runs the verbs, writes plans into task issues, does the work, opens the
 PRs, and stops at every gate; you review, resolve raised gates, confirm
-merges, and give verdicts. Point the agent at this page (and `AGENTS.md`,
-which `init` writes) and ask it to drive; the refusals keep it honest even
-when you're not watching.
+merges, and give verdicts. Start your agent in the scaffolded repo and
+say "Let's build this project!" — `init` writes the entry point it reads
+(`AGENTS.md`, and from v1.0.1 a `CLAUDE.md` that imports it), so it knows
+where it is; point it at this page too if you want it to follow the long
+form. The refusals keep it honest even when you're not watching.
 
 Every command below is equally pasteable by a human — the protocol is fully
 human-operable end to end, and running one milestone by hand is a fine way

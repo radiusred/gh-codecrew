@@ -6,6 +6,13 @@ it is the map.
 
 ## Read in this order
 
+Two things first, because the pages below can give the wrong impression.
+The verbs are documented so you *can* run them; in practice your coding
+agent runs them and you answer the gates. And the whole of onboarding is
+the four lines on the landing page — install, `init`, start your agent,
+"Let's build this project!" — the quickstart is the long form of what
+happens next, not a prerequisite.
+
 1. [Why you'd want a crew](../README.md) — the landing page: the problem,
    the four beats, the receipts.
 2. **This page** — the three parts, what is shipped, the refusal codes.
