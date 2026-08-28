@@ -6,6 +6,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The close verifies something
+- `milestone close` refuses `NO_REQUIREMENTS` when the milestone's
+  `## Requirements` section yields no bold IDs — previously the verdict
+  gate iterated zero requirements and passed vacuously (the orchestrator
+  run closed a milestone over a "not satisfied" verdict this way, #119
+  finding 28). `milestone new`, `status` and `milestone evidence` say so
+  first; the template says IDs under Goal or Gates do not count. (#144)
+
 ## [1.0.1] — 2026-08-27
 
 ### Launch readiness

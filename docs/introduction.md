@@ -108,7 +108,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-one, by the verb that raises
+the agent; the detail is for the human. All twenty-two, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -157,6 +157,9 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 
 - `NOT_FOUND` — no open milestone with that number.
 - `OPEN_TASKS` — tasks are still open, listed with their inferred state.
+- `NO_REQUIREMENTS` — the milestone's `## Requirements` section yields no
+  bold IDs, so there is nothing to verdict; IDs written elsewhere in the
+  body do not count (`new`, `status` and `evidence` note this first).
 - `VERDICT_MISSING` — a requirement has no QA verdict from the qa holder.
 - `VERDICT_UNSATISFIED` — the latest verdict on a requirement is not
   `satisfied`.
