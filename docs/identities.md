@@ -16,8 +16,10 @@ The conceptual model — identity tiers, credential resolution order — is in
 
 ## Running solo
 
-Prerequisites: a GitHub account, `gh` authenticated (`gh auth login`), the
-extension installed (`gh extension install radiusred/gh-codecrew`), and a
+Prerequisites: a GitHub account, `gh` 2.50.0 or later (`task finish` and
+the close's branch sweep read `gh pr checks --json`, which older `gh`
+lacks; `gh --version`) authenticated (`gh auth login`), the extension
+installed (`gh extension install radiusred/gh-codecrew`), and a
 `.codecrew.yml` in your repo (`hub: self` for a single-repo project).
 
 Everything works, because solo is a routing configuration, not a reduced
@@ -28,7 +30,7 @@ perform the qa contract yourself: post per-requirement verdicts on the
 milestone issue in the standard `**M1-R1 — satisfied.**` form — the close
 gate counts the qa role holder's verdicts, and unrouted, that is you.
 Declare the routing table in your hub's `.codecrew.yml` at onboarding (all
-four roles, `~` for the ones you embody) — `codecrew init` scaffolds exactly
+four roles, `~` for the ones you embody) — `gh codecrew init` scaffolds exactly
 this, along with the roadmap seed and role contracts; an absent table works
 but the CLI will nag.
 
@@ -133,6 +135,14 @@ quirk), the manual ritual it automates — one App per role:
    `identity new reviewer --with-approval-permission`, or mid-life by
    bumping the App's Contents permission in its settings — an escalation
    GitHub itself gates behind the installation's approval of the change.
+
+   The qa row's `Contents: read` is just as deliberate: the seat files
+   what it finds and never fixes it, so it needs no branch and no push —
+   and the permission enforced that mechanically when an orchestrator
+   mapped "write the tests" onto the qa agent, whose push failed 403
+   ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 14). Tests ride the
+   implementer's PR. Do not grant qa write access to make a mis-mapping
+   work; re-map the work.
 3. **Generate a private key** and store it outside any repo. Convention:
    `~/.config/codecrew/<app-slug>.<date>.private-key.pem`.
 4. **Install the App on the org**, scoped to all repositories or at least to
@@ -162,6 +172,16 @@ not `coder`). Then:
 - Commit author is the App's bot user:
   `<slug>[bot] <UID+<slug>[bot]@users.noreply.github.com>`, where UID comes
   from `gh api 'users/<slug>%5Bbot%5D' --jq .id`.
+- Per session, and only as `GH_TOKEN`: never `gh auth login` with an
+  installation token and never persist it — a one-hour token in a shared
+  `hosts.yml` is the next agent's 401. A 401 means the token expired; mint
+  again before anything else. Platforms: give each dispatched agent its own
+  `GH_CONFIG_DIR` (or `HOME`), so no run starts from another identity's
+  dead token ([#119](https://github.com/radiusred/gh-codecrew/issues/119), findings 10 and 22).
+- An App cannot create a repository. The operator creates the hub and each
+  spoke — with any branch rule — before the crew's first act; the scaffold
+  then lands as the operator's commit, or as the project's first PR when
+  the default branch is protected (#119, findings 3 and 4).
 
 ### Dispatching a role session
 
@@ -200,7 +220,7 @@ however it is triggered:
   the routing table is the declared intent, and de-correlated judgment is
   the point of splitting the seats.
 - **QA dispatches start with reachable evidence.** Before dispatching the
-  qa role, the coordination layer runs `codecrew milestone evidence <n>` —
+  qa role, the coordination layer runs `gh codecrew milestone evidence <n>` —
   citations that 404 cost a requirement its verdict once and the check is
   deterministic, so it runs as code, not hope. The qa contract refuses past
   an unreachable record from its side too.
@@ -213,7 +233,12 @@ however it is triggered:
   `{"slug":"<slug>","app_id":<numeric App ID>}` — the account-lookup
   fallbacks depend on what the operator's token happens to see, and
   personal-account installations have twice needed hand-fed IDs without
-  it. The session exports `GH_TOKEN` and is the App.
+  it. The session exports `GH_TOKEN` and is the App. To confirm *which*
+  App, compare the stub's App ID with `gh api /apps/<slug> --jq .id` —
+  the public App record, no token needed. `GET /app` does not work here:
+  it wants the App's own JWT and answers an installation token with a 401
+  ([#139](https://github.com/radiusred/gh-codecrew/issues/139)). After posting, check the review's
+  `user.login` is `<slug>[bot]`.
 - **The reviewer specifically** is never requested through GitHub's
   reviewers field — Apps are not review-requestable, and the implementer
   contract says to stand down rather than gate on it. The dispatched session
@@ -232,12 +257,15 @@ fixed, then verified the exact reproduction before approving):
 > hub's roles/reviewer.md first and follow them exactly. You are not the
 > implementer and must not edit code. Inspect the PR diff BEFORE its
 > description, then the task and milestone issues. Authenticate as
-> `<app-slug>` (mint a token; never print it — use it only as GH_TOKEN).
-> Confirm your identity differs from the PR author. Review correctness,
-> plan, premises, tests, and consequences. Submit an ordinary GitHub PR
-> review as the App: approve only if sound, otherwise request changes with
-> concrete findings. Report your verdict and evidence back. Do not merge or
-> run task finish.
+> `<app-slug>` (mint a token; never print it — use it only as GH_TOKEN, on
+> the same command line as each gh call). Confirm the identity: the App ID
+> in ~/.config/codecrew/<app-slug>.json equals `gh api /apps/<app-slug>
+> --jq .id` (not GET /app, which 401s under an installation token), and it
+> differs from the PR author. Review correctness, plan, premises, tests,
+> and consequences. Submit an ordinary GitHub PR review as the App: approve
+> only if sound, otherwise request changes with concrete findings. Then
+> confirm the review's author is `<app-slug>[bot]`. Report your verdict and
+> evidence back. Do not merge or run task finish.
 
 ### Coexistence with Copilot code review
 

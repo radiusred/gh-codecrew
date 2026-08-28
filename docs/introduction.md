@@ -70,7 +70,7 @@ member holds the role), or a GitHub App identity. Solo is a routing
 configuration, not a degraded tier: the qa holder's verdicts are the ones
 that count at close, and the reviewer holder's approving review is the one
 `task finish` requires. A solo operator therefore needs nothing but `gh auth
-login`; `codecrew init` scaffolds a project with every role routed to `~`.
+login`; `gh codecrew init` scaffolds a project with every role routed to `~`.
 When a project outgrows solo, `identity new <role>` mints a dedicated App
 identity through the manifest flow and routes it for you — minted with
 `--with-approval-permission`, a reviewer App's approvals count toward
@@ -165,7 +165,8 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   `satisfied`.
 - `DOC_MISSING` — `docs/milestones/<n>-*.md` is not on the default branch;
   the gathered records are printed above the refusal for the
-  doc-synthesizer.
+  doc-synthesizer, which delivers the document as a task (plan, `task
+  start`, a PR with `Closes #<task>`, `task finish`).
 
 **`milestone evidence`**
 
