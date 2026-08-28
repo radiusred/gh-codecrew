@@ -35,6 +35,11 @@ func status(w io.Writer) error {
 	var gated []tracker.Task
 	for _, m := range milestones {
 		fmt.Fprintf(w, "%s (%s)\n", m.Title, m.Ref)
+		if body, err := t.IssueBody(m.Ref); err == nil {
+			if ids := tracker.RequirementIDs(body); len(ids) == 0 {
+				fmt.Fprintf(w, "  %s\n", requirementsNote(ids))
+			}
+		}
 		if len(m.Tasks) == 0 {
 			fmt.Fprintln(w, "  no tasks yet")
 		}
