@@ -5,8 +5,8 @@ import "testing"
 func TestParseVersionLine(t *testing.T) {
 	for in, want := range map[string]string{
 		"gh version 2.46.0 (2024-03-20)\nhttps://github.com/cli/cli/releases/tag/v2.46.0\n": "2.46.0",
-		"gh version 2.98.0 (2026-08-01)":                                                    "2.98.0",
-		"gh version 2.50.0-preview (2024-05-29)":                                            "2.50.0",
+		"gh version 2.98.0 (2026-08-01)":         "2.98.0",
+		"gh version 2.50.0-preview (2024-05-29)": "2.50.0",
 	} {
 		got, err := ParseVersionLine(in)
 		if err != nil || got != want {
