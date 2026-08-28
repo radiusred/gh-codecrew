@@ -6,6 +6,35 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The contracts say what runs
+- Every command the contracts, the `AGENTS.md` scaffold and the CLI's own
+  output name is written `gh codecrew …` — the installed form. The qa
+  contract's first act was `codecrew milestone evidence`, and a dispatched
+  qa agent ran it literally into `command not found`, twice (#146, #119
+  finding 31). SPEC keeps the bare name for the protocol's verbs and says
+  so. A test scans the embedded contracts, the scaffold, `init`'s next
+  steps and the usage text for the bare form.
+- The implementer contract carries the identity reflex the orchestrator
+  run showed was missing: mint first, per session, as `GH_TOKEN` only; a
+  401 means mint again, never escalate first; commit as the App's bot
+  user; the env-var names platforms actually inject. Also: no task issue
+  means stop and ask for one, and a decision that hands an obligation to
+  another seat is not the doer's (#119, findings 6, 9, 10, 12–14, 22).
+- The qa contract says why `contents: read` is deliberate; the reviewer
+  contract says to post with the token on the command line and confirm
+  the review's author; the doc-synthesizer delivers the milestone document
+  as a task, and `DOC_MISSING`'s detail names that path instead of "merge
+  its PR" (#119, findings 14 and 27).
+- The dispatch recipe's identity check works under an installation token:
+  the stub's App ID against `gh api /apps/<slug>`, never `GET /app`
+  (#139). `identities.md` also tells platforms to give each agent its own
+  `GH_CONFIG_DIR`, that an App cannot create a repository, and that a
+  protected default branch makes the scaffold the first PR — which `init`'s
+  next step and the quickstart now say too (#119, findings 3, 4, 22).
+- The prerequisites state the `gh` floor: 2.50.0, for `gh pr checks
+  --json`, which `task finish` and the close's sweep read (#119, findings
+  21 and 30; the in-CLI check is #149).
+
 ## [1.0.2] — 2026-08-28
 
 ### The close verifies something
