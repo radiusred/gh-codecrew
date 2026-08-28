@@ -14,6 +14,7 @@ verbs:
   init [--hub owner/repo]                    scaffold a new hub (or spoke pointer)
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
+           [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)
   milestone close <n>                        close a milestone (gates: tasks closed, doc merged)
   milestone evidence <n>                     verify every cited link in the milestone's record resolves
   task new --milestone N --title T           create a task issue, linked into the milestone
