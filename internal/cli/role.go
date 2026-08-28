@@ -23,11 +23,11 @@ func holder(roles map[string]config.Role, name string) (string, error) {
 
 // roleHolder prints the identity a role routes to — an App slug, a human
 // username, or "~" when the role is operator-held. Script-consumable
-// (`--reviewer $(codecrew role reviewer)`), and correct from a pointer-only
+// (`--reviewer $(gh codecrew role reviewer)`), and correct from a pointer-only
 // spoke because resolution falls back to the hub's routing table.
 func roleHolder(w io.Writer, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: codecrew role <name>")
+		return fmt.Errorf("usage: gh codecrew role <name>")
 	}
 	c, err := load()
 	if err != nil {

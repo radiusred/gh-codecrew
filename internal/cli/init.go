@@ -17,7 +17,7 @@ import (
 // an adopter's hub holds no copy of the protocol or its docs.
 const U = "https://github.com/radiusred/gh-codecrew/blob/main"
 
-const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see codecrew version
+const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see gh codecrew version
 hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all four at
@@ -53,10 +53,10 @@ GitHub issues and PRs, per the protocol at
   never the doer. Reviews are model reviews: a clean-context session under
   the reviewer contract — even in pure solo, where its findings land as a
   PR comment before the operator confirms.
-- **Contract drift.** ` + "`codecrew status`" + ` reports when a ` + "`roles/`" + ` contract
+- **Contract drift.** ` + "`gh codecrew status`" + ` reports when a ` + "`roles/`" + ` contract
   differs from the one embedded in the installed CLI. When it does, the
-  coordination layer compares (` + "`codecrew roles diff <role>`" + `, full upstream
-  text via ` + "`codecrew roles show <role> --latest`" + `), decides what to adopt —
+  coordination layer compares (` + "`gh codecrew roles diff <role>`" + `, full upstream
+  text via ` + "`gh codecrew roles show <role> --latest`" + `), decides what to adopt —
   contracts are this project's own fork, and local conventions are
   legitimate — and routes the reconciliation through a normal task and PR
   with the decision recorded. Never overwrite blindly.
@@ -167,7 +167,9 @@ func initCmd(w io.Writer, args []string) error {
 	if *hub == "self" {
 		fmt.Fprintln(w, "\nnext: every seat is routed to you (~ in .codecrew.yml); to hand one to a")
 		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
-		fmt.Fprintln(w, "commit, then `codecrew milestone new --title \"...\" --goal \"...\"`")
+		fmt.Fprintln(w, "commit, then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
+		fmt.Fprintln(w, "(a protected default branch makes the scaffold the project's first PR — no task")
+		fmt.Fprintln(w, " exists yet for `task finish` to merge it, so that one merge is yours)")
 	} else {
 		fmt.Fprintf(w, "\nnext: commit the pointer; tasks for this spoke attach to milestones in %s\n", *hub)
 	}

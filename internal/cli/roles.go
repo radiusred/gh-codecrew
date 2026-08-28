@@ -229,7 +229,7 @@ func rolesShow(w io.Writer, role string, latest bool, contracts fs.FS, hubRead f
 // embedded contracts and the local hub checkout.
 func rolesCmd(w io.Writer, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: codecrew roles diff <role> | codecrew roles show <role> [--latest]")
+		return fmt.Errorf("usage: gh codecrew roles diff <role> | gh codecrew roles show <role> [--latest]")
 	}
 	sub, role := args[0], args[1]
 	cfg, err := loadConfig(".", os.Stderr)

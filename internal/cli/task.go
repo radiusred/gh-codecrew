@@ -76,7 +76,7 @@ func taskNew(w io.Writer, args []string) error {
 
 func taskStart(w io.Writer, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: codecrew task start <ref>")
+		return fmt.Errorf("usage: gh codecrew task start <ref>")
 	}
 	c, err := load()
 	if err != nil {
@@ -142,7 +142,7 @@ func checkpoint(w io.Writer, args []string) error {
 		refArg = fs.Arg(0)
 	}
 	if *question == "" || refArg == "" {
-		return fmt.Errorf("usage: codecrew checkpoint <ref> --question \"...\"")
+		return fmt.Errorf("usage: gh codecrew checkpoint <ref> --question \"...\"")
 	}
 	c, err := load()
 	if err != nil {
@@ -181,7 +181,7 @@ func taskFinish(w io.Writer, args []string) error {
 		refArg = fs.Arg(0)
 	}
 	if refArg == "" {
-		return fmt.Errorf("usage: codecrew task finish <ref> [--operator-confirm] [--bypass]")
+		return fmt.Errorf("usage: gh codecrew task finish <ref> [--operator-confirm] [--bypass]")
 	}
 	c, err := load()
 	if err != nil {

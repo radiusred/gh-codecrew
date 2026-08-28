@@ -98,7 +98,7 @@ func checkURL(url string) error {
 // citations that 404 (findings 5 and 7 on #73 repeated it twice).
 func milestoneEvidence(w io.Writer, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: codecrew milestone evidence <n>")
+		return fmt.Errorf("usage: gh codecrew milestone evidence <n>")
 	}
 	c, err := load()
 	if err != nil {
