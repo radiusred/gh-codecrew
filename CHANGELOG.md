@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-08-28
+
+The orchestrator run's fold-backs (#119): four PRs, one release.
+
+### The floor is a refusal, not a stack trace
+- Every verb that reads `.codecrew.yml` checks the installed `gh` once and
+  refuses `GH_TOO_OLD` below 2.50.0 — the release that added
+  `gh pr checks --json`, which `task finish` and the close's branch sweep
+  read. The crew's container carried a distribution-packaged 2.46: the
+  gate failed inside `gh`, the sweep silently skipped, and the agent found
+  the floor by the failure (#119 findings 21 and 30; #149). The
+  twenty-third refusal code; an unparseable `gh --version` proceeds with
+  a note.
+
 ### The qa seat earns its keep
 - `roles/qa.md` asks for judgment, not a rerun: green tests on merged
   `main` are the floor; for each requirement the verdict says what the

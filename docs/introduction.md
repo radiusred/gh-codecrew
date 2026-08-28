@@ -108,7 +108,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-two, by the verb that raises
+the agent; the detail is for the human. All twenty-three, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -117,6 +117,10 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `PROTOCOL_MISMATCH` — the pointer's protocol major differs from the one
   this binary implements (SPEC §5); `"0.1"` and a missing field proceed
   with a note.
+- `GH_TOO_OLD` — the installed `gh` is older than 2.50.0, the floor
+  `task finish` and the close's branch sweep need (`gh pr checks --json`);
+  the detail names both versions. A `gh --version` banner the CLI cannot
+  parse proceeds with a note.
 
 **`task new`**
 
