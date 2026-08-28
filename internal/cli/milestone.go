@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -18,18 +19,83 @@ const milestoneTemplate = `## Goal
 %s
 
 ## Requirements
-_One line per requirement, its ID in bold: M%d-R1, M%d-R2, … — only
-bolded IDs in this section count as requirements, so this placeholder
-does not, and neither do IDs written under Goal or Gates._
+%s
 
 ## Gates
 _What "done" means beyond CI: e2e suites, manual UAT, sign-offs._
 `
 
+// requirementsPlaceholder is what the Requirements section holds when
+// `milestone new` is given no --requirement; it yields no IDs by design.
+func requirementsPlaceholder(n int) string {
+	return fmt.Sprintf(`_One line per requirement, its ID in bold: M%d-R1, M%d-R2, … — only
+bolded IDs in this section count as requirements, so this placeholder
+does not, and neither do IDs written under Goal or Gates._`, n, n)
+}
+
+// multiFlag collects a repeatable string flag in the order given.
+type multiFlag []string
+
+func (m *multiFlag) String() string     { return strings.Join(*m, "; ") }
+func (m *multiFlag) Set(v string) error { *m = append(*m, v); return nil }
+
+// titlePrefix matches a title that carries its own milestone number.
+var titlePrefix = regexp.MustCompile(`^M(\d+)\s*(?::|—|–|-)\s*`)
+
+// milestoneTitle writes "M<n>: <title>". The CLI derives n, so a title that
+// names a different number is refused rather than doubled: the orchestrator
+// run titled a milestone "M2 — …" while the CLI counted 3 and created
+// "M3: M2 — …", closed as a duplicate (#147). A prefix that agrees is
+// stripped.
+func milestoneTitle(title string, n int) (string, error) {
+	title = strings.TrimSpace(title)
+	m := titlePrefix.FindStringSubmatch(title)
+	if m == nil {
+		return fmt.Sprintf("M%d: %s", n, title), nil
+	}
+	k, _ := strconv.Atoi(m[1])
+	if k != n {
+		return "", fmt.Errorf("milestone new: the title says M%d but the next milestone number is %d — drop the prefix; the CLI writes \"M%d: <title>\"", k, n, n)
+	}
+	rest := strings.TrimSpace(title[len(m[0]):])
+	if rest == "" {
+		return "", fmt.Errorf("milestone new: the title is only a milestone number")
+	}
+	return fmt.Sprintf("M%d: %s", n, rest), nil
+}
+
+// requirementPrefix matches requirement text that already carries an ID.
+var requirementPrefix = regexp.MustCompile(`^\**M\d+-R\d+\**`)
+
+// milestoneBody renders the tracking issue. Each --requirement becomes one
+// bold-ID line under ## Requirements, numbered M<n>-R<i> in the order given
+// — the section the parser reads, so a coordinator never has to write IDs
+// under Goal (#147; #119 findings 19a and 32). Text that brings its own ID
+// is refused: two numbering schemes in one body is how #144 happened.
+func milestoneBody(goal string, n int, reqs []string) (string, error) {
+	if len(reqs) == 0 {
+		return fmt.Sprintf(milestoneTemplate, goal, requirementsPlaceholder(n)), nil
+	}
+	lines := make([]string, 0, len(reqs))
+	for i, r := range reqs {
+		r = strings.TrimSpace(r)
+		if r == "" {
+			return "", fmt.Errorf("milestone new: --requirement %d is empty", i+1)
+		}
+		if requirementPrefix.MatchString(r) {
+			return "", fmt.Errorf("milestone new: --requirement %q carries an ID; the CLI numbers requirements M%d-R1, M%d-R2, … in the order given — pass the text only", r, n, n)
+		}
+		lines = append(lines, fmt.Sprintf("- **M%d-R%d** — %s", n, i+1, r))
+	}
+	return fmt.Sprintf(milestoneTemplate, goal, strings.Join(lines, "\n")), nil
+}
+
 func milestoneNew(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("milestone new", flag.ContinueOnError)
 	title := fs.String("title", "", "milestone title (required)")
 	goal := fs.String("goal", "_To be written._", "one-paragraph goal")
+	var reqs multiFlag
+	fs.Var(&reqs, "requirement", "a requirement's text; repeatable, numbered M<n>-R1, R2, … in order")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -45,17 +111,23 @@ func milestoneNew(w io.Writer, args []string) error {
 		return err
 	}
 	n := tracker.NextMilestoneNumber(titles)
-	fullTitle := fmt.Sprintf("M%d: %s", n, *title)
-	body := fmt.Sprintf(milestoneTemplate, *goal, n, n)
+	fullTitle, err := milestoneTitle(*title, n)
+	if err != nil {
+		return err
+	}
+	body, err := milestoneBody(*goal, n, reqs)
+	if err != nil {
+		return err
+	}
 	ref, err := c.t.CreateIssue(c.hub, fullTitle, body, []string{"cc:milestone"})
 	if err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "created milestone %s (%s)\n", fullTitle, ref)
-	fmt.Fprintln(w, requirementsNote(nil))
+	fmt.Fprintln(w, requirementsNote(tracker.RequirementIDs(body)))
 
 	row := fmt.Sprintf("| M%d | %s | [#%d](https://github.com/%s/issues/%d) | Open |",
-		n, *title, ref.Number, ref.Repo, ref.Number)
+		n, strings.TrimPrefix(fullTitle, fmt.Sprintf("M%d: ", n)), ref.Number, ref.Repo, ref.Number)
 	if c.current == c.hub {
 		if appendRoadmapRow(filepath.Join(c.cfg.Dir, "ROADMAP.md"), row) == nil {
 			fmt.Fprintln(w, "ROADMAP.md updated locally — commit it via your next PR")
