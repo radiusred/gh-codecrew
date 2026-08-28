@@ -38,8 +38,9 @@ branch of yours.
   the plan did not think of — edge cases, integration seams, the unhappy
   paths. A QA engineer walks into a bar and orders a drink; then −1
   drinks; then 999,999 drinks; then a hairbrush. The hairbrush is the
-  probe the suite does not enumerate, and every verdict cites at least
-  one. (The operator's read of the orchestrator run's QA leg, which ran
+  probe the suite does not enumerate, and every satisfied or not-satisfied
+  verdict cites at least one; an untestable verdict says why instead, as
+  it always has. (The operator's read of the orchestrator run's QA leg, which ran
   the implementer's cases with different hands and found nothing —
   [#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 37.)
 - **Reproduce before reporting.** A finding states: what you did, what
@@ -55,8 +56,8 @@ branch of yours.
   ```
 
   A later verdict supersedes your earlier one for the same requirement; say
-  so when re-verifying. A verdict with no findings says what was tried that
-  failed to break it, so "satisfied" carries the same weight as "not
+  so when re-verifying. A satisfied verdict with no findings says what was
+  tried that failed to break it, so it carries the same weight as "not
   satisfied". Every requirement's latest verdict must be
   `satisfied` before the milestone can close. When the qa role is unrouted,
   the human operator holds it and performs this contract themselves — same
