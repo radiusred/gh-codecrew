@@ -28,8 +28,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - The dispatch recipe's identity check works under an installation token:
   the stub's App ID against `gh api /apps/<slug>`, never `GET /app`
   (#139). `identities.md` also tells platforms to give each agent its own
-  `GH_CONFIG_DIR`, that an App cannot create a repository, and that a
-  protected default branch makes the scaffold the first PR — which `init`'s
+  `GH_CONFIG_DIR`, that a crew App's permission set cannot create a
+  repository (no `Administration: write`), and that a protected default
+  branch makes the scaffold the first PR — which `init`'s
   next step and the quickstart now say too (#119, findings 3, 4, 22).
 - The prerequisites state the `gh` floor: 2.50.0, for `gh pr checks
   --json`, which `task finish` and the close's sweep read (#119, findings

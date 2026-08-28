@@ -178,10 +178,12 @@ not `coder`). Then:
   again before anything else. Platforms: give each dispatched agent its own
   `GH_CONFIG_DIR` (or `HOME`), so no run starts from another identity's
   dead token ([#119](https://github.com/radiusred/gh-codecrew/issues/119), findings 10 and 22).
-- An App cannot create a repository. The operator creates the hub and each
-  spoke — with any branch rule — before the crew's first act; the scaffold
-  then lands as the operator's commit, or as the project's first PR when
-  the default branch is protected (#119, findings 3 and 4).
+- A crew App cannot create a repository: creating one under an org takes
+  `Administration: write`, which no role's permission set carries and no
+  contract asks for. The operator creates the hub and each spoke — with
+  any branch rule — before the crew's first act; the scaffold then lands
+  as the operator's commit, or as the project's first PR when the default
+  branch is protected (#119, findings 3 and 4).
 
 ### Dispatching a role session
 
