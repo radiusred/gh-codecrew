@@ -19,7 +19,8 @@ const milestoneTemplate = `## Goal
 
 ## Requirements
 _One line per requirement, its ID in bold: M%d-R1, M%d-R2, … — only
-bolded IDs count as requirements, so this placeholder does not._
+bolded IDs in this section count as requirements, so this placeholder
+does not, and neither do IDs written under Goal or Gates._
 
 ## Gates
 _What "done" means beyond CI: e2e suites, manual UAT, sign-offs._
@@ -51,6 +52,7 @@ func milestoneNew(w io.Writer, args []string) error {
 		return err
 	}
 	fmt.Fprintf(w, "created milestone %s (%s)\n", fullTitle, ref)
+	fmt.Fprintln(w, requirementsNote(nil))
 
 	row := fmt.Sprintf("| M%d | %s | [#%d](https://github.com/%s/issues/%d) | Open |",
 		n, *title, ref.Number, ref.Repo, ref.Number)
@@ -126,13 +128,21 @@ func milestoneClose(w io.Writer, args []string) error {
 		return refuse("OPEN_TASKS", "tasks not closed: %s", strings.Join(open, ", "))
 	}
 
-	// Gate 2: every requirement carries a satisfied QA verdict (a later
-	// verdict supersedes an earlier one; only the qa role's holder counts —
-	// its routed identity, or the human operator when the role is unrouted).
+	// Gate 2: the milestone declares requirements where the parser reads
+	// them. A close that would verify zero requirements is not a close —
+	// numberguess M1 closed over an unsatisfied verdict this way (#144).
 	body, err := c.t.IssueBody(milestone.Ref)
 	if err != nil {
 		return err
 	}
+	ids := tracker.RequirementIDs(body)
+	if err := requireRequirements(milestone.Ref, ids); err != nil {
+		return err
+	}
+
+	// Gate 3: every requirement carries a satisfied QA verdict (a later
+	// verdict supersedes an earlier one; only the qa role's holder counts —
+	// its routed identity, or the human operator when the role is unrouted).
 	comments, err := c.t.Comments(milestone.Ref)
 	if err != nil {
 		return err
@@ -144,7 +154,7 @@ func milestoneClose(w io.Writer, args []string) error {
 		}
 	}
 	var missing, unsatisfied []string
-	for _, id := range tracker.RequirementIDs(body) {
+	for _, id := range ids {
 		state, ok := latest[id]
 		switch {
 		case !ok:
@@ -245,4 +255,25 @@ func writeRecords(w io.Writer, records []tracker.Record) {
 		}
 		fmt.Fprintf(w, "---\n%s on %s by @%s (%s)\n\n%s\n\n", label, r.Source, r.Author, r.URL, r.Body)
 	}
+}
+
+// requireRequirements is milestone close's second gate: a body whose
+// "## Requirements" section yields no bold IDs has nothing to verdict, so
+// the close refuses instead of passing vacuously. IDs written anywhere
+// else in the body are not requirements (the parser is section-scoped so
+// the template's placeholder can never become a phantom requirement).
+func requireRequirements(ref tracker.IssueRef, ids []string) error {
+	if len(ids) > 0 {
+		return nil
+	}
+	return refuse("NO_REQUIREMENTS", "the Requirements section of %s yields no bold IDs (bold IDs elsewhere in the body do not count) — put each requirement under ## Requirements as **M<n>-R<k>** and rerun", ref)
+}
+
+// requirementsNote is the line new, status and evidence print so the
+// section's emptiness is visible long before close refuses over it.
+func requirementsNote(ids []string) string {
+	if len(ids) == 0 {
+		return "note: the Requirements section yields no bold IDs — edit the issue and list each requirement under ## Requirements as **M<n>-R<k>** (IDs elsewhere in the body do not count); milestone close refuses NO_REQUIREMENTS otherwise"
+	}
+	return fmt.Sprintf("requirements counted: %s (%d)", strings.Join(ids, ", "), len(ids))
 }

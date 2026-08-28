@@ -239,6 +239,24 @@ func TestRequirementIDs(t *testing.T) {
 	}
 }
 
+// radiusred/numberguess#3, as the orchestrator run wrote it (#119 finding
+// 28, #144): six bold IDs under "## Goal", the scaffold's placeholder left
+// under "## Requirements". The parser is section-scoped on purpose (the
+// placeholder guard above), so this body yields nothing — and a close over
+// it must refuse rather than verify zero requirements.
+func TestRequirementIDsIgnoresIDsOutsideTheSection(t *testing.T) {
+	body, err := os.ReadFile("testdata/numberguess-m1-body.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "**M1-R6**") {
+		t.Fatal("fixture lost its bold IDs")
+	}
+	if ids := RequirementIDs(string(body)); len(ids) != 0 {
+		t.Errorf("IDs outside the Requirements section counted: %v", ids)
+	}
+}
+
 func TestParseVerdicts(t *testing.T) {
 	comments := []Comment{
 		// M2's actual shape: bullet list, em-dash inside the bold, trailing period.

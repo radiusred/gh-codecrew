@@ -119,6 +119,10 @@ func milestoneEvidence(w io.Writer, args []string) error {
 		return refuse("NOT_FOUND", "no open milestone M%s in %s", args[0], c.hub)
 	}
 
+	if body, err := c.t.IssueBody(milestone.Ref); err == nil {
+		fmt.Fprintln(w, requirementsNote(tracker.RequirementIDs(body)))
+	}
+
 	refs := []tracker.IssueRef{milestone.Ref}
 	subs, err := c.t.SubIssues(milestone.Ref)
 	if err != nil {
