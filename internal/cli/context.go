@@ -45,9 +45,37 @@ func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 	return cfg, nil
 }
 
+// ghFloor is the oldest gh the verbs work with: `gh pr checks --json`
+// (cli/cli#9079, 2.50.0) is what task finish and the close's branch sweep
+// read. A distribution-packaged 2.46 met it as a parse error inside the
+// gate and a silently skipped sweep (#119 findings 21 and 30; #149). Raise
+// it here, in one place, when a verb comes to need a newer gh.
+const ghFloor = "2.50.0"
+
+// ghVersion is a func var so tests can stand in for the installed gh.
+var ghVersion = gh.Version
+
+// checkGH refuses GH_TOO_OLD below the floor. A banner that does not parse
+// proceeds with a note — an unexpected build must not lock the operator
+// out of every verb.
+func checkGH(notes io.Writer) error {
+	v, err := ghVersion()
+	if err != nil {
+		fmt.Fprintf(notes, "note: could not read the gh version (%v); CodeCrew needs gh %s or later\n", err, ghFloor)
+		return nil
+	}
+	if gh.CompareVersions(v, ghFloor) < 0 {
+		return refuse("GH_TOO_OLD", "gh %s installed; CodeCrew needs %s or later (gh pr checks --json, cli/cli#9079) — upgrade gh", v, ghFloor)
+	}
+	return nil
+}
+
 func load() (*ctx, error) {
 	cfg, err := loadConfig(".", os.Stderr)
 	if err != nil {
+		return nil, err
+	}
+	if err := checkGH(os.Stderr); err != nil {
 		return nil, err
 	}
 	current, err := gh.CurrentRepo()

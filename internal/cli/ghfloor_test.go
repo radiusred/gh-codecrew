@@ -1,0 +1,51 @@
+package cli
+
+import (
+	"errors"
+	"strings"
+	"testing"
+)
+
+// The crew's container carried Debian's gh 2.46: task finish died inside
+// `gh pr checks --json` and milestone close skipped its sweep for the same
+// reason, and the agent found the floor by the failure (#119 findings 21,
+// 30; #149). The floor is checked once, up front, with a code.
+func TestCheckGHRefusesBelowTheFloor(t *testing.T) {
+	defer func(orig func() (string, error)) { ghVersion = orig }(ghVersion)
+
+	ghVersion = func() (string, error) { return "2.46.0", nil }
+	var notes strings.Builder
+	err := checkGH(&notes)
+	if err == nil {
+		t.Fatal("gh 2.46.0 passed the floor")
+	}
+	for _, want := range []string{"refused[GH_TOO_OLD]", "2.46.0", ghFloor, "pr checks --json"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal missing %q: %v", want, err)
+		}
+	}
+
+	for _, v := range []string{ghFloor, "2.98.0", "3.0.0"} {
+		ghVersion = func() (string, error) { return v, nil }
+		if err := checkGH(&notes); err != nil {
+			t.Errorf("gh %s refused: %v", v, err)
+		}
+	}
+	if notes.Len() != 0 {
+		t.Errorf("parseable versions produced notes: %q", notes.String())
+	}
+}
+
+// An unrecognised banner is reported, not refused: a build the parser has
+// not met must not lock the operator out of every verb.
+func TestCheckGHNotesAnUnparseableVersion(t *testing.T) {
+	defer func(orig func() (string, error)) { ghVersion = orig }(ghVersion)
+	ghVersion = func() (string, error) { return "", errors.New("gh --version: unrecognised output \"gh (homebrew)\"") }
+	var notes strings.Builder
+	if err := checkGH(&notes); err != nil {
+		t.Fatalf("unparseable banner refused: %v", err)
+	}
+	if !strings.Contains(notes.String(), "note:") || !strings.Contains(notes.String(), ghFloor) {
+		t.Errorf("note missing or does not name the floor: %q", notes.String())
+	}
+}
