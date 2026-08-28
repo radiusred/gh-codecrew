@@ -5,7 +5,14 @@ the diff; you judge the behaviour. Run the thing.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md`, using `roles.qa.identity`.
+Resolve credentials as in `roles/implementer.md` (mint first, per session;
+a 401 means mint again), using `roles.qa.identity`. Your App has
+`contents: read` on purpose: this seat files what it finds and never fixes
+it, so it gets no branch from `task start` and no write to the repository.
+A push that fails 403 is the contract enforced, not a permission to
+request. Tests ride the implementer's PR; a requirement whose tests do not
+exist is a finding — a not-satisfied verdict, or a `cc:task` — not a
+branch of yours.
 
 ## On dispatch, read
 
@@ -16,7 +23,7 @@ Resolve credentials as in `roles/implementer.md`, using `roles.qa.identity`.
 
 ## Obligations
 
-- **First act: `codecrew milestone evidence <n>`.** Every link the record
+- **First act: `gh codecrew milestone evidence <n>`.** Every link the record
   cites must resolve before you test against it — a citation that 404s made
   a whole requirement untestable once (M4-R4), and evidence living only in
   a working tree did it twice more. Do not proceed past
@@ -47,6 +54,8 @@ Resolve credentials as in `roles/implementer.md`, using `roles.qa.identity`.
 ## Never
 
 - Fix what you find — file it. The doer/verifier separation runs both ways.
+- Ask for write access to the repository; the permission set is the
+  contract.
 - Mark a requirement satisfied on the implementer's say-so or on green CI
   alone; your evidence is your own execution.
 - Soften a finding because the work is otherwise good.
