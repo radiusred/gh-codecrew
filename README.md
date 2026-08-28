@@ -54,11 +54,13 @@ and when a milestone wants your verdict. The record — plans, decisions,
 deviations, and the document synthesized from them at close — is what
 that workflow leaves behind, not something you maintain.
 
-There is one prerequisite worth knowing before the first PR: the repo
-needs pull-request CI of some kind, because `task finish` refuses a PR
-that reports no checks at all (absence never satisfies a gate). Ten lines
-of workflow do; the [quickstart](docs/first-milestone.md#5-finish-the-task)
-shows them, and a project that already has CI is done.
+Two prerequisites worth knowing before the first PR. The repo needs
+pull-request CI of some kind, because `task finish` refuses a PR that
+reports no checks at all (absence never satisfies a gate). Ten lines of
+workflow do; the [quickstart](docs/first-milestone.md#5-finish-the-task)
+shows them, and a project that already has CI is done. And `gh` must be
+2.50.0 or later — `task finish` reads `gh pr checks --json`, which a
+distribution-packaged `gh` may predate; `gh --version` says.
 
 ## How it works, in four beats
 
@@ -82,7 +84,11 @@ by username, a GitHub team, or a GitHub App identity minted for the job.
 Solo is not a degraded mode; it is the routing table with every seat
 pointing at you. When a project outgrows that, `identity new <role>` mints
 a dedicated App through GitHub's manifest flow and reroutes the seat. The
-protocol does not change — only the table does.
+protocol does not change — only the table does. One thing does: an
+App-held seat is dispatched, not requested. GitHub drops review requests
+to Apps, so whoever coordinates — you, or your platform — starts the
+reviewer session when a PR opens, and the implementer stands down after
+opening it.
 
 ### 3. A milestone, from open to record
 

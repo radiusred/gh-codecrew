@@ -33,8 +33,10 @@ the agent does the typing and the record proves what happened.
 
 ## 0. Prerequisites
 
-A GitHub account, [`gh`](https://cli.github.com/) installed and signed in
-(`gh auth login`), `git`, and (recommended) your coding agent of choice.
+A GitHub account, [`gh`](https://cli.github.com/) 2.50.0 or later
+installed and signed in (`gh auth login`; `gh --version` to check —
+`task finish` reads `gh pr checks --json`, and a distribution-packaged
+`gh` can be older), `git`, and (recommended) your coding agent of choice.
 One thing to know before your first PR: `task finish` refuses a PR that
 reports no CI check at all, with no override — `init` does not write a
 workflow, so step 5 shows the ten-line one you add yourself.
@@ -66,6 +68,11 @@ v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
 ```sh
 git add -A && git commit -m "chore: scaffold codecrew" && git push
 ```
+
+If your default branch is protected (pull requests required), the
+scaffold is your project's first PR — and the one merge you do yourself:
+no milestone or task exists yet, so there is nothing for `task finish` to
+merge it through. Everything after it goes through a task.
 
 ## 2. Open a milestone
 
