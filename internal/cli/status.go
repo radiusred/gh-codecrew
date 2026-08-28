@@ -12,7 +12,7 @@ import (
 )
 
 func status(w io.Writer) error {
-	cfg, err := loadConfig(".", os.Stderr)
+	cfg, err := loadPointer(os.Stderr)
 	if err != nil {
 		return err
 	}

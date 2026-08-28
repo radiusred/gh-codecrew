@@ -232,7 +232,7 @@ func rolesCmd(w io.Writer, args []string) error {
 		return fmt.Errorf("usage: gh codecrew roles diff <role> | gh codecrew roles show <role> [--latest]")
 	}
 	sub, role := args[0], args[1]
-	cfg, err := loadConfig(".", os.Stderr)
+	cfg, err := loadPointer(os.Stderr)
 	if err != nil {
 		return err
 	}
