@@ -6,6 +6,8 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-08-28
+
 ### The close verifies something
 - `milestone close` refuses `NO_REQUIREMENTS` when the milestone's
   `## Requirements` section yields no bold IDs — previously the verdict
@@ -95,6 +97,7 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/radiusred/gh-codecrew/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/radiusred/gh-codecrew/compare/v0.5.0...v1.0.0
