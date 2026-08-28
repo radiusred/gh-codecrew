@@ -2,6 +2,8 @@ package cli
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -47,5 +49,36 @@ func TestCheckGHNotesAnUnparseableVersion(t *testing.T) {
 	}
 	if !strings.Contains(notes.String(), "note:") || !strings.Contains(notes.String(), ghFloor) {
 		t.Errorf("note missing or does not name the floor: %q", notes.String())
+	}
+}
+
+// Every verb that reads the pointer meets the check before its first gh
+// call — status and roles included, which read the pointer without
+// building a ctx (the reviewer of #153 found them bypassing it).
+func TestEveryPointerReadingVerbMeetsTheFloor(t *testing.T) {
+	defer func(orig func() (string, error)) { ghVersion = orig }(ghVersion)
+	ghVersion = func() (string, error) { return "2.46.0", nil }
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wd, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	var out strings.Builder
+	verbs := map[string]func() error{
+		"status":     func() error { return status(&out) },
+		"roles show": func() error { return rolesCmd(&out, []string{"show", "qa"}) },
+		"load()":     func() error { _, err := load(); return err },
+	}
+	for name, run := range verbs {
+		err := run()
+		if err == nil || !strings.Contains(err.Error(), "refused[GH_TOO_OLD]") {
+			t.Errorf("%s under gh 2.46.0: got %v, want refused[GH_TOO_OLD]", name, err)
+		}
 	}
 }

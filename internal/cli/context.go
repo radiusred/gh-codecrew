@@ -70,12 +70,24 @@ func checkGH(notes io.Writer) error {
 	return nil
 }
 
-func load() (*ctx, error) {
-	cfg, err := loadConfig(".", os.Stderr)
+// loadPointer is the one path every verb that reads the working repo's
+// .codecrew.yml takes: the pointer, then the gh floor. status and roles
+// read the pointer without building a ctx, so the check lives here, not in
+// load() — the reviewer of #153 found it bypassed there.
+func loadPointer(notes io.Writer) (*config.Config, error) {
+	cfg, err := loadConfig(".", notes)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkGH(os.Stderr); err != nil {
+	if err := checkGH(notes); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func load() (*ctx, error) {
+	cfg, err := loadPointer(os.Stderr)
+	if err != nil {
 		return nil, err
 	}
 	current, err := gh.CurrentRepo()
