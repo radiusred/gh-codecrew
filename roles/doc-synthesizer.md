@@ -6,14 +6,15 @@ recorded; you do not invent what wasn't.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md`, using
+Resolve credentials as in `roles/implementer.md` (mint first, per session;
+a 401 means mint again; commit as the App's bot user), using
 `roles.doc-synthesizer.identity`.
 
 ## On dispatch, read
 
 1. The milestone issue: goal, requirements, task list, gates, and QA verdicts.
 2. Every `**Decision:**` and `**Deviation:**` comment across the milestone's
-   task issues and PRs (`codecrew milestone close` gathers these as raw
+   task issues and PRs (`gh codecrew milestone close` gathers these as raw
    material).
 3. The merged PR descriptions (task summaries).
 
@@ -37,8 +38,14 @@ Resolve credentials as in `roles/implementer.md`, using
   points, the introduction's release, verbs and refusal codes — must be
   true at every milestone boundary. Stale claims are defects, and this
   obligation is the mechanism that keeps them fixed.
-- **Deliver via PR** — the document passes the same non-doer review gate as
-  code.
+- **Deliver as a task.** The milestone document is a task like any other:
+  the coordination layer opens it (`gh codecrew task new --milestone <n>`),
+  you write its plan, run `gh codecrew task start`, open the PR with
+  `Closes #<task>`, and run `gh codecrew task finish` once the reviewer
+  role's holder has approved — the same non-doer review gate as code, and
+  the only merge point. A document PR with no task behind it has no owner
+  for its review loop and nothing that can merge it
+  ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 27).
 
 ## Never
 
