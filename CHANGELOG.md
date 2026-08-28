@@ -6,6 +6,17 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The verb takes requirements
+- `milestone new --requirement TEXT` (repeatable) writes each requirement
+  as a bold-ID line under `## Requirements`, numbered `M<n>-R1`, `R2`, …
+  in the order given, and prints the IDs it counted. Both milestones the
+  orchestrator opened had their IDs under Goal, because `--goal` was the
+  only text input the verb offered — the shape #144's `NO_REQUIREMENTS`
+  refuses at close (#147; #119 findings 19a, 28, 32). Text that brings
+  its own ID is refused. A title whose `M<k>` prefix disagrees with the
+  number the CLI derives is refused instead of doubled (numberguess #11,
+  "M3: M2 — …", closed as a duplicate); one that agrees is stripped.
+
 ### The contracts say what runs
 - Every command the contracts, the `AGENTS.md` scaffold and the CLI's own
   output name is written `gh codecrew …` — the installed form. The qa

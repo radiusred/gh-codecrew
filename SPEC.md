@@ -415,7 +415,7 @@ hub).
 |------|--------------|
 | `codecrew status` | Where the project is: open milestones, task states, raised gates; notes contract drift and a repo that does not delete branches on merge. |
 | `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release), and an AGENTS.md entry point; spoke mode writes the two-line pointer. Idempotent — existing files are kept and reported. Scaffolded contracts carry a provenance stamp naming the release that wrote them. |
-| `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template; updates ROADMAP.md. |
+| `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template; each `--requirement` (repeatable) becomes a bold-ID line under `## Requirements`, numbered M<n>-R1, R2, … in the order given — the section the close gate reads — and the IDs counted are printed; text that brings its own ID is refused. The CLI derives n: a title carrying an `M<k>` prefix that disagrees is refused, one that agrees is stripped. Updates ROADMAP.md. |
 | `codecrew task new --milestone <id> --repo <spoke>` | Creates a task issue in the spoke from the template; attaches it to the milestone as a sub-issue. |
 | `codecrew task start <ref>` | Assigns the caller's identity, verifies a plan is present (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. |

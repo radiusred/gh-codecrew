@@ -78,21 +78,27 @@ merge it through. Everything after it goes through a task.
 
 ```sh
 gh codecrew milestone new --title "Walking skeleton" \
-  --goal "A deployed hello-world proving the delivery pipeline end to end."
+  --goal "A deployed hello-world proving the delivery pipeline end to end." \
+  --requirement "visiting the app's URL returns a greeting"
 ```
 
 This creates the milestone tracking issue — the canonical milestone object —
-and adds a row to `ROADMAP.md` (commit it with your next PR). Now edit the
-issue's **Requirements** section, giving each requirement a bold ID the
-tooling can check "done" against:
+and adds a row to `ROADMAP.md` (commit it with your next PR). Each
+`--requirement` (repeat it for more) lands under the issue's
+**Requirements** section with a bold ID the tooling checks "done" against
+— numbered by the CLI, `M1-R1`, `M1-R2`, … in the order you gave them, and
+printed back so you see what the close gate will count:
 
 ```markdown
 ## Requirements
 - **M1-R1** — visiting the app's URL returns a greeting
 ```
 
-Edit it in the web UI, or safely from the shell with fetch-edit-put — pull
-the current body down, change only the Requirements section, put it back:
+Only bold IDs in that section are requirements; ones written under Goal
+are prose, and a milestone with none refuses to close. To add or reword
+one later, edit it in the web UI, or safely from the shell with
+fetch-edit-put — pull the current body down, change only the Requirements
+section, put it back:
 
 ```sh
 gh issue view 1 --json body -q .body > milestone.md
