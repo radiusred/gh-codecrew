@@ -1,5 +1,5 @@
 // Package codecrew embeds the repo's own protocol assets so the shipped
-// binary can scaffold new projects (`codecrew init`) with the role
+// binary can scaffold new projects (`gh codecrew init`) with the role
 // contracts at their installed release — no copies to drift.
 package codecrew
 

@@ -88,7 +88,7 @@ func appendRoadmapRow(path, row string) error {
 
 func milestoneClose(w io.Writer, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: codecrew milestone close <n>")
+		return fmt.Errorf("usage: gh codecrew milestone close <n>")
 	}
 	n, err := strconv.Atoi(strings.TrimPrefix(args[0], "M"))
 	if err != nil {
@@ -192,7 +192,7 @@ func milestoneClose(w io.Writer, args []string) error {
 			fmt.Fprintf(w, "  %s\n", line)
 		}
 		fmt.Fprintln(w)
-		return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer, merge its PR, rerun", n, c.hub)
+		return docMissing(n, c.hub)
 	}
 
 	// Every gate has passed: sweep the tasks' branches — merged or empty
@@ -200,7 +200,7 @@ func milestoneClose(w io.Writer, args []string) error {
 	// closing comment, carry what was removed (M6-R8).
 	swept := sweepBranches(w, c.t, milestone)
 
-	comment := fmt.Sprintf("Closed by `codecrew milestone close %d`: all %d tasks done, milestone document merged.", n, len(milestone.Tasks))
+	comment := fmt.Sprintf("Closed by `gh codecrew milestone close %d`: all %d tasks done, milestone document merged.", n, len(milestone.Tasks))
 	if len(swept) > 0 {
 		comment += fmt.Sprintf(" Swept %d task branch(es): %s.", len(swept), strings.Join(swept, ", "))
 	}
@@ -276,4 +276,13 @@ func requirementsNote(ids []string) string {
 		return "note: the Requirements section yields no bold IDs — edit the issue and list each requirement under ## Requirements as **M<n>-R<k>** (IDs elsewhere in the body do not count); milestone close refuses NO_REQUIREMENTS otherwise"
 	}
 	return fmt.Sprintf("requirements counted: %s (%d)", strings.Join(ids, ", "), len(ids))
+}
+
+// docMissing is the close's last refusal. Its detail names the task path
+// rather than "merge its PR": a document PR with no task behind it has no
+// owner for its review loop and nothing that can merge it — the orchestrator
+// run's coordinator, sent there by the old wording, planned to merge by hand
+// with an App that could not (#119 finding 27).
+func docMissing(n int, hub string) error {
+	return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer as a task: it writes the plan, runs task start, opens the PR with Closes #<task>, and task finish merges it; then rerun", n, hub)
 }

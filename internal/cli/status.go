@@ -85,7 +85,7 @@ func status(w io.Writer) error {
 	if drifted, err := contractDrift(cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
 		fmt.Fprintln(w)
 		for _, role := range drifted {
-			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — codecrew roles diff %s\n", role, version, role)
+			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — gh codecrew roles diff %s\n", role, version, role)
 		}
 	}
 

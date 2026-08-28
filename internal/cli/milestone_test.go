@@ -53,3 +53,23 @@ func TestRequirementsNote(t *testing.T) {
 		t.Errorf("template must yield no IDs, got %v", ids)
 	}
 }
+
+// The close's DOC_MISSING detail once said "dispatch the doc-synthesizer,
+// merge its PR, rerun" — and an orchestrator did exactly that, planning a
+// by-hand merge with an identity that could not. The detail names the task
+// path (#119 finding 27).
+func TestDocMissingNamesTheTaskPath(t *testing.T) {
+	err := docMissing(6, "radiusred/gh-codecrew")
+	if err == nil {
+		t.Fatal("expected refusal, got nil")
+	}
+	msg := err.Error()
+	for _, want := range []string{"refused[DOC_MISSING]", "docs/milestones/6-*.md", "radiusred/gh-codecrew", "task start", "Closes #", "task finish"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("DOC_MISSING detail missing %q: %s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "merge its PR") {
+		t.Errorf("DOC_MISSING detail still sends the coordinator to merge by hand: %s", msg)
+	}
+}

@@ -309,7 +309,7 @@ func identityNew(w io.Writer, args []string) error {
 		role = fs.Arg(0)
 	}
 	if role == "" || fs.NArg() > 1 {
-		return fmt.Errorf("usage: codecrew identity new <role> --name <app-name>")
+		return fmt.Errorf("usage: gh codecrew identity new <role> --name <app-name>")
 	}
 	// Validate the manifest inputs before any repo or API work, so bad
 	// invocations refuse instantly; the real manifest (with the loopback

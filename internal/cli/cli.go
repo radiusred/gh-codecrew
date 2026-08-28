@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const usage = `usage: codecrew <verb>
+const usage = `usage: gh codecrew <verb>
 
 verbs:
   init [--hub owner/repo]                    scaffold a new hub (or spoke pointer)

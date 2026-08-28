@@ -28,6 +28,10 @@ Three parts, in order of importance:
    implements the workflow verbs so agents don't each reimplement the
    conventions, and it runs the deterministic gates as code, not judgment. It
    is the only real software in the framework, and it is deliberately small.
+   Installed as a `gh` extension the command is `gh codecrew`; this document
+   writes the bare `codecrew` when naming the protocol's verbs, and the
+   contracts, the scaffold and the CLI's own output write the runnable form,
+   because they are loaded verbatim as agent instructions.
 
 CodeCrew does **not** dispatch or schedule agents. A human operator, a cron
 job, or an orchestrator does that; CodeCrew defines what a dispatched agent
