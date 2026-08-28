@@ -225,7 +225,10 @@ however it is triggered:
   qa role, the coordination layer runs `gh codecrew milestone evidence <n>` —
   citations that 404 cost a requirement its verdict once and the check is
   deterministic, so it runs as code, not hope. The qa contract refuses past
-  an unreachable record from its side too.
+  an unreachable record from its side too. Brief the seat for what the
+  implementer could not have produced: an assessment of the shipped tests
+  against each requirement and a probe the suite does not enumerate — not
+  a rerun of `npm test` (the contract's hairbrush).
 - **Credentials.** The env-var path from SPEC §5, or
   `codecrew-token <slug>` (the script above). Beside the private key, `identity new`
   writes a credential stub (`~/.config/codecrew/<slug>.json` — the App ID

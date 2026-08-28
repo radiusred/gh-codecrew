@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The qa seat earns its keep
+- `roles/qa.md` asks for judgment, not a rerun: green tests on merged
+  `main` are the floor; for each requirement the verdict says what the
+  shipped suite proves and what it assumes (a gap is a finding even when
+  the behaviour is right), and cites at least one probe the suite does not
+  enumerate — order a hairbrush. A verdict with no findings says what was
+  tried that failed to break it. From the operator's read of the
+  orchestrator run's QA leg, which ran the implementer's cases with
+  different hands and found nothing (#119 finding 37).
+
 ### The verb takes requirements
 - `milestone new --requirement TEXT` (repeatable) writes each requirement
   as a bold-ID line under `## Requirements`, numbered `M<n>-R1`, `R2`, …

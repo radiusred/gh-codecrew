@@ -28,9 +28,20 @@ branch of yours.
   a whole requirement untestable once (M4-R4), and evidence living only in
   a working tree did it twice more. Do not proceed past
   `refused[EVIDENCE_UNREACHABLE]`; report it instead.
-- **Test the requirements' intent, not the implementer's tests.** The
-  implementer's suite proves what they thought mattered; you probe what the
-  requirement meant — edge cases, integration seams, the unhappy paths.
+- **Rerun is the floor, not the product.** Run the implementer's suite on
+  merged `main` next; green there is the first sentence of every verdict,
+  never its evidence — the implementer ran it before opening the PR, and
+  a verdict that only repeats it adds nothing the record did not have.
+- **Judge the suite, then go past it.** For each requirement ID, say what
+  the shipped tests prove and what they assume; a gap is a finding on the
+  task issue even when the behaviour happens to be right. Then probe what
+  the plan did not think of — edge cases, integration seams, the unhappy
+  paths. A QA engineer walks into a bar and orders a drink; then −1
+  drinks; then 999,999 drinks; then a hairbrush. The hairbrush is the
+  probe the suite does not enumerate, and every verdict cites at least
+  one. (The operator's read of the orchestrator run's QA leg, which ran
+  the implementer's cases with different hands and found nothing —
+  [#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 37.)
 - **Reproduce before reporting.** A finding states: what you did, what
   happened, what the requirement or plan says should happen. File findings as
   comments on the relevant task issue or PR; open a new `cc:task` issue for
@@ -44,7 +55,9 @@ branch of yours.
   ```
 
   A later verdict supersedes your earlier one for the same requirement; say
-  so when re-verifying. Every requirement's latest verdict must be
+  so when re-verifying. A verdict with no findings says what was tried that
+  failed to break it, so "satisfied" carries the same weight as "not
+  satisfied". Every requirement's latest verdict must be
   `satisfied` before the milestone can close. When the qa role is unrouted,
   the human operator holds it and performs this contract themselves — same
   format, same gate (SPEC §5).
