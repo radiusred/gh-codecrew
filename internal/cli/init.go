@@ -20,15 +20,17 @@ const U = "https://github.com/radiusred/gh-codecrew/blob/main"
 const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a different major is refused; not the CLI release — see gh codecrew version
 hub: self
 
-# Role routing: who holds each role (SPEC §5). Declare all four at
+# Role routing: who holds each role (SPEC §5). Declare all five at
 # onboarding. ~ routes the role to you, the human operator; replace it with
 # a GitHub App slug or a username to delegate, or an org/team-slug to
-# route the role to any member of a GitHub team.
+# route the role to any member of a GitHub team. The coordinator is the
+# seat that dispatches the other four (SPEC §7); unrouted, it is you.
 roles:
   implementer: { identity: ~ }
   reviewer: { identity: ~ }
   qa: { identity: ~ }
   doc-synthesizer: { identity: ~ }
+  coordinator: { identity: ~ }
 `
 
 const roadmapScaffold = `# Roadmap

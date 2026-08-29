@@ -36,3 +36,26 @@ func TestHolder(t *testing.T) {
 		}
 	}
 }
+
+// A 1.0 hub's table predates the coordinator row; the seat exists
+// regardless and, absent from the table, is the operator's — so `role
+// coordinator` prints ~ rather than refusing the name (M7-R1).
+func TestCoordinatorAbsentFromTableIsOperator(t *testing.T) {
+	table := map[string]config.Role{
+		"implementer":     {Identity: "myorg-coder"},
+		"reviewer":        {Identity: "myorg-reviewy"},
+		"qa":              {},
+		"doc-synthesizer": {},
+	}
+	got, err := holder(table, "coordinator")
+	if err != nil || got != "~" {
+		t.Errorf("coordinator absent from a declared table = %q, %v; want ~", got, err)
+	}
+	table["coordinator"] = config.Role{Identity: "myorg-loopy"}
+	if got, _ := holder(table, "coordinator"); got != "myorg-loopy" {
+		t.Errorf("routed coordinator = %q", got)
+	}
+	if _, err := holder(table, "navigator"); err == nil {
+		t.Error("an unknown role still resolves")
+	}
+}

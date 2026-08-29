@@ -19,3 +19,5 @@ roles:
   doc-synthesizer:
     harness: claude-code
     identity: radiusred-wordy
+  coordinator:
+    identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)

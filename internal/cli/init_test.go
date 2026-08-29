@@ -37,7 +37,7 @@ func TestScaffoldHub(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, role := range []string{"implementer", "reviewer", "qa", "doc-synthesizer"} {
+	for _, role := range []string{"implementer", "reviewer", "qa", "doc-synthesizer", "coordinator"} {
 		if !strings.Contains(string(cfg), role) {
 			t.Errorf("hub config missing role %q", role)
 		}
