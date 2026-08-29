@@ -6,6 +6,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M6 record
+- `docs/milestones/6-polish-and-1-0.md` — the milestone document for
+  "Polish and 1.0": the protocol-version gate, the four releases and the
+  CHANGELOG discipline, the branding requirement amended at a gate, the
+  orchestrator run and its fold-backs, and the requirement-outcomes table.
+  The ROADMAP row is Done; the introduction's shipped release and the
+  README's milestone count are refreshed with it. Docs only. (#161)
+
 ### The orchestrator rung has been run
 - The README, the quickstart's ladder and SPEC §9 say so, with the
   receipt: a Paperclip company drove three milestones on
@@ -175,7 +183,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/radiusred/gh-codecrew/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/radiusred/gh-codecrew/compare/v0.5.0...v1.0.0
