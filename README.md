@@ -134,7 +134,7 @@ routing table changes. And `gh` never auto-updates extensions —
 We would rather show you than tell you, so here is what the protocol has
 actually done so far.
 
-- **Five milestones of this framework were delivered *with* it** —
+- **Six milestones of this framework were delivered *with* it** —
   agent-authored PRs under GitHub App identities, independent review,
   deterministic CI gates, QA verdicts enforced at close, and a synthesized
   document for each: [docs/milestones/](docs/milestones/).
@@ -171,8 +171,8 @@ Things we have not done yet, in the interest of not overselling: any
 backend other than GitHub, or GitHub Enterprise Server; the
 platform-interop doc that the orchestrator run is the raw material for
 ([#54](https://github.com/radiusred/gh-codecrew/issues/54)). The
-[roadmap](ROADMAP.md) says which milestone is open and what it is for, and
-[CHANGELOG.md](CHANGELOG.md) what each release shipped.
+[roadmap](ROADMAP.md) says what each milestone was for and which is open,
+and [CHANGELOG.md](CHANGELOG.md) what each release shipped.
 
 ## Read next
 
