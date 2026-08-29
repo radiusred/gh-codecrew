@@ -10,8 +10,9 @@ project has a coordinator too, and it is you.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md` (mint first, per wake; a
-401 means mint again), using `roles.coordinator.identity`. The seat's App
+Resolve credentials as in `roles/implementer.md` — `export GH_TOKEN=$(gh
+codecrew identity token <slug>)` first, per wake; a 401 means run it again —
+using `roles.coordinator.identity`. The seat's App
 holds contents: read, issues: write, pull requests: read and metadata —
 never contents: write, never pull requests: write. Everything you do is an
 issue, a comment or a label; a 403 on a push or a review is the contract

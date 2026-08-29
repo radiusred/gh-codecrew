@@ -174,15 +174,31 @@ quirk), the manual ritual it automates — one App per role:
 
 ### Acting as the App
 
-Mint a short-lived installation token per invocation — either from the
-env vars an orchestrator binds (SPEC §5: the App id and private key under
-the platform's names — `GITHUB_APP_ID`/`GITHUB_CLIENT_ID`,
-`GITHUB_PRIVATE_KEY`/`GITHUB_PEM`; discover the installation from the App
-rather than trusting a supplied id), or with the bootstrap script
-this repo ships — in your own project, install it once with
-`mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
-— then `codecrew-token <app-slug>`, the **full** App slug (`myorg-coder`,
-not `coder`). Then:
+Mint a short-lived installation token per invocation:
+
+```
+export GH_TOKEN=$(gh codecrew identity token <app-slug>)
+```
+
+The verb reads the env vars an orchestrator binds first (SPEC §5: the App
+id and private key under the platform's names — `GITHUB_APP_ID`/
+`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/`GITHUB_PEM`, PEM text or a file
+path — with the slug then optional), else the key and credential stub
+`identity new` wrote under `~/.config/codecrew/` for the **full** App slug
+(`myorg-coder`, not `coder`). It discovers the installation from the App
+itself — a supplied `GITHUB_INSTALLATION_ID` or `--installation <id>` is
+used only when the App can see it, and a stale one is reported and
+overridden (the platform handed an agent a stale id once; #119 finding 35).
+It prints the token alone on stdout, a receipt on stderr (`minted for
+<slug> (App <id>, from <source>): installation <id> on <account>`), never
+touches `gh`'s config, and refuses with a code when it cannot mint:
+`NO_CREDENTIALS` (nothing to sign with — the detail names what it looked
+for and how to write the stub by hand), `BAD_CREDENTIALS` (GitHub rejected
+the JWT: key and id disagree, retrying will not help), `NO_INSTALLATION`
+(install the App — step 4), `INSTALLATION_AMBIGUOUS` (several accounts;
+pass the id). It runs from anywhere — no `.codecrew.yml` needed — and the
+`scripts/codecrew-token` the 1.0 contracts pointed at is now a one-line
+wrapper around it. Then:
 
 - `GH_TOKEN=$tok gh codecrew …` / `GH_TOKEN=$tok gh …` for API actions.
 - Push over HTTPS as `https://x-access-token:$TOKEN@github.com/owner/repo.git`.
@@ -246,18 +262,19 @@ however it is triggered:
   implementer could not have produced: an assessment of the shipped tests
   against each requirement and a probe the suite does not enumerate — not
   a rerun of `npm test` (the contract's hairbrush).
-- **Credentials.** The env-var path from SPEC §5, or
-  `codecrew-token <slug>` (the script above). Beside the private key, `identity new`
+- **Credentials.** `gh codecrew identity token <slug>` — the env-var path
+  from SPEC §5 first, the local key and stub second, a refusal third (the
+  verb above). Beside the private key, `identity new`
   writes a credential stub (`~/.config/codecrew/<slug>.json` — the App ID
   and client ID, nothing secret): with it, the helper mints the App's JWT
   and discovers the installation itself, touching no user credential. For
   an App minted before the stub existed, write it by hand —
   `{"slug":"<slug>","app_id":<numeric App ID>}` — the account-lookup
-  fallbacks depend on what the operator's token happens to see, and
-  personal-account installations have twice needed hand-fed IDs without
-  it. The session exports `GH_TOKEN` and is the App. To confirm *which*
-  App, compare the stub's App ID with `gh api /apps/<slug> --jq .id` —
-  the public App record, no token needed. `GET /app` does not work here:
+  verb refuses `NO_CREDENTIALS` without it and says exactly that. The
+  session exports `GH_TOKEN` and is the App. To confirm *which*
+  App, read the verb's stderr receipt (the slug, App id, installation and
+  account it minted for) and compare the App ID with
+  `gh api /apps/<slug> --jq .id` — the public App record, no token needed. `GET /app` does not work here:
   it wants the App's own JWT and answers an installation token with a 401
   ([#139](https://github.com/radiusred/gh-codecrew/issues/139)). After posting, check the review's
   `user.login` is `<slug>[bot]`.

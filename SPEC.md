@@ -382,13 +382,16 @@ GitHub-native approval must come from a party with no human account:
    identities are required: the author and approver must be distinct
    principals, and each automated role needs its own.
 
-Credential resolution is uniform across tiers: orchestrator-injected env vars
+Credential resolution is uniform across tiers, and `codecrew identity token
+<slug>` (§6) is the act: orchestrator-injected env vars
 — the App's id and private key under whatever names the platform binds
 (`GITHUB_APP_ID` or `GITHUB_CLIENT_ID`; `GITHUB_PRIVATE_KEY` or `GITHUB_PEM`,
 as PEM text or a file path), with the installation discovered from the App
 itself (a supplied `GITHUB_INSTALLATION_ID` is a hint at most: the run on
-Paperclip was handed a stale one — #119, findings 12 and 35) — then a
-locally-held private key, then the operator's `gh` auth.
+Paperclip was handed a stale one — #119, findings 12 and 35) — then the
+locally-held private key and credential stub `identity new` wrote. The verb
+refuses with a code past those two; the operator's `gh` auth is the
+identity only of an unrouted role, never a fallback for a routed one.
 
 ### Platform requirements
 
@@ -428,6 +431,7 @@ hub).
 | `codecrew task start <ref>` | Assigns the caller's identity, verifies a plan is present (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. |
 | `codecrew identity new <role> --name <app>` | Mints the role's App identity via the GitHub App manifest flow: generates a manifest with the role's minimal permission set, hands the operator a one-click loopback URL, stores the returned private key locally, writes the role's routing into the hub's `.codecrew.yml` (`--no-route` opts out; printed as an instruction when the table is not local), and prints the remaining manual steps (install — per-account — and optional display polish). Webhooks off by default; `--with-webhook` opts in to protocol-traffic event delivery for platform receivers (§9). |
+| `codecrew identity token [<slug>] [--installation <id>]` | Mints a short-lived installation token as the App: credentials from the environment under the names platforms bind (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/`GITHUB_PEM` as PEM text or a path), else the `~/.config/codecrew/` key and stub for the slug; signs the App JWT, discovers the installation from the App (a hinted id — the flag or `GITHUB_INSTALLATION_ID` — is used only when the App can see it; one installation is taken, several narrow to the hub's owner), and prints the token alone on stdout with a receipt on stderr. Never writes `gh`'s config. Refuses `NO_CREDENTIALS`, `BAD_CREDENTIALS`, `NO_INSTALLATION`, `INSTALLATION_AMBIGUOUS`. Runs from anywhere — it reads no pointer. |
 | `codecrew roles diff <role>` / `codecrew roles show <role> [--latest]` | Contract tooling: `show` prints the contract a dispatched session loads — the hub's `roles/<role>.md` with its local extensions appended in §7 order (hub, then spoke); `show --latest` prints the contract embedded in the installed CLI whole. Drift: `status` reports when a local `roles/` contract differs from the embedded copy (scaffolded contracts carry a provenance stamp naming their release) and `diff` shows the divergence; `roles/<role>.local.md` files are never drift. Contracts are the project's own fork — reconciliation is a judgment routed through a task and PR, never an overwrite. |
 | `codecrew role <name>` | Prints the identity holding a role — an App slug or username, or `~` for the operator (§5). Script-consumable; resolves from the hub's routing table when run in a spoke. The implementer uses it to request review from the reviewer role's holder at PR creation when the holder is review-requestable — a username or team; App-held seats are dispatched instead, Apps not being requestable (CODEOWNERS-driven requests coexist — requested reviewers union). |
 | *(every verb that reads the working repo's `.codecrew.yml`)* | Refuses `PROTOCOL_MISMATCH` when the pointer's protocol major differs from the one the binary implements (§5), and `GH_TOO_OLD` when the installed `gh` is below the floor the verbs need (2.50.0, for `gh pr checks --json`) — checked once, up front, so the gate never fails inside `gh`. A hub's routing table fetched from a spoke is advisory and is not checked. |
