@@ -512,7 +512,8 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   to CodeCrew roles via the routing config and dispatches them; CodeCrew
   defines what each one reads and writes. Exercised end to end on Paperclip
   (#119: three milestones on a proving-ground repo, the third driven by the
-  App's webhook events with a human only at one gate); the platform-side
+  App's webhook events with one gate and no other operator touch on the
+  workflow); the platform-side
   seams it exposed — the coordination layer's own brief and identity, one
   wake path per transition, the review loop's second round — are #54's.
 

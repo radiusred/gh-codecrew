@@ -9,8 +9,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 ### The orchestrator rung has been run
 - The README, the quickstart's ladder and SPEC §9 say so, with the
   receipt: a Paperclip company drove three milestones on
-  `radiusred/numberguess`, the third on the App's webhook events with a
-  human only at one gate; the fifty findings and their fold-backs are the
+  `radiusred/numberguess`, the third on the App's webhook events with one
+  gate and no other operator touch on the workflow; the fifty findings and
+  their fold-backs are the
   log on #119, the interop doc written from them is #54.
 - SPEC §5 and identities.md name the credentials the way platforms bind
   them — `GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/
