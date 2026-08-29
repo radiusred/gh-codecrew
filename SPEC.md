@@ -314,6 +314,7 @@ roles:
   reviewer:    { harness: codex, identity: my-org-reviewer }
   qa:          { harness: codex, identity: my-org-qa }
   doc-synthesizer: { harness: claude-code, identity: my-org-docs }
+  coordinator: { identity: ~ }   # the seat that dispatches the other four; ~ = the operator
 ```
 
 Role routing is **advisory**: CodeCrew does not dispatch agents, so the config
@@ -324,12 +325,15 @@ reduced protocol.** The routing table says *who* holds each role: a GitHub
 App (an agent acting as itself), a specific human (their GitHub username),
 or — with no identity (`~`) — the human operator. An orchestrator dispatches
 sub-agents or delegates to other harnesses per this table; a solo operator
-embodies whatever routes to `~`. The hub's config should declare all four
-roles at project onboarding, each routed explicitly; an orchestrator finding
+embodies whatever routes to `~`. The hub's config should declare all five
+roles at project onboarding — the four crew seats and the coordinator that
+dispatches them (§7) — each routed explicitly; an orchestrator finding
 no routing table should prompt for one rather than assume. `codecrew init`
 (§6) scaffolds exactly this — the table with every role routed `~` — so
 onboarding starts explicit. The CLI tolerates an absent table (every role is
-then operator-held) but says so in its output.
+then operator-held) but says so in its output; a table written before the
+coordinator row existed still has a coordinator — the operator — and
+`codecrew role coordinator` says so.
 
 `identity` names the **GitHub App** — or the GitHub username of a specific
 human — the role acts as. A value containing a slash names a **GitHub
@@ -454,6 +458,18 @@ App creation). v1 roles:
   findings as issue/PR comments.
 - **doc-synthesizer** — at milestone close, compiles the recorded decisions
   and deviations into the milestone document and opens its PR.
+- **coordinator** — the coordination layer as a seat: opens milestones
+  (`--requirement`) and tasks, dispatches the four crew seats by the routing
+  table, owns the review loop in both directions (reviewer on a PR,
+  implementer on changes requested, the task's owner on approval), raises
+  the gates only a human can answer, and drives `milestone evidence` and
+  `milestone close`. It never writes code, reviews, verdicts or merges; its
+  App holds contents: read, issues: write, pull requests: read and
+  metadata, never more. Unrouted it is the operator — every project has a
+  coordinator, solo included. The contract states what the orchestrator
+  run taught the seat (#119, #164): one wake path per transition, state
+  re-read at the act, execution events one-shot, dispatch on the platform
+  and cite on GitHub, never the milestone number in requirement prose.
 
 **Local extensions.** A project's own instructions for a role — house
 style, local conventions, what its orchestrator injects — go in
@@ -513,9 +529,14 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   defines what each one reads and writes. Exercised end to end on Paperclip
   (#119: three milestones on a proving-ground repo, the third driven by the
   App's webhook events with one gate and no other operator touch on the
-  workflow); the platform-side
-  seams it exposed — the coordination layer's own brief and identity, one
-  wake path per transition, the review loop's second round — are #54's.
+  workflow; #164: a fourth cycle on a fresh repo, driven by a coordinator
+  agent from the first event). The platform installs the coordinator as a
+  seat like the others — `roles/coordinator.md` (§7) composed by
+  `roles show coordinator`, the platform's wake syntax, ids and tooling in
+  the project's `roles/coordinator.local.md`, its identity minted by
+  `identity new coordinator` — instead of a hand-written brief; the
+  platform-side seams that remain — one wake path per transition, the
+  review loop's second round — are #54's.
 
 ## 10. The CLI
 
@@ -575,7 +596,7 @@ CodeCrew deliberately does not have:
 
 ## 13. v1 scope and open questions
 
-**v1 delivers:** this protocol; the four role contracts; the CLI with the §6
+**v1 delivers:** this protocol; the role contracts (four crew seats at 1.0, the coordinator's from 1.1); the CLI with the §6
 verbs and the GitHub adapter; CodeCrew's own hub bootstrapped with it.
 
 **Open questions, deferred until the bootstrap surfaces evidence:**

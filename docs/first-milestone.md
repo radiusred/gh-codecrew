@@ -59,8 +59,8 @@ for patches, not for majors. Updating is always your act:
 `gh extension upgrade codecrew`, then `gh codecrew version` to confirm.
 
 `init` writes your `.codecrew.yml` (the project's pointer file, with a
-routing table declaring all four roles — `~` means "held by you"), a
-`ROADMAP.md` seed, the four role contracts under `roles/`, and an
+routing table declaring all five roles — `~` means "held by you"), a
+`ROADMAP.md` seed, the five role contracts under `roles/`, and an
 `AGENTS.md` entry point for any agent you later dispatch — plus, from
 v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
 `CLAUDE.md` and never `AGENTS.md`. Commit and push:

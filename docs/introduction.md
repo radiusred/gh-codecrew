@@ -40,8 +40,9 @@ per-milestone records of the decisions that shaped the system and why.
    milestones, tasks, plans, decisions, deviations, and gates in GitHub, and
    how agents and humans transact over them.
 2. **Role contracts** ([roles/](../roles/)) — harness-neutral prompt files
-   for the implementer, reviewer, qa, and doc-synthesizer roles, loadable by
-   any agent (Claude Code, Codex, Gemini CLI, or an orchestrator's company).
+   for the implementer, reviewer, qa, and doc-synthesizer roles, and for the
+   coordinator that dispatches them, loadable by any agent (Claude Code,
+   Codex, Gemini CLI, or an orchestrator's company).
    A project extends a contract without forking it in
    `roles/<role>.local.md` (SPEC §7).
 3. **A CLI** — `codecrew`, a single static Go binary wrapping `gh`, providing
@@ -82,8 +83,9 @@ possible ([identities.md](identities.md)).
 **How a repo joins.** Every repo in a CodeCrew project carries a
 `.codecrew.yml` pointing at the hub — a spoke's is a two-line pointer
 (`init --hub owner/repo`); this repo is its own hub (`hub: self`; SPEC §3
-on choosing yours). The hub's config also routes the four roles, and `init`
-writes that table for you. Agents dispatched into a CodeCrew repo start at
+on choosing yours). The hub's config also routes the five roles — the four
+crew seats and the coordinator, which unrouted is you — and `init` writes
+that table for you. Agents dispatched into a CodeCrew repo start at
 [AGENTS.md](../AGENTS.md). Agent identities are GitHub Apps; short-lived
 tokens come from the `codecrew-token` script this repo ships — your project
 installs it from upstream, see [identities.md](identities.md) (SPEC §5 for
