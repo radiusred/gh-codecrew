@@ -154,10 +154,20 @@ actually done so far.
   hub through the installed extension; its first delivery was
   [a blog post introducing CodeCrew, delivered by the protocol it
   describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
+- **An orchestration platform drove it with no human but at the gates.**
+  A Paperclip company — five agents on their own App identities, none of
+  them ever having seen the framework — ran three milestones on
+  [radiusred/numberguess](https://github.com/radiusred/numberguess); the
+  third went from `milestone new` to `milestone close` on GitHub's own
+  webhook events, four PRs, three real review rounds, one gate raised by
+  the coordinator and resolved by the operator, and no other hand. The
+  fifty findings on the way — and what each one changed — are the log on
+  [#119](https://github.com/radiusred/gh-codecrew/issues/119).
 
 Things we have not done yet, in the interest of not overselling: any
-backend other than GitHub, or GitHub Enterprise Server; a full
-orchestration-platform run end to end (it is on the open milestone). The
+backend other than GitHub, or GitHub Enterprise Server; the
+platform-interop doc that the orchestrator run is the raw material for
+([#54](https://github.com/radiusred/gh-codecrew/issues/54)). The
 [roadmap](ROADMAP.md) says which milestone is open and what it is for, and
 [CHANGELOG.md](CHANGELOG.md) what each release shipped.
 

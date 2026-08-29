@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The orchestrator rung has been run
+- The README, the quickstart's ladder and SPEC §9 say so, with the
+  receipt: a Paperclip company drove three milestones on
+  `radiusred/numberguess`, the third on the App's webhook events with a
+  human only at one gate; the fifty findings and their fold-backs are the
+  log on #119, the interop doc written from them is #54.
+- SPEC §5 and identities.md name the credentials the way platforms bind
+  them — `GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/
+  `GITHUB_PEM` — and say the installation is discovered from the App, a
+  supplied id being a hint at most (#119 findings 12 and 35). Docs only;
+  the verb that does the resolving is #132.
+
 ## [1.0.3] — 2026-08-28
 
 The orchestrator run's fold-backs (#119): four PRs, one release.

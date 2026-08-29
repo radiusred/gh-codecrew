@@ -251,5 +251,9 @@ in the crew, and it's a ladder:
    to GitHub App identities: [identities.md](identities.md). The protocol
    doesn't change; only the routing table does.
 3. **Full orchestration platforms** — an orchestrator dispatching the whole
-   crew against the routing table, webhooks instead of polling. Works today
-   through the same seams; dedicated docs are on the backlog.
+   crew against the routing table, webhooks instead of polling. Run end to
+   end on Paperclip: three milestones on a proving-ground repo, the third
+   with no human touch except one gate — the findings and what they
+   changed are on [#119](https://github.com/radiusred/gh-codecrew/issues/119);
+   the interop doc written from them is
+   [#54](https://github.com/radiusred/gh-codecrew/issues/54).
