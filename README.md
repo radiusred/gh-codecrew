@@ -155,13 +155,16 @@ actually done so far.
   [a blog post introducing CodeCrew, delivered by the protocol it
   describes](https://www.radiusred.uk/blog/posts/2026-08-20-this-post-was-delivered-by-the-framework-it-introduces/).
 - **An orchestration platform drove it with no human but at the gates.**
-  A Paperclip company — five agents on their own App identities, none of
-  them ever having seen the framework — ran three milestones on
-  [radiusred/numberguess](https://github.com/radiusred/numberguess); the
+  A Paperclip company — four role agents under a CEO, each on its own App
+  identity, none of them having seen the framework before, plus a
+  dedicated coordinator agent hired midway — ran three milestones on
+  [radiusred/numberguess](https://github.com/radiusred/numberguess). The
   third went from `milestone new` to `milestone close` on GitHub's own
-  webhook events, four PRs, three real review rounds, one gate raised by
-  the coordinator and resolved by the operator, and no other hand. The
-  fifty findings on the way — and what each one changed — are the log on
+  webhook events: four PRs, three real review rounds, one gate raised by
+  the coordinator and resolved by the operator, and zero operator touches
+  on the workflow that were not that gate (setting the experiment up is
+  counted separately). The fifty findings on the way — and what each one
+  changed — are the log on
   [#119](https://github.com/radiusred/gh-codecrew/issues/119).
 
 Things we have not done yet, in the interest of not overselling: any
