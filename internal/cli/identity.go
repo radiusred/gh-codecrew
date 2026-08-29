@@ -144,7 +144,7 @@ func pemPath(configDir, slug string, now time.Time) string {
 
 // stubPath is the credential stub beside the key: the non-secret half of
 // the credential set (App ID, client ID), persisted at minting so
-// codecrew-token can mint installation tokens with the App's own JWT and
+// identity token can mint installation tokens with the App's own JWT and
 // no user-credential API lookup (finding 11 on #73).
 func stubPath(configDir, slug string) string {
 	return filepath.Join(configDir, "codecrew", slug+".json")
@@ -378,7 +378,7 @@ func identityNew(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "its contract forbids editing code: the write grant exists only to make its judgment count")
 	}
 	fmt.Fprintf(w, "private key: %s\n", keyPath)
-	fmt.Fprintf(w, "credential stub: %s (lets codecrew-token mint without any account lookup)\n", stub)
+	fmt.Fprintf(w, "credential stub: %s (lets identity token mint without any account lookup)\n", stub)
 	if creds.WebhookSecret != "" {
 		fmt.Fprintf(w, "webhook secret (shown once, not stored): %s\n", creds.WebhookSecret)
 	}

@@ -29,6 +29,9 @@ verbs:
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
            [--with-approval-permission]      (reviewer only: its approvals satisfy required reviews)
+  identity token [<slug>]                    mint an installation token: env bindings first
+           [--installation ID]               (GITHUB_APP_ID|GITHUB_CLIENT_ID + GITHUB_PRIVATE_KEY|GITHUB_PEM),
+                                             else ~/.config/codecrew/<slug>; the token alone on stdout
   version                                    installed release tag (dev for source builds)
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
@@ -65,11 +68,19 @@ func run(args []string) error {
 	case "status":
 		return status(os.Stdout)
 	case "identity":
-		if len(rest) == 0 || rest[0] != "new" {
+		if len(rest) == 0 {
 			fmt.Fprint(os.Stderr, usage)
-			return fmt.Errorf("identity: unknown subcommand")
+			return fmt.Errorf("identity: missing subcommand")
 		}
-		return identityNew(os.Stdout, rest[1:])
+		switch rest[0] {
+		case "new":
+			return identityNew(os.Stdout, rest[1:])
+		case "token":
+			return identityToken(os.Stdout, rest[1:])
+		default:
+			fmt.Fprint(os.Stderr, usage)
+			return fmt.Errorf("identity: unknown subcommand %q", rest[0])
+		}
 	case "milestone", "task":
 		if len(rest) == 0 {
 			fmt.Fprint(os.Stderr, usage)
