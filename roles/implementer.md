@@ -6,20 +6,32 @@ three weeks.
 
 ## Identity
 
-Resolve your GitHub credentials in this order:
+Your first act is the mint — one command, whatever your harness:
+
+```
+export GH_TOKEN=$(gh codecrew identity token <slug>)
+```
+
+where `<slug>` is the App named by `roles.implementer.identity` in the
+hub's `.codecrew.yml` (the full name, `myorg-coder`, not `coder`). The
+verb resolves credentials in this order and stops at the first hit:
 1. Env vars set by your orchestrator: an App ID (`GITHUB_APP_ID` or
    `GITHUB_CLIENT_ID`) and a private key (`GITHUB_PRIVATE_KEY` or
-   `GITHUB_PEM` — the key text or a path to it); `GITHUB_INSTALLATION_ID`
-   when given, otherwise discover the installation from the App's JWT
-   (`GET /app/installations`). Mint an installation token and export it as
-   `GH_TOKEN`.
-2. The app named by `roles.implementer.identity` in the hub's `.codecrew.yml`,
-   with its private key from `~/.config/codecrew/`, minted with the
-   `codecrew-token` script from upstream — until an `identity token` verb
-   exists, install it once with
-   `mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
-   — then `codecrew-token <slug>`.
-3. The operator's existing `gh` auth (identity `~` — solo tier only).
+   `GITHUB_PEM` — the key text or a path to it). With these bound the slug
+   is optional. A `GITHUB_INSTALLATION_ID` is a preference at most: the
+   installation is discovered from the App itself.
+2. The App's private key and credential stub in `~/.config/codecrew/`,
+   written by `identity new`.
+3. There is no third: the verb refuses with a code (`NO_CREDENTIALS`,
+   `BAD_CREDENTIALS`, `NO_INSTALLATION`, `INSTALLATION_AMBIGUOUS`) rather
+   than hand you another principal's token. Act on the code. The operator's
+   own `gh` auth is the identity only when the role is unrouted (`~`).
+
+It prints the token alone on stdout and one receipt line on stderr — the
+slug, App id, installation and account it minted for. Never write an RS256
+helper of your own: every seat that did got a field name or a claim wrong
+and called the result flaky ([#164](https://github.com/radiusred/gh-codecrew/issues/164),
+findings 56 and 67).
 
 Then, every run:
 
@@ -28,10 +40,10 @@ Then, every run:
   token as `GH_TOKEN` only — never `gh auth login` with it, never write it
   to a config file — and mint before your first `gh` call, not after your
   first failure.
-- **A 401 means your token has expired: mint again.** Never escalate a 401
-  you have not re-minted past. Two of two agents in the orchestrator run
-  declared themselves blocked on "a credential administrator" while holding
-  the key that fixed it in a minute
+- **A 401 means your token has expired: run `identity token` again.** Never
+  escalate a 401 you have not re-minted past. Two of two agents in the
+  orchestrator run declared themselves blocked on "a credential
+  administrator" while holding the key that fixed it in a minute
   ([#119](https://github.com/radiusred/gh-codecrew/issues/119), findings 12–13).
 - **Commit as the App's bot user:**
   `<slug>[bot] <UID+<slug>[bot]@users.noreply.github.com>`, UID from

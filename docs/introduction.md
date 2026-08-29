@@ -56,7 +56,7 @@ major is checked, another major refuses; `gh` itself must be 2.50.0 or
 later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 `init`, `status`, `milestone new/evidence/close`,
 `task new/start/finish`, `checkpoint`,
-`role`, `roles diff/show`, `identity new`, and `version` — all implemented,
+`role`, `roles diff/show`, `identity new/token`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`
@@ -86,10 +86,11 @@ possible ([identities.md](identities.md)).
 on choosing yours). The hub's config also routes the five roles — the four
 crew seats and the coordinator, which unrouted is you — and `init` writes
 that table for you. Agents dispatched into a CodeCrew repo start at
-[AGENTS.md](../AGENTS.md). Agent identities are GitHub Apps; short-lived
-tokens come from the `codecrew-token` script this repo ships — your project
-installs it from upstream, see [identities.md](identities.md) (SPEC §5 for
-the tiers).
+[AGENTS.md](../AGENTS.md). Agent identities are GitHub Apps; a seat's
+first act is `export GH_TOKEN=$(gh codecrew identity token <slug>)`, which
+mints a short-lived installation token from the platform's env bindings
+or the local key and stub and discovers the installation from the App
+itself — see [identities.md](identities.md) (SPEC §5 for the tiers).
 
 **What it has done** — the receipts are on the [landing
 page](../README.md#the-receipts); the per-milestone records are in
@@ -112,7 +113,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-three, by the verb that raises
+the agent; the detail is for the human. All twenty-seven, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -181,5 +182,20 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `NOT_FOUND` — no open milestone with that number.
 - `EVIDENCE_UNREACHABLE` — cited links in the milestone's record do not
   resolve; repair them before dispatching QA.
+
+**`identity token`**
+
+- `NO_CREDENTIALS` — nothing to sign with: no App id and key bound in the
+  environment (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/
+  `GITHUB_PEM`), and no key and stub under `~/.config/codecrew/` for the
+  slug; the detail says what was looked for and how to write the stub.
+- `BAD_CREDENTIALS` — GitHub rejected the App JWT: the key and the id do
+  not belong to the same App, or the key was revoked. Retrying will not
+  help; check the id against `gh api /apps/<slug> --jq .id`.
+- `NO_INSTALLATION` — the App is installed on no account the key can see;
+  install it (identities.md, step 4).
+- `INSTALLATION_AMBIGUOUS` — the App is installed on several accounts and
+  neither a hint nor the hub's owner selects one; the detail lists them,
+  and `--installation <id>` (or `GITHUB_INSTALLATION_ID`) chooses.
 
 Licensed under [Apache 2.0](../LICENSE).

@@ -6,6 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The mint is a verb
+- `identity token [<slug>] [--installation <id>]` mints an installation
+  token in Go: the App id and private key from the environment under the
+  names platforms bind (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`,
+  `GITHUB_PRIVATE_KEY`/`GITHUB_PEM`, PEM text or a path), else the
+  `~/.config/codecrew/` key and stub for the slug; the installation is
+  discovered from the App itself — a hinted id is used only when the App
+  can see it, a stale one is reported and overridden (#119 finding 35).
+  The token alone on stdout, a receipt on stderr, nothing written to
+  `gh`'s config. Four refusal codes, the twenty-fourth to twenty-seventh:
+  `NO_CREDENTIALS`, `BAD_CREDENTIALS`, `NO_INSTALLATION`,
+  `INSTALLATION_AMBIGUOUS`. The contracts name it as the first act and the
+  401 recovery — no seat writes an RS256 helper of its own again (#119
+  findings 2, 10, 12; #164 findings 56, 67) — and `scripts/codecrew-token`
+  is a one-line wrapper around it. (M7-R2, #132, #170)
+
 ### The coordinator is a seat
 - `roles/coordinator.md` ships in the binary and composes like the crew's
   four: `roles show coordinator` (with `roles/coordinator.local.md`),
