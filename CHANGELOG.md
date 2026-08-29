@@ -6,6 +6,25 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The coordinator is a seat
+- `roles/coordinator.md` ships in the binary and composes like the crew's
+  four: `roles show coordinator` (with `roles/coordinator.local.md`),
+  `roles diff`, the drift report, and `init`, whose scaffolded routing
+  table now declares `coordinator: { identity: ~ }` as its fifth row.
+  Unrouted the seat is the operator, as it always was; a 1.0 table without
+  the row still answers `role coordinator` with `~`. `identity new
+  coordinator` mints the App with the set #119 finding 16 specified —
+  contents: read, issues: write, pull requests: read, metadata — never
+  contents: write. The contract states what the orchestrator run taught
+  the coordination layer (#119, #164): open milestones with
+  `--requirement` and tasks with plans, dispatch by the routing table, own
+  the review loop in both directions with the task's owner finishing it,
+  raise gates with `checkpoint` (on the scaffold PR before a milestone
+  exists), one wake path per transition with a per-seat table, re-read
+  state at the act, execution events one-shot, dispatch on the platform
+  and cite on GitHub, never the milestone number in requirement prose.
+  SPEC §5, §7 and §9 and identities.md name the seat. (M7-R1, #168)
+
 ### The M6 record
 - `docs/milestones/6-polish-and-1-0.md` — the milestone document for
   "Polish and 1.0": the protocol-version gate, the four releases and the

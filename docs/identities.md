@@ -30,7 +30,8 @@ perform the qa contract yourself: post per-requirement verdicts on the
 milestone issue in the standard `**M1-R1 — satisfied.**` form — the close
 gate counts the qa role holder's verdicts, and unrouted, that is you.
 Declare the routing table in your hub's `.codecrew.yml` at onboarding (all
-four roles, `~` for the ones you embody) — `gh codecrew init` scaffolds exactly
+five roles — the four crew seats and the coordinator that dispatches them —
+`~` for the ones you embody) — `gh codecrew init` scaffolds exactly
 this, along with the roadmap seed and role contracts; an absent table works
 but the CLI will nag.
 
@@ -120,6 +121,7 @@ quirk), the manual ritual it automates — one App per role:
    | reviewer        | Read          | Read & write  | Read & write   | Read   |
    | qa              | Read          | Read & write  | Read & write   | Read   |
    | doc-synthesizer | Read & write  | Read & write  | Read & write   | Read   |
+   | coordinator     | Read          | Read & write  | Read           | —      |
 
    Add `Workflows: read & write` to the implementer if it will ever touch
    `.github/workflows/` files — `Contents` alone cannot push those.
@@ -143,6 +145,19 @@ quirk), the manual ritual it automates — one App per role:
    ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 14). Tests ride the
    implementer's PR. Do not grant qa write access to make a mis-mapping
    work; re-map the work.
+
+   The coordinator row is the smallest of all: the seat opens milestones
+   and tasks, comments, labels and raises gates — `Issues: read & write`
+   is the whole of its writing — and reads PRs only to learn where the
+   review loop stands. It never pushes, reviews or merges, so `Contents`
+   and `Pull requests` stay read, and it reads gate results through the
+   verbs, not the checks API. A platform binds this App's credentials to
+   the agent that runs `roles/coordinator.md`
+   (`identity new coordinator --name <crew-member>` mints it); solo, the
+   seat is unrouted and the operator's own `gh` auth is the identity. The
+   orchestrator run's coordination layer had no identity at all and read
+   every seat's credentials through its own 401
+   ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 16).
 3. **Generate a private key** and store it outside any repo. Convention:
    `~/.config/codecrew/<app-slug>.<date>.private-key.pem`.
 4. **Install the App on the org**, scoped to all repositories or at least to

@@ -25,7 +25,7 @@ system is the way it is, and that document's PR goes through the same
 review as code.
 
 There is no server, no dashboard, no new place to look. It is `gh`,
-issues, PRs, and four short role contracts any agent harness can read.
+issues, PRs, and five short role contracts any agent harness can read.
 
 ## Start now
 
@@ -66,7 +66,7 @@ distribution-packaged `gh` may predate; `gh --version` says.
 
 ### 1. A hub, and spokes
 
-<img src="assets/svg/hub-and-spokes.svg" alt="One hub repo holds the four role contracts, the routing table and the milestone issues; each spoke repo holds tasks, PRs and CI, with a two-line pointer back to the hub. For a single project the hub is its own spoke." width="720">
+<img src="assets/svg/hub-and-spokes.svg" alt="One hub repo holds the five role contracts, the routing table and the milestone issues; each spoke repo holds tasks, PRs and CI, with a two-line pointer back to the hub. For a single project the hub is its own spoke." width="720">
 
 One repo is the hub: it holds the role contracts, the routing table (who
 holds which seat) and the milestone issues. Every other repo in the project
