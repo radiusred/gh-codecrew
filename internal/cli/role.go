@@ -13,6 +13,12 @@ import (
 func holder(roles map[string]config.Role, name string) (string, error) {
 	role, ok := roles[name]
 	if !ok && len(roles) > 0 {
+		// The coordinator row arrived after 1.0 hubs scaffolded their
+		// tables; a table without it still has a coordinator — the
+		// operator, as every unrouted seat is (SPEC §5, §7).
+		if name == "coordinator" {
+			return "~", nil
+		}
 		return "", fmt.Errorf("role %q is not in the routing table", name)
 	}
 	if role.Identity == "" {

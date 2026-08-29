@@ -27,6 +27,10 @@ var rolePermissions = map[string]map[string]string{
 	"reviewer":        {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read"},
 	"qa":              {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read"},
 	"doc-synthesizer": {"contents": "write", "issues": "write", "pull_requests": "write", "checks": "read"},
+	// The coordinator opens issues, comments and labels and nothing else:
+	// it never pushes, reviews or merges, so contents and pull requests
+	// stay read (#119 finding 16 specified the set; SPEC §7).
+	"coordinator": {"contents": "read", "issues": "write", "pull_requests": "read"},
 }
 
 // webhookEvents is the protocol-traffic event set --with-webhook subscribes
@@ -48,7 +52,7 @@ var webhookEvents = []string{
 func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string, withApproval bool) (map[string]any, error) {
 	perms, ok := rolePermissions[role]
 	if !ok {
-		return nil, fmt.Errorf("unknown role %q — one of implementer, reviewer, qa, doc-synthesizer", role)
+		return nil, fmt.Errorf("unknown role %q — one of implementer, reviewer, qa, doc-synthesizer, coordinator", role)
 	}
 	if withApproval {
 		// The one permission that makes an App's approvals count toward

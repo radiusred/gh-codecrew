@@ -338,7 +338,7 @@ func TestBuildManifestWithApprovalPermission(t *testing.T) {
 		t.Error("rolePermissions table mutated — the grant must copy")
 	}
 	// Reviewer-only: approvals gate merges nowhere else.
-	for _, role := range []string{"implementer", "qa", "doc-synthesizer"} {
+	for _, role := range []string{"implementer", "qa", "doc-synthesizer", "coordinator"} {
 		if _, err := buildManifest(role, "myorg-x", "u", "r", false, "", true); err == nil {
 			t.Errorf("--with-approval-permission accepted for %s", role)
 		}
@@ -347,5 +347,31 @@ func TestBuildManifestWithApprovalPermission(t *testing.T) {
 	m, _ = buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", false)
 	if m["default_permissions"].(map[string]string)["contents"] != "read" {
 		t.Error("default reviewer manifest no longer read-only")
+	}
+}
+
+// The coordinator seat mints the set #119 finding 16 specified: it opens
+// issues, comments and labels and never pushes, reviews or merges — so
+// contents and pull requests stay read, and no flag can widen them.
+func TestCoordinatorManifestIsReadOnlyOnCode(t *testing.T) {
+	m, err := buildManifest("coordinator", "myorg-loopy", "u", "r", false, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	perms := m["default_permissions"].(map[string]string)
+	want := map[string]string{"contents": "read", "issues": "write", "pull_requests": "read"}
+	if len(perms) != len(want) {
+		t.Errorf("coordinator permissions = %v, want exactly %v", perms, want)
+	}
+	for k, v := range want {
+		if perms[k] != v {
+			t.Errorf("coordinator %s = %q, want %q", k, perms[k], v)
+		}
+	}
+	if _, ok := perms["checks"]; ok {
+		t.Error("coordinator granted checks — it reads gate results through the verbs, not the API")
+	}
+	if _, err := buildManifest("coordinator", "coordinator", "u", "r", false, "", false); err == nil {
+		t.Error("App named after the role accepted")
 	}
 }
