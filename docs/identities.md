@@ -159,9 +159,11 @@ quirk), the manual ritual it automates — one App per role:
 
 ### Acting as the App
 
-Mint a short-lived installation token per invocation — either via the
-env-var path from SPEC §5 (`GITHUB_CLIENT_ID` / `GITHUB_PRIVATE_KEY` /
-`GITHUB_INSTALLATION_ID`, for orchestrators), or with the bootstrap script
+Mint a short-lived installation token per invocation — either from the
+env vars an orchestrator binds (SPEC §5: the App id and private key under
+the platform's names — `GITHUB_APP_ID`/`GITHUB_CLIENT_ID`,
+`GITHUB_PRIVATE_KEY`/`GITHUB_PEM`; discover the installation from the App
+rather than trusting a supplied id), or with the bootstrap script
 this repo ships — in your own project, install it once with
 `mkdir -p ~/.local/bin && curl -fsSL https://raw.githubusercontent.com/radiusred/gh-codecrew/main/scripts/codecrew-token -o ~/.local/bin/codecrew-token && chmod +x ~/.local/bin/codecrew-token`
 — then `codecrew-token <app-slug>`, the **full** App slug (`myorg-coder`,

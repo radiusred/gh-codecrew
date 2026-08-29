@@ -379,7 +379,11 @@ GitHub-native approval must come from a party with no human account:
    principals, and each automated role needs its own.
 
 Credential resolution is uniform across tiers: orchestrator-injected env vars
-(`GITHUB_CLIENT_ID` / `GITHUB_PRIVATE_KEY` / `GITHUB_INSTALLATION_ID`), then a
+— the App's id and private key under whatever names the platform binds
+(`GITHUB_APP_ID` or `GITHUB_CLIENT_ID`; `GITHUB_PRIVATE_KEY` or `GITHUB_PEM`,
+as PEM text or a file path), with the installation discovered from the App
+itself (a supplied `GITHUB_INSTALLATION_ID` is a hint at most: the run on
+Paperclip was handed a stale one — #119, findings 12 and 35) — then a
 locally-held private key, then the operator's `gh` auth.
 
 ### Platform requirements
@@ -506,7 +510,11 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   roles (e.g. Claude implements, Codex reviews); they converse through PRs.
 - **Orchestrated company** (e.g. Paperclip) — the orchestrator maps its agents
   to CodeCrew roles via the routing config and dispatches them; CodeCrew
-  defines what each one reads and writes.
+  defines what each one reads and writes. Exercised end to end on Paperclip
+  (#119: three milestones on a proving-ground repo, the third driven by the
+  App's webhook events with a human only at one gate); the platform-side
+  seams it exposed — the coordination layer's own brief and identity, one
+  wake path per transition, the review loop's second round — are #54's.
 
 ## 10. The CLI
 
