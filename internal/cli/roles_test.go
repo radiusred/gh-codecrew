@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -273,5 +274,37 @@ func TestComposedContractSurfacesReadFailures(t *testing.T) {
 	}
 	if got, err := composedContract("qa", flaky("none"), ""); err != nil || got != base {
 		t.Errorf("absent extension should be skipped: %q, %v", got, err)
+	}
+}
+
+// The five contracts ship in the binary: the coordinator's is composed,
+// diffed and scaffolded like the crew's, with no special-casing.
+func TestCoordinatorContractIsEmbedded(t *testing.T) {
+	data, err := fs.ReadFile(codecrew.Roles, "roles/coordinator.md")
+	if err != nil {
+		t.Fatalf("coordinator contract not embedded: %v", err)
+	}
+	if !strings.HasPrefix(string(data), "# Role: coordinator\n") {
+		t.Errorf("embedded coordinator contract starts %q", string(data[:40]))
+	}
+	for _, must := range []string{"roles.coordinator.identity", "never contents: write", "task finish", "checkpoint", "--requirement"} {
+		if !strings.Contains(string(data), must) {
+			t.Errorf("coordinator contract lacks %q", must)
+		}
+	}
+	dir := t.TempDir()
+	written, _, err := scaffold(dir, "self", codecrew.Roles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(written, "roles/coordinator.md") {
+		t.Errorf("init did not scaffold the coordinator contract: %v", written)
+	}
+	var buf bytes.Buffer
+	if err := rolesDiff(&buf, dir, codecrew.Roles, "coordinator"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "matches the embedded") {
+		t.Errorf("fresh coordinator contract reported as drift: %q", buf.String())
 	}
 }
