@@ -8,9 +8,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ### A seat finishes only its own task
 - `task finish` refuses `NOT_OWNER` — the twenty-eighth code — when the
-  caller is not the seat that started the task, read from `task start`'s
-  record (the assignment, or the `**Started by**` comment an App identity
-  gets): the same login with the `[bot]` suffix ignored, or the same
+  caller is not the seat that started the task, read from the
+  `**Started by**` record `task start` now posts on every start (accepted
+  only from the login it names; the assignee is the fallback for tasks
+  that predate it): the same login with the `[bot]` suffix ignored, or the same
   routed seat — a team-held role is any member. Handover is `task start`
   again by the new seat (latest record wins; the path when the starter has
   left). The operator's own auth is not

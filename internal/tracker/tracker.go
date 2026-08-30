@@ -383,22 +383,31 @@ func UnresolvedGates(comments []Comment) []Comment {
 	return unresolved
 }
 
+// StartRecord is the exact comment task start posts for every start; a
+// record is only what the named login posted itself.
+func StartRecord(login string) string { return "**Started by** @" + login + "." }
+
 // StartedBy returns the login that started a task, from the record task
-// start leaves: the latest `**Started by** @<login>.` comment (App
-// identities are not assignable, so the start is recorded as a comment),
-// else the first assignee. Empty when nothing records a start — a task
-// started by hand — so the ownership gate has nothing to compare.
+// start leaves: the latest `**Started by** @<login>.` comment — accepted
+// only when its body is exactly that record and its author is the login
+// it names (a comment that merely begins with the phrase, or names
+// someone else, is prose, not a record: checky's finding on PR #176).
+// Every start posts one, so the latest is the current owner across
+// restarts and handovers. The first assignee is the legacy fallback for
+// a task started before the record existed. Empty when nothing records a
+// start, so the ownership gate has nothing to compare.
 func StartedBy(t Task, comments []Comment) string {
 	for i := len(comments) - 1; i >= 0; i-- {
-		rest, ok := strings.CutPrefix(strings.TrimSpace(comments[i].Body), "**Started by** @")
-		if !ok {
+		body := strings.TrimSpace(comments[i].Body)
+		rest, ok := strings.CutPrefix(body, "**Started by** @")
+		if !ok || !strings.HasSuffix(rest, ".") {
 			continue
 		}
-		login, _, _ := strings.Cut(rest, " ")
-		login = strings.TrimRight(login, ".")
-		if login != "" {
-			return login
+		login := strings.TrimSuffix(rest, ".")
+		if login == "" || strings.ContainsAny(login, " \n\t") || !SameLogin(comments[i].Author, login) {
+			continue
 		}
+		return login
 	}
 	if len(t.Assignees) > 0 {
 		return t.Assignees[0]
