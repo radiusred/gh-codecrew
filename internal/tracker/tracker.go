@@ -382,3 +382,34 @@ func UnresolvedGates(comments []Comment) []Comment {
 	}
 	return unresolved
 }
+
+// StartedBy returns the login that started a task, from the record task
+// start leaves: the latest `**Started by** @<login>.` comment (App
+// identities are not assignable, so the start is recorded as a comment),
+// else the first assignee. Empty when nothing records a start — a task
+// started by hand — so the ownership gate has nothing to compare.
+func StartedBy(t Task, comments []Comment) string {
+	for i := len(comments) - 1; i >= 0; i-- {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(comments[i].Body), "**Started by** @")
+		if !ok {
+			continue
+		}
+		login, _, _ := strings.Cut(rest, " ")
+		login = strings.TrimRight(login, ".")
+		if login != "" {
+			return login
+		}
+	}
+	if len(t.Assignees) > 0 {
+		return t.Assignees[0]
+	}
+	return ""
+}
+
+// SameLogin compares two GitHub logins the way the routing table does:
+// the "[bot]" suffix an App token's viewer carries is not part of the
+// identity, and logins are case-insensitive.
+func SameLogin(a, b string) bool {
+	norm := func(s string) string { return strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(s, "@"), "[bot]")) }
+	return norm(a) == norm(b)
+}

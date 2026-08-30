@@ -209,6 +209,26 @@ func taskFinish(w io.Writer, args []string) error {
 		return refuse("GATE_UNRECORDED", "%d gate(s) on %s lack a resolution record — reply with **Gate resolved:** stating the decision (SPEC §8): %s",
 			len(unresolved), ref, unresolved[0].URL)
 	}
+	// The seat that started a task finishes it (#165: the coordinator's
+	// table once sent "approved → the implementer" regardless of whose
+	// PR it was, and the implementer merged the doc-synthesizer's
+	// document). The operator's own auth is not exempt — finishing a
+	// routed seat's task is the same misattribution; --bypass is the
+	// recorded escape hatch, and it stays an operator's act.
+	viewer, err := c.t.Viewer()
+	if err != nil {
+		return err
+	}
+	var ownerBypass string
+	if owner := tracker.StartedBy(task, comments); owner != "" && !tracker.SameLogin(owner, viewer) {
+		if !*bypass {
+			return refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it; dispatch it (SPEC §8), or an operator overrides on the record with --bypass", ref, owner, viewer)
+		}
+		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
+			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
+		}
+		ownerBypass = owner
+	}
 
 	prs, err := c.t.ClosingPRs(ref, false)
 	if err != nil {
@@ -256,11 +276,16 @@ func taskFinish(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	if !approved {
-		viewer, err := c.t.Viewer()
-		if err != nil {
+	if ownerBypass != "" {
+		// Recorded before any merge path: the override is the fact, whatever
+		// GitHub then does with the merge.
+		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+		msg := fmt.Sprintf("**Owner bypass:** %s was started by @%s; finished by @%s with --bypass (SPEC §8 — the seat that started a task finishes it; this is the operator's recorded override).", ref, ownerBypass, viewer)
+		if err := c.t.Comment(prRef, msg); err != nil {
 			return err
 		}
+	}
+	if !approved {
 		// Crew identities can never waive review; a human operator can —
 		// including on their own PR, where no distinct principal exists
 		// (pure solo tier, SPEC §5) — and the record says so.
@@ -278,10 +303,6 @@ func taskFinish(w io.Writer, args []string) error {
 	}
 
 	if admin {
-		viewer, err := c.t.Viewer()
-		if err != nil {
-			return err
-		}
 		// A bypass is an operator act: crew identities never hold it.
 		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
 			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)

@@ -312,3 +312,47 @@ func TestInferState(t *testing.T) {
 		}
 	}
 }
+
+// task start records who started a task as an assignment (humans) or a
+// **Started by** comment (App identities are not assignable); StartedBy
+// reads it back, latest comment first, so task finish can hold the seat
+// that started a task to finishing it (#165).
+func TestStartedBy(t *testing.T) {
+	started := func(login string) Comment { return Comment{Author: login, Body: "**Started by** @" + login + "."} }
+	cases := []struct {
+		name string
+		task Task
+		cs   []Comment
+		want string
+	}{
+		{"nothing recorded", Task{}, nil, ""},
+		{"assignee", Task{Assignees: []string{"davison"}}, nil, "davison"},
+		{"comment", Task{}, []Comment{{Body: "plan…"}, started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
+		{"comment outranks assignee", Task{Assignees: []string{"davison"}}, []Comment{started("radiusred-cody[bot]")}, "radiusred-cody[bot]"},
+		{"latest comment wins", Task{}, []Comment{started("radiusred-cody[bot]"), started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
+		{"prose mentioning the phrase is not a record", Task{}, []Comment{{Body: "The **Started by** @x comment is how we know."}}, ""},
+	}
+	for _, c := range cases {
+		if got := StartedBy(c.task, c.cs); got != c.want {
+			t.Errorf("%s: StartedBy = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestSameLogin(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{
+		{"radiusred-cody[bot]", "radiusred-cody[bot]", true},
+		{"radiusred-cody[bot]", "radiusred-cody", true},
+		{"@radiusred-cody[bot]", "Radiusred-Cody", true},
+		{"davison", "Davison", true},
+		{"radiusred-cody[bot]", "radiusred-wordy[bot]", false},
+		{"davison", "radiusred-cody[bot]", false},
+	} {
+		if got := SameLogin(c.a, c.b); got != c.want {
+			t.Errorf("SameLogin(%q, %q) = %v", c.a, c.b, got)
+		}
+	}
+}
