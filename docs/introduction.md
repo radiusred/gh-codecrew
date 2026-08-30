@@ -56,7 +56,7 @@ major is checked, another major refuses; `gh` itself must be 2.50.0 or
 later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 `init`, `status`, `milestone new/evidence/close`,
 `task new/start/finish`, `checkpoint`,
-`role`, `roles diff/show`, `identity new/token`, and `version` — all implemented,
+`role`, `roles diff/show`, `identity new/token/webhook`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`

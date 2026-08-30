@@ -100,11 +100,17 @@ by prior decision, because the framework must never be key custodian for an
 adopter's org.
 
 Webhooks stay off by default — a crew App acts, it never listens — with an
-opt-in `--with-webhook --webhook-url <receiver>` that subscribes the App to
-the protocol-traffic events for platform users, whose orchestrators watch
-through webhooks on the identity Apps they already own (the watch seam,
-[#54](https://github.com/radiusred/gh-codecrew/issues/54)). The webhook
-secret is printed once at creation and never written to disk.
+opt-in `--with-webhook --webhook-url <receiver>` for platform users, whose
+orchestrators watch through webhooks on the identity Apps they already own
+(the watch seam, [#54](https://github.com/radiusred/gh-codecrew/issues/54)).
+It subscribes the App to the two transitions a platform routes to seats —
+`pull_request` and `pull_request_review` — and `--events` names others
+(`issues` for a receiver that wants gates; an event the role's permissions
+cannot receive is refused before the browser opens). GitHub generates the
+hook secret; it is printed once and never written to disk — or, with
+`--webhook-secret <the receiver's>`, replaced by the receiver's the moment
+the App exists, so it signs for the platform from its first delivery. See
+"The receiver side" below for wiring an App minted without a hook.
 
 When the guided flow can't serve (no browser at hand, an enterprise
 quirk), the manual ritual it automates — one App per role:
@@ -305,6 +311,58 @@ fixed, then verified the exact reproduction before approving):
 > only if sound, otherwise request changes with concrete findings. Then
 > confirm the review's author is `<app-slug>[bot]`. Report your verdict and
 > evidence back. Do not merge or run task finish.
+
+### The receiver side
+
+An App webhook is one per App, and GitHub delivers it for **every
+repository the App's installation covers** — an installation on "All
+repositories" includes repositories created later. Installations are per
+account (step 4 above): an org's installation delivers the org's
+repositories, a personal account's its own, and the same App installed on
+both delivers both. So a platform needs no repository webhooks at all; the
+two hand-pasted repository hooks of the orchestrator run's fourth cycle
+([#164](https://github.com/radiusred/gh-codecrew/issues/164)) were the
+workaround for seats whose Apps had no receiver, not the design.
+
+Each seat's App points at the receiver that dispatches that seat, and
+subscribes only to the transition that is its wake:
+
+| App | events | the receiver dispatches |
+|-----|--------|-------------------------|
+| the reviewer's | `pull_request` | a review of the PR opened or updated |
+| the implementer's | `pull_request_review` | the fix, the re-review request, or — approved — `task finish` by the task's owner |
+| the coordinator's | what the seats do not take: `issues` for `cc:needs-decision` gates, nothing by default | the off-table events, and the milestone verbs |
+
+`gh codecrew identity webhook <slug>` works the hook under the App's own
+key (credentials as `identity token` resolves them): no flags or `--show`
+prints the URL, content type, whether a secret is set, and the subscribed
+events; `--url <receiver>` and `--secret <the receiver's>` set them
+(nothing stored, nothing printed); `--rotate-secret` mints a new one and
+prints it once. Events are the exception: GitHub has no endpoint for an
+existing App's subscriptions, so they are set by the manifest at creation
+(`--events`) or by hand on the App's settings page, and the verb prints
+that page rather than pretend.
+
+A receiver verifies `X-Hub-Signature-256` (HMAC-SHA256 of the raw body
+with the secret), answers 2xx, and reads `action` from the payload. Two
+things the run taught: a `ping` cannot fire a receiver that requires
+payload fields — the first real `pull_request` is the test, and a 401
+there means the secret, a 422 the payload
+([#164](https://github.com/radiusred/gh-codecrew/issues/164), finding 60);
+and the receiver's own last-fired timestamp is the health check for the
+seam, because a redundant wake path hides a dead one for hours (finding 59).
+
+**Worked example — a Paperclip routine.** A routine with a webhook trigger
+(`POST /api/routines/<id>/triggers`, kind `webhook`, `signingMode:
+github_hmac`) mints its own secret and a public fire URL
+(`/api/routine-triggers/public/<publicId>/fire`). Mint the seat's App with
+`identity new reviewer --name myorg-reviewy --with-webhook --webhook-url
+<fire URL> --webhook-secret <the trigger's secret>` — or, for an App that
+exists, `identity webhook myorg-reviewy --url <fire URL> --secret <the
+trigger's secret>` — install it on the account, and the routine's
+`lastFiredAt` moves on the first PR. The routine's body should say where
+the payload lives (finding 61); the interop doc (#54) carries the whole
+onboarding checklist.
 
 ### Coexistence with Copilot code review
 
