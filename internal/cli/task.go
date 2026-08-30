@@ -109,11 +109,14 @@ func taskStart(w io.Writer, args []string) error {
 		return err
 	}
 	if err := c.t.Assign(ref, viewer); err != nil {
-		// Bot identities are not always assignable; record the start instead.
-		fmt.Fprintf(w, "note: could not assign @%s (%v); recording start as a comment\n", viewer, err)
-		if err := c.t.Comment(ref, fmt.Sprintf("**Started by** @%s.", viewer)); err != nil {
-			return err
-		}
+		// Bot identities are not assignable; the assignment is a courtesy
+		// for humans, the record below is the fact.
+		fmt.Fprintf(w, "note: could not assign @%s (%v)\n", viewer, err)
+	}
+	// Every start posts the record, so the latest one is the owner task
+	// finish holds to (NOT_OWNER) — across a restart or a handover.
+	if err := c.t.Comment(ref, tracker.StartRecord(viewer)); err != nil {
+		return err
 	}
 
 	if role := c.roleFor(viewer); role == "qa" || role == "reviewer" {
@@ -220,7 +223,8 @@ func taskFinish(w io.Writer, args []string) error {
 		return err
 	}
 	var ownerBypass string
-	if owner := tracker.StartedBy(task, comments); !sameSeat(owner, viewer, c.roleFor) {
+	owner := tracker.StartedBy(task, comments)
+	if !sameSeat(owner, viewer, c.roleFor) {
 		if !*bypass {
 			return refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it: dispatch it, hand it over with task start, or an operator overrides on the record with --bypass (SPEC §8)", ref, owner, viewer)
 		}

@@ -318,7 +318,7 @@ func TestInferState(t *testing.T) {
 // reads it back, latest comment first, so task finish can hold the seat
 // that started a task to finishing it (#165).
 func TestStartedBy(t *testing.T) {
-	started := func(login string) Comment { return Comment{Author: login, Body: "**Started by** @" + login + "."} }
+	started := func(login string) Comment { return Comment{Author: login, Body: StartRecord(login)} }
 	cases := []struct {
 		name string
 		task Task
@@ -330,7 +330,12 @@ func TestStartedBy(t *testing.T) {
 		{"comment", Task{}, []Comment{{Body: "plan…"}, started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
 		{"comment outranks assignee", Task{Assignees: []string{"davison"}}, []Comment{started("radiusred-cody[bot]")}, "radiusred-cody[bot]"},
 		{"latest comment wins", Task{}, []Comment{started("radiusred-cody[bot]"), started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
-		{"prose mentioning the phrase is not a record", Task{}, []Comment{{Body: "The **Started by** @x comment is how we know."}}, ""},
+		{"prose mentioning the phrase is not a record", Task{}, []Comment{{Author: "x", Body: "The **Started by** @x comment is how we know."}}, ""},
+		{"a record with trailing prose is not a record", Task{}, []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: "**Started by** @radiusred-checky[bot]. This is an example."}}, "radiusred-cody[bot]"},
+		{"a record naming someone its author is not", Task{}, []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
+		{"author matches with the suffix ignored", Task{}, []Comment{{Author: "radiusred-cody", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
+		{"human restart: latest record wins, not the assignee list", Task{Assignees: []string{"alice", "bob"}}, []Comment{started("alice"), started("bob")}, "bob"},
+		{"legacy: assignee only", Task{Assignees: []string{"alice", "bob"}}, nil, "alice"},
 	}
 	for _, c := range cases {
 		if got := StartedBy(c.task, c.cs); got != c.want {
