@@ -255,7 +255,7 @@ however it is triggered:
   the routing table is the declared intent, and de-correlated judgment is
   the point of splitting the seats.
 - **QA dispatches start with reachable evidence.** Before dispatching the
-  qa role, the coordination layer runs `gh codecrew milestone evidence <n>` —
+  qa role, the coordination layer runs `gh codecrew milestone evidence <milestone number>` —
   citations that 404 cost a requirement its verdict once and the check is
   deterministic, so it runs as code, not hope. The qa contract refuses past
   an unreachable record from its side too. Brief the seat for what the
@@ -345,10 +345,12 @@ stop using the framework:
 - **Record — keep.** Milestone and task issues, their comments, the PRs and
   the merged milestone documents under `docs/milestones/` are the audit
   trail; nothing needs deleting for the framework to be gone.
-- **The pointer and contracts** — `.codecrew.yml`, `roles/`, `AGENTS.md`,
-  `CLAUDE.md` (hub only; it imports `AGENTS.md` for Claude Code — keep it
-  if you had one of your own), `ROADMAP.md` in each repo. Delete or keep;
-  they are plain files with no hooks.
+- **The pointer, contracts and extensions** — `.codecrew.yml`, `roles/`
+  (the contracts and, from 1.1, the scaffolded `roles/<role>.local.md`
+  extensions beside them — blank unless the project wrote into them),
+  `AGENTS.md`, `CLAUDE.md` (hub only; it imports `AGENTS.md` for Claude
+  Code — keep it if you had one of your own), `ROADMAP.md` in each repo.
+  Delete or keep; they are plain files with no hooks.
 - **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
   created on first use. Remove in the repo's label settings if you like.
 - **Task branches** — `task finish` deletes a merged head and `milestone

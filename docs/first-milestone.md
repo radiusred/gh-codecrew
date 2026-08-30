@@ -60,7 +60,10 @@ for patches, not for majors. Updating is always your act:
 
 `init` writes your `.codecrew.yml` (the project's pointer file, with a
 routing table declaring all five roles — `~` means "held by you"), a
-`ROADMAP.md` seed, the five role contracts under `roles/`, and an
+`ROADMAP.md` seed, the five role contracts under `roles/` — each with a
+blank `roles/<role>.local.md` beside it, the place for this project's own
+additions to a contract (the file says what belongs there; it adds
+nothing until you write into it) — and an
 `AGENTS.md` entry point for any agent you later dispatch — plus, from
 v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
 `CLAUDE.md` and never `AGENTS.md`. Commit and push:

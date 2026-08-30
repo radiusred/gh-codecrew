@@ -34,7 +34,7 @@ Four lines, then one sentence to your agent:
 ```sh
 gh extension install radiusred/gh-codecrew
 cd my-project            # any repo on GitHub, brand new or years old
-gh codecrew init         # writes .codecrew.yml, roles/, AGENTS.md, CLAUDE.md, ROADMAP.md
+gh codecrew init         # writes .codecrew.yml, roles/ (contracts + blank extensions), AGENTS.md, CLAUDE.md, ROADMAP.md
 claude                   # or codex, or whichever coding agent you run
 ```
 
