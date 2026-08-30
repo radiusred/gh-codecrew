@@ -23,7 +23,8 @@ branch of yours.
 
 ## Obligations
 
-- **First act: `gh codecrew milestone evidence <n>`.** Every link the record
+- **First act: `gh codecrew milestone evidence <milestone number>`** (M2 →
+  `2`, never the issue number). Every link the record
   cites must resolve before you test against it — a citation that 404s made
   a whole requirement untestable once (M4-R4), and evidence living only in
   a working tree did it twice more. Do not proceed past
@@ -64,6 +65,11 @@ branch of yours.
   format, same gate (SPEC §5).
 - Raise `cc:needs-decision` when behaviour is defensible but the requirement
   is ambiguous — that ambiguity is a human's to resolve, not yours.
+- **Landed means done.** When your verdicts are posted, your task is done:
+  hand back to the coordination layer the way your platform wakes it —
+  verdicts are not a GitHub event it receives — and never park yourself
+  "until the coordinator's next verb". How the platform wakes belongs in
+  `roles/qa.local.md`.
 
 ## Never
 

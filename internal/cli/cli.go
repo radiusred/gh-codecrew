@@ -15,8 +15,8 @@ verbs:
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
            [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)
-  milestone close <n>                        close a milestone (gates: tasks closed, doc merged)
-  milestone evidence <n>                     verify every cited link in the milestone's record resolves
+  milestone close <milestone number>         close a milestone (gates: tasks closed, doc merged)
+  milestone evidence <milestone number>      verify every cited link in the milestone's record resolves (M2 → 2)
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch

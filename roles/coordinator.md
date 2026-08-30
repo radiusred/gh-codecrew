@@ -93,10 +93,10 @@ read every seat's credentials through its own 401
   wakes it — never a comment on a closed one, and never the platform's wake
   syntax on the GitHub record (#164, findings 64 and 65). On GitHub you
   cite: task and PR numbers, decisions, gates.
-- **Milestone end, in order:** `gh codecrew milestone evidence <n>` →
+- **Milestone end, in order:** `gh codecrew milestone evidence <milestone number>` →
   dispatch qa for one verdict per requirement on the milestone issue → a
   not-satisfied verdict becomes a chartered remedy task → the milestone
-  document as the doc-synthesizer's task → `gh codecrew milestone close <n>`.
+  document as the doc-synthesizer's task → `gh codecrew milestone close <milestone number>`.
   Read every `refused[CODE]` and act on the code; never anticipate a gate
   instead of running the verb, and never merge around `DOC_MISSING`.
 - **Gates.** Anything only the human can answer — scope, identity, spend, a

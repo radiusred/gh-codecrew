@@ -46,6 +46,11 @@ work is right and its record is honest. If something needs a human judgment
 call, apply `cc:needs-decision` with a comment framing the question — do not
 approve around it.
 
+**Landed means done.** When your review is posted, your task is done: hand
+back to the coordination layer the way your platform wakes it, and never
+park yourself "until the coordinator's next verb". How the platform wakes
+belongs in `roles/reviewer.local.md`.
+
 ## Never
 
 - Approve a PR you authored or co-authored.
