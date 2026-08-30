@@ -192,6 +192,10 @@ func listInstallations(client *http.Client, jwt string) ([]installation, error) 
 	case http.StatusOK:
 	case http.StatusUnauthorized:
 		return nil, refuse("BAD_CREDENTIALS", "GitHub rejected the App JWT (401): the private key and the App id do not belong to the same App, or the key was revoked — check the id against gh api /apps/<slug> --jq .id; retrying will not help")
+	case http.StatusNotFound:
+		// An id GitHub knows no App by answers "Integration not found",
+		// not 401 (checky's live probe on PR #171 with GITHUB_APP_ID=1).
+		return nil, refuse("BAD_CREDENTIALS", "GitHub knows no App by the id the JWT was signed as (404 %s): the App id is wrong for this key — check it against gh api /apps/<slug> --jq .id; retrying will not help", strings.TrimSpace(string(body)))
 	default:
 		return nil, fmt.Errorf("GET /app/installations: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}

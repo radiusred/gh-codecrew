@@ -177,8 +177,17 @@ func fakeGitHub(t *testing.T, list []installation, tokenFor map[int64]string) *h
 			return
 		}
 		claims := verifyJWT(t, auth)
-		if claims["iss"] == "wrong" {
+		switch claims["iss"] {
+		case "wrong": // a key GitHub cannot verify for that App
 			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, `{"message":"A JSON web token could not be decoded"}`)
+			return
+		case "1": // an id no App has: GitHub's real answer is 404, not 401
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"Integration not found","documentation_url":"https://docs.github.com/rest"}`)
+			return
+		case "500": // an unrelated failure stays an ordinary error
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		switch {
@@ -282,10 +291,19 @@ func TestIdentityTokenDiscovery(t *testing.T) {
 	if !errors.As(err, &r) || r.Code != "NO_INSTALLATION" {
 		t.Errorf("none: err %v", err)
 	}
-	// A key GitHub rejects: BAD_CREDENTIALS, no retry advice.
-	_, _, err = mint(t, fakeGitHub(t, two, tokens), env(map[string]string{"GITHUB_APP_ID": "wrong"}), t.TempDir(), "radiusred")
-	if !errors.As(err, &r) || r.Code != "BAD_CREDENTIALS" {
-		t.Errorf("rejected JWT: err %v", err)
+	// A key GitHub rejects (401) and an id no App has (404 "Integration
+	// not found" — the shape a mismatched GITHUB_APP_ID really produces,
+	// checky's finding on PR #171) are both BAD_CREDENTIALS; an unrelated
+	// failure is not.
+	for _, iss := range []string{"wrong", "1"} {
+		_, _, err = mint(t, fakeGitHub(t, two, tokens), env(map[string]string{"GITHUB_APP_ID": iss}), t.TempDir(), "radiusred")
+		if !errors.As(err, &r) || r.Code != "BAD_CREDENTIALS" || !strings.Contains(r.Detail, "retrying will not help") {
+			t.Errorf("iss %s: err %v, want BAD_CREDENTIALS", iss, err)
+		}
+	}
+	_, _, err = mint(t, fakeGitHub(t, two, tokens), env(map[string]string{"GITHUB_APP_ID": "500"}), t.TempDir(), "radiusred")
+	if err == nil || errors.As(err, &r) {
+		t.Errorf("server failure became a refusal: %v", err)
 	}
 	// Too many positional arguments is a usage error, not a mint.
 	if _, _, err := mint(t, fakeGitHub(t, two, tokens), env(nil), t.TempDir(), "radiusred", "a", "b"); err == nil || !strings.Contains(err.Error(), "usage") {

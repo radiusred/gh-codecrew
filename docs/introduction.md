@@ -189,9 +189,10 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   environment (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/
   `GITHUB_PEM`), and no key and stub under `~/.config/codecrew/` for the
   slug; the detail says what was looked for and how to write the stub.
-- `BAD_CREDENTIALS` — GitHub rejected the App JWT: the key and the id do
-  not belong to the same App, or the key was revoked. Retrying will not
-  help; check the id against `gh api /apps/<slug> --jq .id`.
+- `BAD_CREDENTIALS` — GitHub rejected the App JWT (401), or knows no App
+  by the id it was signed as (404 "Integration not found"): the key and
+  the id do not belong to the same App, or the key was revoked. Retrying
+  will not help; check the id against `gh api /apps/<slug> --jq .id`.
 - `NO_INSTALLATION` — the App is installed on no account the key can see;
   install it (identities.md, step 4).
 - `INSTALLATION_AMBIGUOUS` — the App is installed on several accounts and
