@@ -33,13 +33,6 @@ var rolePermissions = map[string]map[string]string{
 	"coordinator": {"contents": "read", "issues": "write", "pull_requests": "read"},
 }
 
-// webhookEvents is the protocol-traffic event set --with-webhook subscribes
-// an identity to: everything the CodeCrew verbs write that an orchestrator
-// watching the seam (SPEC §9) would want delivered rather than polled.
-var webhookEvents = []string{
-	"issues", "issue_comment", "pull_request", "pull_request_review", "check_suite",
-}
-
 // buildManifest assembles the GitHub App manifest for a role. The App is
 // named for a crew member, never the role (identities outlive role
 // reassignments), so a name equal to the role is refused. A webhook-less
@@ -49,7 +42,7 @@ var webhookEvents = []string{
 // webhook: a crew App acts, it never listens. withWebhook adds the object,
 // active, with the protocol-traffic events delivered to webhookURL (the
 // platform's receiver).
-func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string, withApproval bool) (map[string]any, error) {
+func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, webhookURL string, events []string, withApproval bool) (map[string]any, error) {
 	perms, ok := rolePermissions[role]
 	if !ok {
 		return nil, fmt.Errorf("unknown role %q — one of implementer, reviewer, qa, doc-synthesizer, coordinator", role)
@@ -87,8 +80,12 @@ func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, w
 		if webhookURL == "" {
 			return nil, fmt.Errorf("--with-webhook requires --webhook-url (the receiver events are delivered to)")
 		}
+		subscribed, err := webhookEvents(role, events)
+		if err != nil {
+			return nil, err
+		}
 		m["hook_attributes"] = map[string]any{"active": true, "url": webhookURL}
-		m["default_events"] = webhookEvents
+		m["default_events"] = subscribed
 	}
 	return m, nil
 }
@@ -134,6 +131,17 @@ var convertManifest = func(code string) (*appCreds, error) {
 		return nil, err
 	}
 	return &creds, nil
+}
+
+// setWebhookSecret signs as the App just created and sets its hook secret;
+// stubbed in tests.
+var setWebhookSecret = func(creds *appCreds, secret string) error {
+	jwt, err := signAppJWT([]byte(creds.PEM), fmt.Sprint(creds.ID), time.Now())
+	if err != nil {
+		return err
+	}
+	_, err = patchHookConfig(http.DefaultClient, jwt, map[string]string{"secret": secret})
+	return err
 }
 
 // pemPath is the storage convention from docs/identities.md:
@@ -306,6 +314,8 @@ func identityNew(w io.Writer, args []string) error {
 	withWebhook := fs.Bool("with-webhook", false, "subscribe the App to protocol-traffic events (platform users)")
 	webhookURL := fs.String("webhook-url", "", "receiver for --with-webhook deliveries")
 	withApproval := fs.Bool("with-approval-permission", false, "reviewer only: grant contents: write so the App's approvals satisfy required-review rules")
+	eventsFlag := fs.String("events", "", "with --with-webhook: comma-separated events to subscribe (default pull_request,pull_request_review; issues for gates)")
+	webhookSecret := fs.String("webhook-secret", "", "with --with-webhook: set the hook secret to the receiver's right after creation")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -318,8 +328,15 @@ func identityNew(w io.Writer, args []string) error {
 	// Validate the manifest inputs before any repo or API work, so bad
 	// invocations refuse instantly; the real manifest (with the loopback
 	// redirect) is rebuilt once the listener's address is known.
-	if _, err := buildManifest(role, *name, "", "", *withWebhook, *webhookURL, *withApproval); err != nil {
+	var events []string
+	if *eventsFlag != "" {
+		events = strings.Split(*eventsFlag, ",")
+	}
+	if _, err := buildManifest(role, *name, "", "", *withWebhook, *webhookURL, events, *withApproval); err != nil {
 		return err
+	}
+	if *webhookSecret != "" && !*withWebhook {
+		return fmt.Errorf("--webhook-secret applies with --with-webhook")
 	}
 
 	c, err := load()
@@ -343,7 +360,7 @@ func identityNew(w io.Writer, args []string) error {
 	defer l.Close()
 	local := fmt.Sprintf("http://%s", l.Addr())
 
-	manifest, err := buildManifest(role, *name, "https://github.com/"+c.hub, local+"/callback", *withWebhook, *webhookURL, *withApproval)
+	manifest, err := buildManifest(role, *name, "https://github.com/"+c.hub, local+"/callback", *withWebhook, *webhookURL, events, *withApproval)
 	if err != nil {
 		return err
 	}
@@ -380,7 +397,18 @@ func identityNew(w io.Writer, args []string) error {
 	fmt.Fprintf(w, "private key: %s\n", keyPath)
 	fmt.Fprintf(w, "credential stub: %s (lets identity token mint without any account lookup)\n", stub)
 	if creds.WebhookSecret != "" {
-		fmt.Fprintf(w, "webhook secret (shown once, not stored): %s\n", creds.WebhookSecret)
+		if *webhookSecret != "" {
+			// The receiver's secret, set under the key just stored — so the
+			// App signs for the platform from its first delivery (#157).
+			if err := setWebhookSecret(creds, *webhookSecret); err != nil {
+				fmt.Fprintf(w, "webhook secret: GitHub generated one, but setting yours failed (%v) — set it with: gh codecrew identity webhook %s --secret <yours>\n", err, creds.Slug)
+				fmt.Fprintf(w, "webhook secret GitHub generated (shown once, not stored): %s\n", creds.WebhookSecret)
+			} else {
+				fmt.Fprintln(w, "webhook secret set to the one you supplied (not stored, not printed)")
+			}
+		} else {
+			fmt.Fprintf(w, "webhook secret (shown once, not stored): %s — or set the receiver's: gh codecrew identity webhook %s --secret <theirs>\n", creds.WebhookSecret, creds.Slug)
+		}
 	}
 	fmt.Fprintf(w, "\nnext:\n")
 	fmt.Fprintf(w, "  1. install it: https://github.com/apps/%s/installations/new\n", creds.Slug)
