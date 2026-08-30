@@ -6,6 +6,29 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The scaffold asks what is local
+- `init` writes a blank `roles/<role>.local.md` beside every contract —
+  one comment saying what the file is (the project's extension, loaded
+  after the contract, append-only, composed by `roles show`) with two
+  upstream links: the new `docs/extensions.md` examples page and SPEC §7.
+  The mechanism is made visible at onboarding the way the routing table
+  is; the binary ships no opinion about what goes in it, and the examples
+  change without touching anyone's scaffold. A comments-only extension
+  composes to nothing, so `roles show` prints the bare contract until the
+  project writes something. Rerunning `init` in an existing hub adds the
+  blanks and nothing else. The teardown section lists them. Decided at
+  the M7-R4 amendment (#163). (M7-R4, #159, #173)
+- Three wordings from the orchestrator run (#158): the milestone's ROADMAP
+  row rides in the milestone's first PR (the implementer's) and the
+  document PR flips it; every seat contract says *landed means done* —
+  hand back the way your platform wakes the coordinator, never park
+  yourself until its next verb; `<milestone number>` replaces `<n>` in
+  the qa and coordinator contracts, identities.md and the usage text.
+- `milestone evidence` reads a URL as ending at the first character that
+  cannot be in one — a prose ellipsis, quotes, a backtick, anything
+  outside ASCII — trims trailing punctuation, and keeps a closing
+  parenthesis only when the URL opened it (#138).
+
 ### The mint is a verb
 - `identity token [<slug>] [--installation <id>]` mints an installation
   token in Go: the App id and private key from the environment under the
