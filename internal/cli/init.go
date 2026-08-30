@@ -189,15 +189,17 @@ func initCmd(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
 		fmt.Fprintln(w, "first: git init && git add -A && git commit -m \"chore: scaffold codecrew\" &&")
 		fmt.Fprintln(w, "       gh repo create <owner>/<name> --private --source=. --push")
+	} else {
+		// The scaffold is the last commit before the protocol starts: made
+		// here, from exactly the files written, never pushed (#172).
+		commitScaffold(w, ".", written)
 	}
 	if *hub == "self" {
 		fmt.Fprintln(w, "\nnext: every seat is routed to you (~ in .codecrew.yml); to hand one to a")
 		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
-		fmt.Fprintln(w, "commit, then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
-		fmt.Fprintln(w, "(a protected default branch makes the scaffold the project's first PR — no task")
-		fmt.Fprintln(w, " exists yet for `task finish` to merge it, so that one merge is yours)")
+		fmt.Fprintln(w, "then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
 	} else {
-		fmt.Fprintf(w, "\nnext: commit the pointer; tasks for this spoke attach to milestones in %s\n", *hub)
+		fmt.Fprintf(w, "\nnext: tasks for this spoke attach to milestones in %s\n", *hub)
 	}
 	return nil
 }
