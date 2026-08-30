@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A seat finishes only its own task
+- `task finish` refuses `NOT_OWNER` — the twenty-eighth code — when the
+  caller is not the seat that started the task, read from `task start`'s
+  record (the assignment, or the `**Started by**` comment an App identity
+  gets) with the `[bot]` suffix ignored. The operator's own auth is not
+  exempt; `--bypass` is the recorded override, an operator's act as it
+  already was (`CREW_BYPASS` for a crew identity), and the PR comment
+  names the owner overridden. A task with no start record is not gated.
+  The contracts say so; SPEC §6 and §8 list the gate. Cycle 4's
+  implementer merged the doc-synthesizer's document because the
+  coordinator's table named a fixed seat (#164 finding 58). (#165, #175)
+
 ### The scaffold asks what is local
 - `init` writes a blank `roles/<role>.local.md` beside every contract —
   one comment saying what the file is (the project's extension, loaded

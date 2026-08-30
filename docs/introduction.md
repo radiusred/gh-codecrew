@@ -113,7 +113,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-seven, by the verb that raises
+the agent; the detail is for the human. All twenty-eight, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -144,6 +144,10 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   removes the label.
 - `GATE_UNRECORDED` — a gate was raised and the label removed, but no
   `**Gate resolved:**` comment records the decision (SPEC §8).
+- `NOT_OWNER` — the task was started by another seat (`task start`'s
+  assignment or `**Started by**` record); the seat that started a task
+  finishes it — dispatch it. A human operator overrides on the record with
+  `--bypass`; a task with no start record is not gated.
 - `NO_PR` — no open PR closes the task.
 - `NO_CHECKS` — the PR reports no CI checks at all; absence cannot satisfy
   the deterministic gate, and there is no override.

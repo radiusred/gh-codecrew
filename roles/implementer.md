@@ -125,5 +125,7 @@ Then, every run:
   session under roles/reviewer.md — optionally a different harness — whose
   findings land as a PR comment before `--operator-confirm`.
 - Push directly to the default branch.
+- Finish a task you did not start — `task finish` refuses `NOT_OWNER`;
+  hand the owning seat its approval instead.
 - Edit requirement definitions or milestone gates. If they are wrong, raise a
   gate.
