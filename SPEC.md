@@ -546,9 +546,11 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   `identity new coordinator` — instead of a hand-written brief, and wires
   each seat's App to the receiver that dispatches it (`identity new
   --with-webhook --webhook-secret`, `identity webhook`; one App hook covers
-  every repository the installation sees); the platform-side seams that
-  remain — one wake path per transition, the review loop's second round —
-  are #54's.
+  every repository the installation sees). The whole shape — the separation
+  of concerns, the seat mapping, credentials, wake paths, the onboarding
+  checklist, what four cycles cost and the Paperclip recipe — is
+  [docs/platform-interop.md](docs/platform-interop.md), which also names the
+  seams that remain open.
 
 ## 10. The CLI
 

@@ -20,11 +20,14 @@ happens next, not a prerequisite.
    one agent, a milestone from opening to audited close.
 4. [Identities](identities.md) — running solo, staffing seats with humans,
    teams and App identities, dispatching a role session.
-5. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
+5. [Platform interop](platform-interop.md) — the ladder's last rung: how an
+   orchestration platform hosts the whole crew, written from four cycles of
+   doing it.
+6. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
    configuration, verbs, roles, gates.
-6. [Founding decisions](founding-decisions.md) and the per-milestone
+7. [Founding decisions](founding-decisions.md) and the per-milestone
    records in [milestones/](milestones/) — the "why", as it was recorded.
-7. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
+8. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
    — the essay that started the project: one person's experience with GSD
    across several projects, kept as the motivation, not a verdict on GSD.
 
@@ -96,7 +99,9 @@ itself — see [identities.md](identities.md) (SPEC §5 for the tiers).
 
 **What it has done** — the receipts are on the [landing
 page](../README.md#the-receipts); the per-milestone records are in
-[milestones/](milestones/).
+[milestones/](milestones/). The largest environment it has run in — an
+orchestration platform dispatching all five seats — has its own page:
+[Platform interop](platform-interop.md).
 
 ## Install and use
 

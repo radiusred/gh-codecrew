@@ -163,13 +163,16 @@ actually done so far.
   webhook events: four PRs, three real review rounds, one gate raised by
   the coordinator and resolved by the operator, and zero operator touches
   on the workflow that were not that gate (setting the experiment up is
-  counted separately). The fifty findings on the way — and what each one
-  changed — are the log on
-  [#119](https://github.com/radiusred/gh-codecrew/issues/119).
+  counted separately). A fourth cycle then ran a fresh repo with a
+  dedicated coordinator agent from the first event. The sixty-eight
+  findings on the way — and what each one changed — are the logs on
+  [#119](https://github.com/radiusred/gh-codecrew/issues/119) and
+  [#164](https://github.com/radiusred/gh-codecrew/issues/164); how to do
+  it yourself is [Platform interop](docs/platform-interop.md).
 
 Things we have not done yet, in the interest of not overselling: any
-backend other than GitHub, or GitHub Enterprise Server; the
-platform-interop doc that the orchestrator run is the raw material for
+backend other than GitHub, or GitHub Enterprise Server; a per-platform
+onboarding script, so the interop page's checklist is still run by hand
 ([#54](https://github.com/radiusred/gh-codecrew/issues/54)). The
 [roadmap](ROADMAP.md) says what each milestone was for and which is open,
 and [CHANGELOG.md](CHANGELOG.md) what each release shipped.
@@ -181,6 +184,9 @@ and [CHANGELOG.md](CHANGELOG.md) what each release shipped.
 - [Your first milestone](docs/first-milestone.md) — the quickstart
 - [Identities](docs/identities.md) — running solo, minting App identities,
   dispatching a role session
+- [Platform interop](docs/platform-interop.md) — hosting the crew on an
+  orchestration platform: the coordinator seat, wake paths, the onboarding
+  checklist and what four cycles cost
 - [SPEC.md](SPEC.md) — the protocol itself
 - [Founding decisions](docs/founding-decisions.md) — the trade-offs, and
   [the essay that started it](docs/gsd-vs-frontier-orchestration.md) — one

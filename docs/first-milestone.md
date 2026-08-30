@@ -264,8 +264,11 @@ in the crew, and it's a ladder:
 3. **Full orchestration platforms** — an orchestrator dispatching the whole
    crew against the routing table, webhooks instead of polling. Run end to
    end on Paperclip: three milestones on a proving-ground repo, the third
-   with one gate and no operator touch on the workflow besides it — the
-   findings and what they changed are on
-   [#119](https://github.com/radiusred/gh-codecrew/issues/119);
-   the interop doc written from them is
-   [#54](https://github.com/radiusred/gh-codecrew/issues/54).
+   with one gate and no operator touch on the workflow besides it, then a
+   fourth cycle on a fresh repo driven by a dedicated coordinator agent —
+   the findings and what they changed are on
+   [#119](https://github.com/radiusred/gh-codecrew/issues/119) and
+   [#164](https://github.com/radiusred/gh-codecrew/issues/164).
+   [Platform interop](platform-interop.md) is the page written from them:
+   the coordinator seat, credentials, wake paths, the onboarding checklist,
+   what four cycles cost, and the recipe.
