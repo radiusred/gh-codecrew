@@ -109,8 +109,9 @@ It subscribes the App to the two transitions a platform routes to seats —
 cannot receive is refused before the browser opens). GitHub generates the
 hook secret; it is printed once and never written to disk — or, with
 `--webhook-secret <the receiver's>`, replaced by the receiver's the moment
-the App exists, so it signs for the platform from its first delivery. See
-"The receiver side" below for wiring an App minted without a hook.
+the App exists, so it signs for the platform from its first delivery. Mint
+with the hook if the App will ever listen: an App minted without one has
+no hook configuration GitHub's API can create — see "The receiver side".
 
 When the guided flow can't serve (no browser at hand, an enterprise
 quirk), the manual ritual it automates — one App per role:
@@ -333,15 +334,19 @@ subscribes only to the transition that is its wake:
 | the implementer's | `pull_request_review` | the fix, the re-review request, or — approved — `task finish` by the task's owner |
 | the coordinator's | what the seats do not take: `issues` for `cc:needs-decision` gates, nothing by default | the off-table events, and the milestone verbs |
 
-`gh codecrew identity webhook <slug>` works the hook under the App's own
-key (credentials as `identity token` resolves them): no flags or `--show`
-prints the URL, content type, whether a secret is set, and the subscribed
-events; `--url <receiver>` and `--secret <the receiver's>` set them
-(nothing stored, nothing printed); `--rotate-secret` mints a new one and
-prints it once. Events are the exception: GitHub has no endpoint for an
-existing App's subscriptions, so they are set by the manifest at creation
-(`--events`) or by hand on the App's settings page, and the verb prints
-that page rather than pretend.
+`gh codecrew identity webhook <slug>` works an *active* hook under the
+App's own key (credentials as `identity token` resolves them): no flags or
+`--show` prints the URL, content type, whether a secret is set, and the
+subscribed events; `--url <receiver>` and `--secret <the receiver's>` set
+them (nothing stored, nothing printed); `--rotate-secret` mints a new one
+and prints it once. Two things GitHub keeps for the settings page, and the
+verb says so rather than pretend: an App minted **without** a webhook has
+no hook configuration at all — `GET` and `PATCH` both answer 404, and no
+endpoint creates one — so the verb refuses `NO_WEBHOOK` naming the page
+where Webhook → Active and the URL are set by hand, after which `--secret`
+and `--show` work; and an existing App's **event subscriptions** have no
+endpoint either — set by the manifest at creation (`--events`) or ticked on
+that page.
 
 A receiver verifies `X-Hub-Signature-256` (HMAC-SHA256 of the raw body
 with the secret), answers 2xx, and reads `action` from the payload. Two
@@ -357,9 +362,9 @@ seam, because a redundant wake path hides a dead one for hours (finding 59).
 github_hmac`) mints its own secret and a public fire URL
 (`/api/routine-triggers/public/<publicId>/fire`). Mint the seat's App with
 `identity new reviewer --name myorg-reviewy --with-webhook --webhook-url
-<fire URL> --webhook-secret <the trigger's secret>` — or, for an App that
-exists, `identity webhook myorg-reviewy --url <fire URL> --secret <the
-trigger's secret>` — install it on the account, and the routine's
+<fire URL> --webhook-secret <the trigger's secret>` — or, for an App whose
+hook is already active, `identity webhook myorg-reviewy --url <fire URL>
+--secret <the trigger's secret>` — install it on the account, and the routine's
 `lastFiredAt` moves on the first PR. The routine's body should say where
 the payload lives (finding 61); the interop doc (#54) carries the whole
 onboarding checklist.

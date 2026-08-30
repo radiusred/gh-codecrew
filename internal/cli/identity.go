@@ -140,8 +140,40 @@ var setWebhookSecret = func(creds *appCreds, secret string) error {
 	if err != nil {
 		return err
 	}
-	_, err = patchHookConfig(http.DefaultClient, jwt, map[string]string{"secret": secret})
+	_, err = patchHookConfig(http.DefaultClient, jwt, "the App's settings page", map[string]string{"secret": secret})
 	return err
+}
+
+// storeAndReport is identity new after the browser flow: persist the key
+// and stub, say what was created, and hand the operator the webhook secret
+// — GitHub's once, or, with --webhook-secret, the receiver's set under the
+// key just stored. The supplied secret is never printed; on a failed set
+// the generated one is shown once with the recovery command.
+func storeAndReport(w io.Writer, creds *appCreds, configDir, webhookSecret string, withApproval bool, now time.Time) (keyPath, stub string, err error) {
+	keyPath, stub, err = writeCredentials(configDir, creds, now)
+	if err != nil {
+		return "", "", err
+	}
+	fmt.Fprintf(w, "\ncreated %s (App ID %d, client ID %s)\n", creds.Slug, creds.ID, creds.ClientID)
+	if withApproval {
+		fmt.Fprintln(w, "contents: write granted — this App's approvals satisfy required-review rules;")
+		fmt.Fprintln(w, "its contract forbids editing code: the write grant exists only to make its judgment count")
+	}
+	fmt.Fprintf(w, "private key: %s\n", keyPath)
+	fmt.Fprintf(w, "credential stub: %s (lets identity token mint without any account lookup)\n", stub)
+	if creds.WebhookSecret != "" {
+		if webhookSecret != "" {
+			if err := setWebhookSecret(creds, webhookSecret); err != nil {
+				fmt.Fprintf(w, "webhook secret: GitHub generated one, but setting yours failed (%v) — set it with: gh codecrew identity webhook %s --secret <yours>\n", err, creds.Slug)
+				fmt.Fprintf(w, "webhook secret GitHub generated (shown once, not stored): %s\n", creds.WebhookSecret)
+			} else {
+				fmt.Fprintln(w, "webhook secret set to the one you supplied (not stored, not printed)")
+			}
+		} else {
+			fmt.Fprintf(w, "webhook secret (shown once, not stored): %s — or set the receiver's: gh codecrew identity webhook %s --secret <theirs>\n", creds.WebhookSecret, creds.Slug)
+		}
+	}
+	return keyPath, stub, nil
 }
 
 // pemPath is the storage convention from docs/identities.md:
@@ -384,31 +416,10 @@ func identityNew(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	keyPath, stub, err := writeCredentials(configDir, creds, time.Now())
-	if err != nil {
+	// The receiver's secret, when given, is set under the key just stored
+	// — so the App signs for the platform from its first delivery (#157).
+	if _, _, err := storeAndReport(w, creds, configDir, *webhookSecret, *withApproval, time.Now()); err != nil {
 		return err
-	}
-
-	fmt.Fprintf(w, "\ncreated %s (App ID %d, client ID %s)\n", creds.Slug, creds.ID, creds.ClientID)
-	if *withApproval {
-		fmt.Fprintln(w, "contents: write granted — this App's approvals satisfy required-review rules;")
-		fmt.Fprintln(w, "its contract forbids editing code: the write grant exists only to make its judgment count")
-	}
-	fmt.Fprintf(w, "private key: %s\n", keyPath)
-	fmt.Fprintf(w, "credential stub: %s (lets identity token mint without any account lookup)\n", stub)
-	if creds.WebhookSecret != "" {
-		if *webhookSecret != "" {
-			// The receiver's secret, set under the key just stored — so the
-			// App signs for the platform from its first delivery (#157).
-			if err := setWebhookSecret(creds, *webhookSecret); err != nil {
-				fmt.Fprintf(w, "webhook secret: GitHub generated one, but setting yours failed (%v) — set it with: gh codecrew identity webhook %s --secret <yours>\n", err, creds.Slug)
-				fmt.Fprintf(w, "webhook secret GitHub generated (shown once, not stored): %s\n", creds.WebhookSecret)
-			} else {
-				fmt.Fprintln(w, "webhook secret set to the one you supplied (not stored, not printed)")
-			}
-		} else {
-			fmt.Fprintf(w, "webhook secret (shown once, not stored): %s — or set the receiver's: gh codecrew identity webhook %s --secret <theirs>\n", creds.WebhookSecret, creds.Slug)
-		}
 	}
 	fmt.Fprintf(w, "\nnext:\n")
 	fmt.Fprintf(w, "  1. install it: https://github.com/apps/%s/installations/new\n", creds.Slug)
