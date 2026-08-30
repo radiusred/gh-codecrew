@@ -30,6 +30,14 @@ type gateResult struct {
 	name   string
 	status gateStatus
 	err    error
+	notes  []string // printed under the gate: what the live verb says at that point
+}
+
+// note attaches a line to the last gate — the live verb prints it there.
+func (p *plan) note(line string) {
+	if len(p.gates) > 0 {
+		p.gates[len(p.gates)-1].notes = append(p.gates[len(p.gates)-1].notes, line)
+	}
 }
 
 // gate records a gate's outcome and reports whether the verb continues.
@@ -81,6 +89,9 @@ func (p *plan) print(w io.Writer) {
 			fmt.Fprintf(w, "gate %s: not reached\n", g.name)
 		case gateNA:
 			fmt.Fprintf(w, "gate %s: not applicable\n", g.name)
+		}
+		for _, n := range g.notes {
+			fmt.Fprintf(w, "  %s\n", n)
 		}
 	}
 	if p.refusal != nil {

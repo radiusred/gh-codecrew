@@ -296,7 +296,17 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	if !p.gate("QA verdicts", e) {
 		return p.stop(closeGates), nil, nil
 	}
-	unroutedNote := len(latest) > 0 && c.rolesConfig().Roles["qa"].Identity == ""
+	if len(latest) > 0 && c.rolesConfig().Roles["qa"].Identity == "" {
+		// Said here, before the document gate, as it always was — a live
+		// close refused DOC_MISSING still says it (checky's finding on
+		// PR #179); the dry run shows it under the gate.
+		note := "note: qa is unrouted — verdicts counted from the human operator holding the role; declare role routing in the hub's .codecrew.yml at onboarding (SPEC §5)"
+		if dryRun {
+			p.note(note)
+		} else {
+			fmt.Fprintln(w, note)
+		}
+	}
 
 	// Gather Decision/Deviation raw material for the doc-synthesizer.
 	records, summaries, err := gatherRecords(c, milestone)
@@ -331,16 +341,16 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	// closing comment, carry what was removed (M6-R8). The sweep runs
 	// before the close on purpose: it only ever deletes a merged or empty
 	// branch, so a close that fails after it loses nothing (#133).
-	items, notes := planSweep(c.t, milestone)
-	for _, note := range notes {
-		p.would("skip: %s", strings.TrimPrefix(note, "note: "))
-	}
+	items := planSweep(c.t, milestone)
 	var wouldDelete []string
 	for _, it := range items {
-		if it.Delete {
+		switch {
+		case it.Note != "":
+			p.would("skip: %s", strings.TrimPrefix(it.Note, "note: "))
+		case it.Delete:
 			wouldDelete = append(wouldDelete, it.Name)
 			p.would("delete branch %s (%s)", it.Name, it.Reason)
-		} else {
+		default:
 			p.would("keep branch %s (%s)", it.Name, it.Reason)
 		}
 	}
@@ -353,12 +363,6 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	}
 	p.would("close %s (%s) with: %s", milestone.Title, milestone.Ref, closing(wouldDelete))
 	run := func(w io.Writer) error {
-		if unroutedNote {
-			fmt.Fprintln(w, "note: qa is unrouted — verdicts counted from the human operator holding the role; declare role routing in the hub's .codecrew.yml at onboarding (SPEC §5)")
-		}
-		for _, note := range notes {
-			fmt.Fprintln(w, note)
-		}
 		swept := executeSweep(w, c.t, items)
 		if err := c.t.CloseIssue(milestone.Ref, closing(swept)); err != nil {
 			return err
