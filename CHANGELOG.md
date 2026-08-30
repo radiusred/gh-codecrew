@@ -10,7 +10,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - `task finish` refuses `NOT_OWNER` — the twenty-eighth code — when the
   caller is not the seat that started the task, read from `task start`'s
   record (the assignment, or the `**Started by**` comment an App identity
-  gets) with the `[bot]` suffix ignored. The operator's own auth is not
+  gets): the same login with the `[bot]` suffix ignored, or the same
+  routed seat — a team-held role is any member. Handover is `task start`
+  again by the new seat (latest record wins; the path when the starter has
+  left). The operator's own auth is not
   exempt; `--bypass` is the recorded override, an operator's act as it
   already was (`CREW_BYPASS` for a crew identity), and the PR comment
   names the owner overridden. A task with no start record is not gated.

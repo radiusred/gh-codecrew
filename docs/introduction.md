@@ -145,9 +145,12 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `GATE_UNRECORDED` — a gate was raised and the label removed, but no
   `**Gate resolved:**` comment records the decision (SPEC §8).
 - `NOT_OWNER` — the task was started by another seat (`task start`'s
-  assignment or `**Started by**` record); the seat that started a task
-  finishes it — dispatch it. A human operator overrides on the record with
-  `--bypass`; a task with no start record is not gated.
+  assignment or `**Started by**` record; the same seat is the same login or
+  the same routed role — any member of a team-held role). The seat that
+  started a task finishes it — dispatch it; hand it over by running
+  `task start` as the new seat (the latest record wins — the path when the
+  starter has left); or a human operator overrides on the record with
+  `--bypass`. A task with no start record is not gated.
 - `NO_PR` — no open PR closes the task.
 - `NO_CHECKS` — the PR reports no CI checks at all; absence cannot satisfy
   the deterministic gate, and there is no override.
