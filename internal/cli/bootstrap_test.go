@@ -255,3 +255,24 @@ func TestInitRefusesASubdirectory(t *testing.T) {
 		t.Error("init wrote into the subdirectory")
 	}
 }
+
+// The scaffold commits on whatever branch the operator is on, and the
+// push instruction names it — nothing assumes main.
+func TestCommitScaffoldOnABranchNotNamedMain(t *testing.T) {
+	stubProtection(t, false, true)
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q", "-b", "trunk"}, {"config", "user.email", "t@example.com"}, {"config", "user.name", "t"}, {"config", "commit.gpgsign", "false"}} {
+		if _, err := git(dir, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	written, _, _ := scaffold(dir, "self", fakeContracts)
+	var out bytes.Buffer
+	commitScaffold(&out, dir, written)
+	if b, _ := git(dir, "symbolic-ref", "--short", "HEAD"); b != "trunk" {
+		t.Errorf("committed on %s", b)
+	}
+	if !strings.Contains(out.String(), " on trunk: ") || !strings.Contains(out.String(), "git push -u origin trunk when ready") {
+		t.Errorf("output:\n%s", out.String())
+	}
+}
