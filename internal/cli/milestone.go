@@ -130,7 +130,7 @@ func milestoneNew(w io.Writer, args []string) error {
 		n, strings.TrimPrefix(fullTitle, fmt.Sprintf("M%d: ", n)), ref.Number, ref.Repo, ref.Number)
 	if c.current == c.hub {
 		if appendRoadmapRow(filepath.Join(c.cfg.Dir, "ROADMAP.md"), row) == nil {
-			fmt.Fprintln(w, "ROADMAP.md updated locally — commit it via your next PR")
+			fmt.Fprintln(w, "ROADMAP.md updated locally — it rides in this milestone's first PR (the implementer's)")
 			return nil
 		}
 	}

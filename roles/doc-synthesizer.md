@@ -32,6 +32,9 @@ a 401 means mint again; commit as the App's bot user), using
   discipline.
 - **Requirement outcomes:** a short table of requirement IDs with their final
   status, drawn from QA verdicts and task closure.
+- **Flip the ROADMAP row.** The milestone's row in the hub's `ROADMAP.md`
+  went in with the milestone's first PR as Open; the document PR sets it
+  to Done, linking the document.
 - **Refresh the README and the introduction** (`docs/introduction.md`) in
   the same PR: update them so they reflect what the milestone delivered.
   Their claims about what exists and works — the landing page's proof
@@ -46,6 +49,11 @@ a 401 means mint again; commit as the App's bot user), using
   the only merge point. A document PR with no task behind it has no owner
   for its review loop and nothing that can merge it
   ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 27).
+- **Landed means done.** When the document has merged through
+  `task finish`, your task is done: hand back to the coordination layer the
+  way your platform wakes it, and never park yourself "until the
+  coordinator's next verb". How the platform wakes belongs in
+  `roles/doc-synthesizer.local.md`.
 
 ## Never
 
