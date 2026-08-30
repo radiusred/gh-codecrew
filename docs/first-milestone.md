@@ -68,17 +68,20 @@ nothing until you write into it) — and an
 v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
 `CLAUDE.md` and never `AGENTS.md` — and commits exactly those files
 (`chore: scaffold codecrew`), leaving anything else you had staged or
-modified as it was. It never pushes; that is yours:
+modified as it was. It never pushes; that is yours (run `init` at the
+repository root — it refuses a subdirectory, since the pointer belongs at
+the root):
 
 ```sh
-git push
+git push -u origin main
 ```
 
 If your default branch requires pull requests, `init` will have put the
-commit on a branch it made, `codecrew-bootstrap`, and said so: push it
-and open the scaffold PR — the one merge you do yourself, since no
-milestone or task exists yet for `task finish` to merge it through.
-Everything after it goes through a task.
+commit on a branch it made from the default branch, `codecrew-bootstrap`,
+and said so: `git push -u origin codecrew-bootstrap` and open the scaffold
+PR — the one merge you do yourself, since no milestone or task exists yet
+for `task finish` to merge it through. Everything after it goes through a
+task.
 
 ## 2. Open a milestone
 

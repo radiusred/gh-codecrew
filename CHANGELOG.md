@@ -10,10 +10,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - `init` commits exactly the files it wrote — `chore: scaffold codecrew`,
   a pathspec commit, so the operator's own staged and unstaged work is
   untouched (no stash) — on the current branch, or on
-  `codecrew-bootstrap` when the default branch requires pull requests
-  (asked through `gh`; assumed when it cannot be asked, since a commit
-  stranded on a protected `main` is the worse outcome). It never pushes,
-  never runs `git init`, and a rerun that writes nothing commits nothing.
+  `codecrew-bootstrap` cut from the default branch when that branch
+  requires pull requests (asked through `gh`; assumed when it cannot be
+  asked, since a commit stranded on a protected `main` is the worse
+  outcome). It never pushes, never runs `git init`, refuses a
+  subdirectory (the pointer belongs at the repository root — `init` used
+  to mistake one for "not a repository"), leaves a detached HEAD
+  uncommitted with the command to run, and a rerun that writes nothing
+  commits nothing.
   In a fresh repository the scaffold is the root commit and the last
   commit before the protocol starts; behind a ruleset the scaffold PR
   remains the one merge the operator does by hand — the pre-milestone

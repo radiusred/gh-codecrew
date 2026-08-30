@@ -158,12 +158,14 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 	return written, skipped, nil
 }
 
-// inGitRepo reports whether dir carries a .git entry (directory in normal
-// clones, file in worktrees). A conservative check: the protocol needs a
-// GitHub repo, and an agent shouldn't have to discover its absence itself.
-func inGitRepo(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, ".git"))
-	return err == nil
+// sameDir compares two paths as directories, symlinks resolved.
+func sameDir(a, b string) bool {
+	ra, err1 := filepath.EvalSymlinks(a)
+	rb, err2 := filepath.EvalSymlinks(b)
+	if err1 != nil || err2 != nil {
+		return filepath.Clean(a) == filepath.Clean(b)
+	}
+	return ra == rb
 }
 
 // initCmd scaffolds a new CodeCrew repo: hub mode by default, spoke mode
@@ -175,6 +177,14 @@ func initCmd(w io.Writer, args []string) error {
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
+	// The pointer belongs at the repository root — config.Load walks
+	// upward and would find a nested one first — so init refuses to
+	// scaffold a subdirectory before writing anything.
+	if root := repoRoot("."); root != "" {
+		if cwd, err := os.Getwd(); err == nil && !sameDir(cwd, root) {
+			return fmt.Errorf("run init at the repository root (%s), not in a subdirectory", root)
+		}
+	}
 	written, skipped, err := scaffold(".", *hub, codecrew.Roles)
 	if err != nil {
 		return err
@@ -185,7 +195,7 @@ func initCmd(w io.Writer, args []string) error {
 	for _, f := range skipped {
 		fmt.Fprintf(w, "kept existing %s\n", f)
 	}
-	if !inGitRepo(".") {
+	if repoRoot(".") == "" {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
 		fmt.Fprintln(w, "first: git init && git add -A && git commit -m \"chore: scaffold codecrew\" &&")
 		fmt.Fprintln(w, "       gh repo create <owner>/<name> --private --source=. --push")

@@ -22,7 +22,7 @@ func gitRepo(t *testing.T) string {
 func stubProtection(t *testing.T, required, known bool) {
 	t.Helper()
 	prev := defaultRequiresPR
-	defaultRequiresPR = func(string) (bool, bool) { return required, known }
+	defaultRequiresPR = func(string) (bool, bool, string) { return required, known, "main" }
 	t.Cleanup(func() { defaultRequiresPR = prev })
 }
 
@@ -115,7 +115,7 @@ func TestCommitScaffoldProtectedDefaultBranch(t *testing.T) {
 		required, known bool
 		note            string
 	}{
-		{"protected", true, true, "requires pull requests: push codecrew-bootstrap"},
+		{"protected", true, true, "requires pull requests: git push -u origin codecrew-bootstrap"},
 		{"unknown", false, false, "could not ask GitHub"},
 	} {
 		stubProtection(t, tc.required, tc.known)
@@ -139,6 +139,29 @@ func TestCommitScaffoldProtectedDefaultBranch(t *testing.T) {
 		if p, _ := git(dir, "rev-parse", "HEAD~1"); p != base {
 			t.Errorf("%s: bootstrap not cut from HEAD", tc.name)
 		}
+	}
+	// Protected and on a feature branch: the bootstrap branch is cut from
+	// the default branch, so the scaffold PR carries the scaffold only.
+	stubProtection(t, true, true)
+	dir2 := gitRepo(t)
+	os.WriteFile(filepath.Join(dir2, "README.md"), []byte("one\n"), 0o644)
+	git(dir2, "add", "README.md")
+	git(dir2, "commit", "-q", "-m", "initial")
+	git(dir2, "switch", "-q", "-c", "feature")
+	os.WriteFile(filepath.Join(dir2, "feature.txt"), []byte("f\n"), 0o644)
+	git(dir2, "add", "feature.txt")
+	git(dir2, "commit", "-q", "-m", "feature work")
+	written2, _, _ := scaffold(dir2, "self", fakeContracts)
+	var out2 bytes.Buffer
+	commitScaffold(&out2, dir2, written2)
+	if n, _ := git(dir2, "rev-list", "--count", "main..codecrew-bootstrap"); n != "1" {
+		t.Errorf("feature branch: %s commits on the bootstrap branch beyond main, want the scaffold only", n)
+	}
+	if show := committedFiles(t, dir2, "codecrew-bootstrap"); strings.Contains(show, "feature.txt") {
+		t.Errorf("feature work rode along:\n%s", show)
+	}
+	if !strings.Contains(out2.String(), "git push -u origin codecrew-bootstrap") {
+		t.Errorf("push instruction: %q", out2.String())
 	}
 	// An unborn HEAD cannot branch: the root commit lands on the current branch even when protection is assumed.
 	stubProtection(t, false, false)
@@ -181,7 +204,54 @@ func TestCommitScaffoldFailureIsANote(t *testing.T) {
 // unprotected and known: the root commit belongs on the current branch.
 func TestDefaultRequiresPRNoRemote(t *testing.T) {
 	dir := gitRepo(t)
-	if required, known := defaultRequiresPR(dir); required || !known {
-		t.Errorf("no remote: required %v known %v", required, known)
+	if required, known, def := defaultRequiresPR(dir); required || !known || def != "" {
+		t.Errorf("no remote: required %v known %v default %q", required, known, def)
+	}
+}
+
+// A detached HEAD would strand the scaffold on no branch: the files are
+// written, the commit is left to the operator with the exact command.
+func TestCommitScaffoldDetachedHead(t *testing.T) {
+	stubProtection(t, false, true)
+	dir := gitRepo(t)
+	os.WriteFile(filepath.Join(dir, "README.md"), []byte("one\n"), 0o644)
+	git(dir, "add", "README.md")
+	git(dir, "commit", "-q", "-m", "initial")
+	sha, _ := git(dir, "rev-parse", "HEAD")
+	git(dir, "switch", "-q", "--detach", sha)
+	written, _, _ := scaffold(dir, "self", fakeContracts)
+	var out bytes.Buffer
+	commitScaffold(&out, dir, written)
+	if !strings.Contains(out.String(), "HEAD is detached") || !strings.Contains(out.String(), "git commit -m \"chore: scaffold codecrew\" --") {
+		t.Errorf("output:\n%s", out.String())
+	}
+	if h, _ := git(dir, "rev-parse", "HEAD"); h != sha {
+		t.Error("a commit was made on a detached HEAD")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".codecrew.yml")); err != nil {
+		t.Error("scaffold lost")
+	}
+}
+
+// The pointer belongs at the repository root: init refuses a subdirectory
+// before writing anything (checky's finding on PR #184 — inGitRepo saw no
+// ./.git there and called it "not a repository").
+func TestInitRefusesASubdirectory(t *testing.T) {
+	dir := gitRepo(t)
+	nested := filepath.Join(dir, "nested")
+	os.MkdirAll(nested, 0o755)
+	if root := repoRoot(nested); !sameDir(root, dir) {
+		t.Fatalf("repoRoot(nested) = %q, want %q", root, dir)
+	}
+	wd, _ := os.Getwd()
+	defer os.Chdir(wd)
+	os.Chdir(nested)
+	var out bytes.Buffer
+	err := initCmd(&out, nil)
+	if err == nil || !strings.Contains(err.Error(), "repository root") {
+		t.Errorf("err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(nested, ".codecrew.yml")); err == nil {
+		t.Error("init wrote into the subdirectory")
 	}
 }
