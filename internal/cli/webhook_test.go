@@ -31,22 +31,31 @@ func fakeAppAPI(t *testing.T, cfg *hookConfig, events []string) (*httptest.Serve
 			}
 			return c
 		}
+		if events == nil {
+			events = []string{}
+		}
 		switch r.Method + " " + r.URL.Path {
 		case "GET /app":
 			fmt.Fprintf(w, `{"slug":"myorg-reviewy","events":%s,"owner":{"login":"myorg","type":"Organization"}}`, mustJSON(events))
-		case "GET /app/hook/config":
-			json.NewEncoder(w).Encode(masked())
-		case "PATCH /app/hook/config":
-			var p map[string]string
-			json.NewDecoder(r.Body).Decode(&p)
-			patches = append(patches, p)
-			if v, ok := p["url"]; ok {
-				cfg.URL = v
+		case "GET /app/hook/config", "PATCH /app/hook/config":
+			if cfg == nil { // an App minted without a webhook: GitHub's real answer
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"message":"Not Found","documentation_url":"https://docs.github.com/rest/apps/webhooks","status":"404"}`)
+				return
 			}
-			if v, ok := p["secret"]; ok {
-				cfg.Secret = v
+			if r.Method == "PATCH" {
+				var p map[string]string
+				json.NewDecoder(r.Body).Decode(&p)
+				patches = append(patches, p)
+				if v, ok := p["url"]; ok {
+					cfg.URL = v
+				}
+				if v, ok := p["secret"]; ok {
+					cfg.Secret = v
+				}
 			}
 			json.NewEncoder(w).Encode(masked())
+		case "never":
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -117,16 +126,23 @@ func TestIdentityWebhookShowAndSet(t *testing.T) {
 	}
 }
 
+// An App minted without a webhook has no hook configuration: GitHub
+// answers 404 to GET and PATCH alike (verified live on this org's reviewer
+// App) and has no endpoint to create one — so every path refuses
+// NO_WEBHOOK naming the settings page, and writes nothing.
 func TestIdentityWebhookNoHookAndBadKey(t *testing.T) {
-	cfg := &hookConfig{}
-	srv, _ := fakeAppAPI(t, cfg, nil)
-	out, err := runWebhook(t, srv, "--show")
-	if err != nil {
-		t.Fatal(err)
+	srv, patches := fakeAppAPI(t, nil, nil)
+	for _, args := range [][]string{{"--show"}, {}, {"--url", "https://r.example/fire"}, {"--secret", "x"}, {"--rotate-secret"}} {
+		_, err := runWebhook(t, srv, args...)
+		var r refusal
+		if !errors.As(err, &r) || r.Code != "NO_WEBHOOK" || !strings.Contains(r.Detail, "/settings/apps/myorg-reviewy") {
+			t.Errorf("%v: err = %v, want NO_WEBHOOK naming the settings page", args, err)
+		}
 	}
-	if !strings.Contains(out, "url:          none") || !strings.Contains(out, "secret:       none — set the receiver's with --secret") || !strings.Contains(out, "events:       none") {
-		t.Errorf("empty hook:\n%s", out)
+	if len(*patches) != 0 {
+		t.Errorf("a hookless App was written to: %v", *patches)
 	}
+	var err error
 	prev := githubAPI
 	githubAPI = srv.URL
 	defer func() { githubAPI = prev }()
@@ -153,5 +169,60 @@ func TestWebhookEventsTable(t *testing.T) {
 	}
 	if got, _ := webhookEvents("coordinator", []string{"issues", "issue_comment"}); strings.Join(got, ",") != "issues,issue_comment" {
 		t.Errorf("issues events = %v", got)
+	}
+}
+
+// identity new after the browser flow, with --webhook-secret: the
+// receiver's secret is set under the key just stored and never printed;
+// when the set fails, GitHub's generated secret is shown once with the
+// recovery command. The conversion itself is the browser flow and is not
+// exercised here — only what follows it.
+func TestStoreAndReportWebhookSecret(t *testing.T) {
+	prev := setWebhookSecret
+	defer func() { setWebhookSecret = prev }()
+	creds := &appCreds{ID: 77, Slug: "myorg-reviewy", ClientID: "Iv1.x", PEM: string(pkcs1PEM(testKey)), WebhookSecret: "gh-generated"}
+	var got []string
+	setWebhookSecret = func(c *appCreds, s string) error {
+		got = append(got, fmt.Sprintf("%d:%s", c.ID, s))
+		return nil
+	}
+	var out bytes.Buffer
+	if _, stub, err := storeAndReport(&out, creds, t.TempDir(), "receiver-secret", false, time.Unix(0, 0)); err != nil || !strings.HasSuffix(stub, "myorg-reviewy.json") {
+		t.Fatalf("err %v stub %q", err, stub)
+	}
+	if strings.Join(got, ",") != "77:receiver-secret" {
+		t.Errorf("set calls = %v", got)
+	}
+	if !strings.Contains(out.String(), "webhook secret set to the one you supplied (not stored, not printed)") || strings.Contains(out.String(), "receiver-secret") || strings.Contains(out.String(), "gh-generated") {
+		t.Errorf("success output:\n%s", out.String())
+	}
+	// The set fails: the generated secret is handed over once, with the way back.
+	setWebhookSecret = func(*appCreds, string) error { return errors.New("HTTP 404") }
+	out.Reset()
+	if _, _, err := storeAndReport(&out, creds, t.TempDir(), "receiver-secret", false, time.Unix(0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"setting yours failed (HTTP 404)", "gh codecrew identity webhook myorg-reviewy --secret <yours>", "GitHub generated (shown once, not stored): gh-generated"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("failure output lacks %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "receiver-secret") {
+		t.Error("the supplied secret was printed")
+	}
+	// No --webhook-secret: GitHub's is shown once with the alternative; nothing is set.
+	got = nil
+	setWebhookSecret = func(c *appCreds, s string) error { got = append(got, s); return nil }
+	out.Reset()
+	storeAndReport(&out, creds, t.TempDir(), "", true, time.Unix(0, 0))
+	if len(got) != 0 || !strings.Contains(out.String(), "webhook secret (shown once, not stored): gh-generated — or set the receiver's") || !strings.Contains(out.String(), "contents: write granted") {
+		t.Errorf("default output:\n%s (set calls %v)", out.String(), got)
+	}
+	// An App minted without a webhook has no secret to report.
+	creds.WebhookSecret = ""
+	out.Reset()
+	storeAndReport(&out, creds, t.TempDir(), "", false, time.Unix(0, 0))
+	if strings.Contains(out.String(), "webhook secret") {
+		t.Errorf("hookless App reported a secret:\n%s", out.String())
 	}
 }

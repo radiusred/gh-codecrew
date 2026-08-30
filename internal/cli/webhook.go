@@ -79,6 +79,15 @@ type hookConfig struct {
 	InsecureSSL string `json:"insecure_ssl"`
 }
 
+// noWebhook is the refusal for an App minted without a webhook: GitHub
+// keeps no hook configuration for it (GET and PATCH /app/hook/config both
+// answer 404 — verified live on this org's reviewer App) and offers no
+// endpoint to create one, so activation is a settings-page act; the verb
+// takes over from there.
+func noWebhook(settings string) error {
+	return refuse("NO_WEBHOOK", "this App was minted without a webhook and GitHub's API cannot create one — activate it under Webhook on the App's settings page (%s), give it the receiver's URL there, then set the secret with identity webhook --secret and tick the events under Subscribe to events", settings)
+}
+
 func appRequest(client *http.Client, jwt, method, path string, body any) (int, []byte, error) {
 	var payload io.Reader
 	if body != nil {
@@ -107,10 +116,13 @@ func appRequest(client *http.Client, jwt, method, path string, body any) (int, [
 }
 
 // getHookConfig reads the App's webhook configuration.
-func getHookConfig(client *http.Client, jwt string) (hookConfig, error) {
+func getHookConfig(client *http.Client, jwt, settings string) (hookConfig, error) {
 	status, data, err := appRequest(client, jwt, "GET", "/app/hook/config", nil)
 	if err != nil {
 		return hookConfig{}, err
+	}
+	if status == http.StatusNotFound {
+		return hookConfig{}, noWebhook(settings)
 	}
 	if status != http.StatusOK {
 		return hookConfig{}, fmt.Errorf("GET /app/hook/config: HTTP %d: %s", status, strings.TrimSpace(string(data)))
@@ -124,10 +136,13 @@ func getHookConfig(client *http.Client, jwt string) (hookConfig, error) {
 
 // patchHookConfig updates the fields given (url, secret) and returns the
 // configuration GitHub now holds.
-func patchHookConfig(client *http.Client, jwt string, patch map[string]string) (hookConfig, error) {
+func patchHookConfig(client *http.Client, jwt, settings string, patch map[string]string) (hookConfig, error) {
 	status, data, err := appRequest(client, jwt, "PATCH", "/app/hook/config", patch)
 	if err != nil {
 		return hookConfig{}, err
+	}
+	if status == http.StatusNotFound {
+		return hookConfig{}, noWebhook(settings)
 	}
 	if status != http.StatusOK {
 		return hookConfig{}, fmt.Errorf("PATCH /app/hook/config: HTTP %d: %s", status, strings.TrimSpace(string(data)))
@@ -218,8 +233,9 @@ func runIdentityWebhook(w io.Writer, getenv func(string) string, configDir strin
 	if err != nil {
 		return err
 	}
+	settings := appSettingsURL(ownerLogin, ownerType, appSlug)
 	if *events != "" {
-		return fmt.Errorf("an existing App's event subscriptions cannot be set through the API (GitHub offers no endpoint; they are set by the manifest at creation, or by hand) — tick them under Subscribe to events at %s/permissions; subscribed now: %s", appSettingsURL(ownerLogin, ownerType, appSlug), strings.Join(subscribed, ", "))
+		return fmt.Errorf("an existing App's event subscriptions cannot be set through the API (GitHub offers no endpoint; they are set by the manifest at creation, or by hand) — tick them under Subscribe to events at %s/permissions; subscribed now: %s", settings, strings.Join(subscribed, ", "))
 	}
 	patch := map[string]string{}
 	if *url != "" {
@@ -237,7 +253,7 @@ func runIdentityWebhook(w io.Writer, getenv func(string) string, configDir strin
 	}
 	var cfg hookConfig
 	if len(patch) > 0 {
-		if cfg, err = patchHookConfig(client, jwt, patch); err != nil {
+		if cfg, err = patchHookConfig(client, jwt, settings, patch); err != nil {
 			return err
 		}
 		if patch["url"] != "" {
@@ -252,7 +268,7 @@ func runIdentityWebhook(w io.Writer, getenv func(string) string, configDir strin
 	}
 	if *show || len(patch) == 0 {
 		if len(patch) == 0 {
-			if cfg, err = getHookConfig(client, jwt); err != nil {
+			if cfg, err = getHookConfig(client, jwt, settings); err != nil {
 				return err
 			}
 		}
@@ -265,7 +281,7 @@ func runIdentityWebhook(w io.Writer, getenv func(string) string, configDir strin
 			fmt.Fprintln(w, "  secret:       none — set the receiver's with --secret")
 		}
 		fmt.Fprintf(w, "  events:       %s\n", orNone(strings.Join(subscribed, ", ")))
-		fmt.Fprintf(w, "  events change only on the App's settings page: %s/permissions\n", appSettingsURL(ownerLogin, ownerType, appSlug))
+		fmt.Fprintf(w, "  events change only on the App's settings page: %s/permissions\n", settings)
 	}
 	return nil
 }

@@ -115,7 +115,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-eight, by the verb that raises
+the agent; the detail is for the human. All twenty-nine, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -208,5 +208,12 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `INSTALLATION_AMBIGUOUS` — the App is installed on several accounts and
   neither a hint nor the hub's owner selects one; the detail lists them,
   and `--installation <id>` (or `GITHUB_INSTALLATION_ID`) chooses.
+
+**`identity webhook`** (and `NO_CREDENTIALS`/`BAD_CREDENTIALS` as above)
+
+- `NO_WEBHOOK` — the App was minted without a webhook; GitHub keeps no
+  hook configuration for it and its API cannot create one. Activate the
+  webhook on the App's settings page (the detail names it) with the
+  receiver's URL, then `--secret` sets the receiver's secret.
 
 Licensed under [Apache 2.0](../LICENSE).

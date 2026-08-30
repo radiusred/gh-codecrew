@@ -11,8 +11,11 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   works an App's hook under its own key: prints the URL, content type,
   whether a secret is set and the subscribed events; sets the receiver's
   URL and secret (nothing stored, nothing printed); rotates the secret
-  and prints it once. Events are readable but not settable after creation
-  — GitHub has no endpoint — so the verb prints the settings page.
+  and prints it once. Two things stay on the settings page, said rather
+  than pretended: an App minted without a webhook has no hook
+  configuration and GitHub's API cannot create one — `NO_WEBHOOK`, the
+  twenty-ninth code, names the page where it is activated by hand — and
+  event subscriptions are readable but not settable after creation.
 - `identity new --with-webhook` now subscribes `pull_request` and
   `pull_request_review` — the transitions a platform routes to seats —
   instead of 1.0's five (`issues`, `issue_comment`, `check_suite` were
