@@ -199,9 +199,9 @@ func TestPlanSweepDeletesNothing(t *testing.T) {
 		titles: map[int]string{1: "a", 2: "b"},
 	}
 	m := &tracker.Milestone{Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 1}, {Repo: "o/r", Number: 2}}}
-	items, notes := planSweep(f, m)
-	if len(notes) != 0 || len(f.deleted) != 0 {
-		t.Fatalf("plan deleted %v, notes %v", f.deleted, notes)
+	items := planSweep(f, m)
+	if len(f.deleted) != 0 {
+		t.Fatalf("plan deleted %v", f.deleted)
 	}
 	got := map[string]bool{}
 	for _, it := range items {
@@ -231,5 +231,87 @@ func TestPlanPrintStates(t *testing.T) {
 	var r refusal
 	if !errors.As(p.refusal, &r) || r.Code != "X" {
 		t.Errorf("refusal = %v", p.refusal)
+	}
+}
+
+// closeFake is the slice of the tracker milestone close reads.
+type closeFake struct {
+	tracker.Tracker
+	milestone tracker.Milestone
+	tasks     map[int]tracker.Task
+	body      string
+	comments  map[int][]tracker.Comment
+	hasDoc    bool
+	writes    []string
+}
+
+func (f *closeFake) OpenMilestones(string) ([]tracker.Milestone, error) {
+	return []tracker.Milestone{f.milestone}, nil
+}
+func (f *closeFake) Task(ref tracker.IssueRef) (tracker.Task, error) { return f.tasks[ref.Number], nil }
+func (f *closeFake) IssueBody(tracker.IssueRef) (string, error)      { return f.body, nil }
+func (f *closeFake) Comments(ref tracker.IssueRef) ([]tracker.Comment, error) {
+	return f.comments[ref.Number], nil
+}
+func (f *closeFake) ClosingPRs(tracker.IssueRef, bool) ([]int, error) { return nil, nil }
+func (f *closeFake) HasMilestoneDoc(string, int) (bool, error)        { return f.hasDoc, nil }
+func (f *closeFake) RepoInfo(string) (tracker.RepoInfo, error) {
+	return tracker.RepoInfo{DefaultBranch: "main"}, nil
+}
+func (f *closeFake) LinkedBranches(tracker.IssueRef) ([]string, error) { return nil, nil }
+func (f *closeFake) BranchAhead(_, b string) (int, string, error) {
+	return 0, "", errors.New("no such branch")
+}
+func (f *closeFake) CloseIssue(_ tracker.IssueRef, c string) error {
+	f.writes = append(f.writes, "close: "+c)
+	return nil
+}
+
+// A live close that stops at DOC_MISSING still says qa is unrouted, before
+// the raw material, as it did before the plan/execute split (checky's
+// finding on PR #179); the dry run shows the note under its gate.
+func TestPlanCloseUnroutedNoteSurvivesDocMissing(t *testing.T) {
+	f := &closeFake{
+		milestone: tracker.Milestone{Ref: tracker.IssueRef{Repo: "o/r", Number: 5}, Title: "M2: Two", Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 6}}},
+		tasks:     map[int]tracker.Task{6: {Closed: true}},
+		body:      "## Goal\nx\n\n## Requirements\n- **M2-R1** — a thing\n",
+		comments:  map[int][]tracker.Comment{5: {{Author: "davison", Body: "**M2-R1 — satisfied.** ran it"}}},
+	}
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self", Roles: map[string]config.Role{"implementer": {}, "reviewer": {}, "qa": {}, "doc-synthesizer": {}}}
+	c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
+	var live bytes.Buffer
+	p, run, err := planClose(c, 2, false, &live)
+	if err != nil || run != nil {
+		t.Fatalf("err %v run %v", err, run != nil)
+	}
+	var r refusal
+	if !errors.As(p.refusal, &r) || r.Code != "DOC_MISSING" {
+		t.Fatalf("refusal = %v", p.refusal)
+	}
+	out := live.String()
+	noteAt, rawAt := strings.Index(out, "note: qa is unrouted"), strings.Index(out, "raw material for docs/milestones/2-")
+	if noteAt < 0 || rawAt < 0 || noteAt > rawAt {
+		t.Errorf("live output must say the note before the raw material:\n%s", out)
+	}
+	var dry bytes.Buffer
+	p, _, _ = planClose(c, 2, true, &dry)
+	if dry.Len() != 0 {
+		t.Errorf("dry run printed live output: %q", dry.String())
+	}
+	p.print(&dry)
+	if !strings.Contains(dry.String(), "gate QA verdicts: ok\n  note: qa is unrouted") || !strings.Contains(dry.String(), "gate milestone document: refused[DOC_MISSING]") {
+		t.Errorf("dry report:\n%s", dry.String())
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("planning wrote: %v", f.writes)
+	}
+	// With the document merged, the plan names the close and run performs it.
+	f.hasDoc = true
+	p, run, err = planClose(c, 2, true, &dry)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("clean: err %v refusal %v", err, p.refusal)
+	}
+	if err := run(&live); err != nil || strings.Join(f.writes, ";") != "close: Closed by `gh codecrew milestone close 2`: all 1 tasks done, milestone document merged." {
+		t.Errorf("run: err %v writes %v", err, f.writes)
 	}
 }
