@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Dry runs
+- `milestone new --dry-run` prints the number the milestone would get, its
+  title, the requirement IDs it would number and the ROADMAP row, and
+  creates nothing — requirement prose can be written knowing the number
+  (a closed duplicate still counts toward it; #119 finding 45).
+  `task finish --dry-run` and `milestone close --dry-run` evaluate exactly
+  the gates the live verb would, in order, print each as ok, refused with
+  its code, not reached or not applicable, then the actions a clean pass
+  takes — the comments it would post, the merge and the head it would
+  delete; every branch the sweep would delete or keep and why, and the
+  closing comment — writing nothing and exiting with the first refusal's
+  code. One code path builds the plan for both modes, so the preview
+  cannot disagree with the run. (M7-R5, #133, #178)
+
 ### A seat finishes only its own task
 - `task finish` refuses `NOT_OWNER` — the twenty-eighth code — when the
   caller is not the seat that started the task, read from the
