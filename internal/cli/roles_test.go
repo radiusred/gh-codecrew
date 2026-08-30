@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -218,7 +219,13 @@ func TestEmbeddedRolesHoldNoExtensions(t *testing.T) {
 	if _, _, err := scaffold(dir, "self", codecrew.Roles); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "roles", "doc-synthesizer"+localSuffix)); err == nil {
+	// init writes a blank extension beside each contract (M7-R4) — and
+	// only the blank: this project's editorial voice never rides along.
+	data, err := os.ReadFile(filepath.Join(dir, "roles", "doc-synthesizer"+localSuffix))
+	if err != nil {
+		t.Fatalf("no blank extension scaffolded: %v", err)
+	}
+	if strings.Contains(string(data), "Editorial voice") || strings.TrimSpace(withoutHTMLComments(string(data))) != "" {
 		t.Error("init scaffolded this project's editorial voice into a new project")
 	}
 }
@@ -235,10 +242,11 @@ func TestExtensionInEmbedIsSkipped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, w := range written {
-		if strings.HasSuffix(w, localSuffix) {
-			t.Errorf("scaffold wrote %s", w)
-		}
+	if !slices.Contains(written, filepath.Join("roles", "qa"+localSuffix)) {
+		t.Errorf("scaffold wrote %v — the blank qa extension is expected", written)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "roles", "qa"+localSuffix)); !strings.HasPrefix(string(data), "<!--") || strings.TrimSpace(withoutHTMLComments(string(data))) != "" {
+		t.Errorf("scaffold copied the embed's extension instead of writing the blank: %q", data)
 	}
 	os.WriteFile(filepath.Join(dir, "roles", "qa"+localSuffix), []byte("customised\n"), 0o644)
 	drifted, err := contractDrift(dir, polluted)
@@ -306,5 +314,27 @@ func TestCoordinatorContractIsEmbedded(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "matches the embedded") {
 		t.Errorf("fresh coordinator contract reported as drift: %q", buf.String())
+	}
+}
+
+// The scaffold's comment-only extension composes to nothing; an extension
+// with anything to say composes whole, its comments included.
+func TestCommentOnlyExtensionComposesToNothing(t *testing.T) {
+	base := "# Role: qa\nBody.\n"
+	blank := fmt.Sprintf(extensionScaffold, "qa")
+	if got := composeContract(base, []localPart{{Source: "roles/qa.local.md (hub)", Body: blank}}); got != base {
+		t.Errorf("comment-only extension altered the composition:\n%q", got)
+	}
+	two := "<!-- a -->\n<!-- b -->\n  \n"
+	if got := composeContract(base, []localPart{{Source: "x", Body: two}}); got != base {
+		t.Errorf("two comments and whitespace composed: %q", got)
+	}
+	real := blank + "- House style.\n"
+	got := composeContract(base, []localPart{{Source: "roles/qa.local.md (hub)", Body: real}})
+	if !strings.Contains(got, "<!-- extension: roles/qa.local.md (hub) -->") || !strings.HasSuffix(got, real) {
+		t.Errorf("a real extension must compose whole, comments included:\n%q", got)
+	}
+	if withoutHTMLComments("a <!-- unterminated") != "a " {
+		t.Error("an unterminated comment runs to the end")
 	}
 }

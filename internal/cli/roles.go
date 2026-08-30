@@ -157,8 +157,8 @@ func composeContract(base string, locals []localPart) string {
 	var out strings.Builder
 	out.WriteString(base)
 	for _, l := range locals {
-		if strings.TrimSpace(l.Body) == "" {
-			continue
+		if strings.TrimSpace(withoutHTMLComments(l.Body)) == "" {
+			continue // blank, or the scaffold's comment-only file: nothing to load
 		}
 		if !strings.HasSuffix(out.String(), "\n") {
 			out.WriteString("\n")
@@ -169,6 +169,23 @@ func composeContract(base string, locals []localPart) string {
 		}
 	}
 	return out.String()
+}
+
+// withoutHTMLComments strips <!-- … --> blocks — used only to decide
+// whether an extension says anything; a real extension composes whole,
+// comments included.
+func withoutHTMLComments(s string) string {
+	for {
+		start := strings.Index(s, "<!--")
+		if start < 0 {
+			return s
+		}
+		end := strings.Index(s[start:], "-->")
+		if end < 0 {
+			return s[:start]
+		}
+		s = s[:start] + s[start+end+len("-->"):]
+	}
 }
 
 // composedContract assembles what a dispatched session loads for role:

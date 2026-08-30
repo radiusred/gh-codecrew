@@ -25,7 +25,7 @@ func TestScaffoldHub(t *testing.T) {
 	if len(skipped) != 0 {
 		t.Errorf("fresh dir skipped %v", skipped)
 	}
-	for _, want := range []string{".codecrew.yml", "ROADMAP.md", "AGENTS.md", "CLAUDE.md", filepath.Join("roles", "qa.md")} {
+	for _, want := range []string{".codecrew.yml", "ROADMAP.md", "AGENTS.md", "CLAUDE.md", filepath.Join("roles", "qa.md"), filepath.Join("roles", "qa"+localSuffix), filepath.Join("roles", "implementer"+localSuffix)} {
 		if !slices.Contains(written, want) {
 			t.Errorf("missing %s from written %v", want, written)
 		}
@@ -242,5 +242,51 @@ func TestScaffoldKeepsExistingClaude(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(marker); string(data) != "mine\n" {
 		t.Error("existing CLAUDE.md was overwritten")
+	}
+}
+
+// init writes a blank extension beside every contract it scaffolds — the
+// mechanism made visible at onboarding, holding only the comment that says
+// what the file is for (M7-R4). Blank means comments-only: it composes to
+// nothing, an existing extension is never touched, and a spoke gets none.
+func TestScaffoldWritesBlankExtensions(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range []string{"implementer", "qa"} {
+		data, err := os.ReadFile(filepath.Join(dir, "roles", role+localSuffix))
+		if err != nil {
+			t.Fatalf("no blank extension for %s: %v", role, err)
+		}
+		s := string(data)
+		for _, want := range []string{"roles/" + role + ".local.md", "roles/" + role + ".md", "gh codecrew roles show " + role, U + "/docs/extensions.md", U + "/SPEC.md"} {
+			if !strings.Contains(s, want) {
+				t.Errorf("%s extension lacks %q", role, want)
+			}
+		}
+		if strings.TrimSpace(withoutHTMLComments(s)) != "" {
+			t.Errorf("%s extension is not comments-only: %q", role, s)
+		}
+	}
+	// Rerunning init keeps a written extension and reports it.
+	p := filepath.Join(dir, "roles", "qa"+localSuffix)
+	os.WriteFile(p, []byte("- House style.\n"), 0o644)
+	written, skipped, err := scaffold(dir, "self", fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(written) != 0 || !slices.Contains(skipped, filepath.Join("roles", "qa"+localSuffix)) {
+		t.Errorf("rerun wrote %v, skipped %v", written, skipped)
+	}
+	if data, _ := os.ReadFile(p); string(data) != "- House style.\n" {
+		t.Error("rerun overwrote a written extension")
+	}
+	spoke := t.TempDir()
+	written, _, _ = scaffold(spoke, "org/hub", fakeContracts)
+	for _, w := range written {
+		if strings.HasSuffix(w, localSuffix) {
+			t.Errorf("spoke scaffold wrote an extension: %s", w)
+		}
 	}
 }
