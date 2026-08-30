@@ -73,8 +73,10 @@ repository root — it refuses a subdirectory, since the pointer belongs at
 the root):
 
 ```sh
-git push -u origin main
+git push -u origin HEAD
 ```
+
+(`init` prints the exact command for the branch it committed on.)
 
 If your default branch requires pull requests, `init` will have put the
 commit on a branch it made from the default branch, `codecrew-bootstrap`,
