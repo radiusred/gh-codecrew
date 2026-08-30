@@ -21,8 +21,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   instead of 1.0's five (`issues`, `issue_comment`, `check_suite` were
   wakes for nothing on a platform: #119, #164 findings 46, 53); `--events`
   names others, validated against the role's permissions, and
-  `--webhook-secret S` sets the receiver's secret the moment the App
-  exists. identities.md gains "The receiver side": one App hook covers
+  `--webhook-secret S` sets the receiver's secret as soon as the App
+  exists — before its first protocol delivery (the creation ping is
+  signed with GitHub's generated secret and fails the receiver's check,
+  harmlessly). identities.md gains "The receiver side": one App hook covers
   every repository its installation sees — no repository hooks — the
   events per seat, what a receiver does, and the Paperclip routine as
   the worked example. (M7-R3, #157, #180)

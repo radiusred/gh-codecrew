@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -224,5 +226,75 @@ func TestStoreAndReportWebhookSecret(t *testing.T) {
 	storeAndReport(&out, creds, t.TempDir(), "", false, time.Unix(0, 0))
 	if strings.Contains(out.String(), "webhook secret") {
 		t.Errorf("hookless App reported a secret:\n%s", out.String())
+	}
+}
+
+// The wiring from flags to the flow to the stored key and the receiver's
+// secret, with the flow's external pieces faked: --webhook-secret reaches
+// setWebhookSecret with the converted App's credentials, after the key
+// is stored and before "next:"; without --with-webhook it is refused
+// before any flow runs; the manifest the flow receives carries the
+// events and hook the flags asked for.
+func TestIdentityNewWiresWebhookSecret(t *testing.T) {
+	prev := setWebhookSecret
+	defer func() { setWebhookSecret = prev }()
+	var set []string
+	setWebhookSecret = func(c *appCreds, s string) error {
+		set = append(set, fmt.Sprintf("%d:%s", c.ID, s))
+		return nil
+	}
+	dir := t.TempDir()
+	var manifestSeen map[string]any
+	flowRan := false
+	deps := identityNewDeps{
+		hub:       func() (string, string, error) { return "myorg/hub", "", nil },
+		ownerType: func(string) (string, error) { return "Organization", nil },
+		flow: func(manifestJSON []byte, target string, w io.Writer) (string, error) {
+			flowRan = true
+			json.Unmarshal(manifestJSON, &manifestSeen)
+			if target != "https://github.com/organizations/myorg/settings/apps/new" {
+				t.Errorf("target = %q", target)
+			}
+			return "code-1", nil
+		},
+		convert: func(code string) (*appCreds, error) {
+			if code != "code-1" {
+				t.Errorf("convert(%q)", code)
+			}
+			return &appCreds{ID: 42, Slug: "myorg-reviewy", ClientID: "Iv1.x", PEM: string(pkcs1PEM(testKey)), WebhookSecret: "gh-generated"}, nil
+		},
+		configDir: func() (string, error) { return dir, nil },
+		now:       func() time.Time { return time.Unix(0, 0) },
+	}
+	var out bytes.Buffer
+	err := identityNewWith(&out, []string{"reviewer", "--name", "myorg-reviewy", "--with-webhook", "--webhook-url", "https://r.example/fire", "--events", "pull_request,issues", "--webhook-secret", "receiver-secret", "--no-route"}, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !flowRan || strings.Join(set, ",") != "42:receiver-secret" {
+		t.Errorf("flow %v, set calls %v", flowRan, set)
+	}
+	if hook, _ := manifestSeen["hook_attributes"].(map[string]any); hook["url"] != "https://r.example/fire" {
+		t.Errorf("manifest hook = %v", manifestSeen["hook_attributes"])
+	}
+	if ev := fmt.Sprint(manifestSeen["default_events"]); ev != "[pull_request issues]" {
+		t.Errorf("manifest events = %s", ev)
+	}
+	s := out.String()
+	stored, secretAt, next := strings.Index(s, "private key: "), strings.Index(s, "webhook secret set to the one you supplied"), strings.Index(s, "next:")
+	if stored < 0 || secretAt < stored || next < secretAt {
+		t.Errorf("order: key %d, secret %d, next %d:\n%s", stored, secretAt, next, s)
+	}
+	if strings.Contains(s, "receiver-secret") || strings.Contains(s, "gh-generated") {
+		t.Errorf("a secret was printed:\n%s", s)
+	}
+	if _, err := os.Stat(stubPath(dir, "myorg-reviewy")); err != nil {
+		t.Errorf("stub not written: %v", err)
+	}
+	// --webhook-secret without --with-webhook: refused before the flow.
+	flowRan, set = false, nil
+	err = identityNewWith(&out, []string{"reviewer", "--name", "myorg-reviewy", "--webhook-secret", "x"}, deps)
+	if err == nil || !strings.Contains(err.Error(), "--webhook-secret applies with --with-webhook") || flowRan || len(set) != 0 {
+		t.Errorf("err %v, flow %v, set %v", err, flowRan, set)
 	}
 }
