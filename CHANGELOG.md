@@ -6,7 +6,15 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### The M7 record
+- `docs/milestones/7-the-coordinator-seat-and-platform-interop.md` — the
+  milestone document for "The coordinator seat and platform interop": the
+  M7-R4 amendment and what it rejected, the coordinator seat and the four
+  verbs the run asked for, cycle 4 on `radiusred/snake` with its fold-back
+  map, the announcement gate, and the clause-level statement of what cycle 4
+  did not exercise of the shipped coordinator contract. The ROADMAP row is
+  Done and the README's milestone count is refreshed with it. Docs only.
+  (#189)
 
 ## [1.1.0] — 2026-08-31
 
