@@ -170,6 +170,10 @@ func checkpoint(w io.Writer, args []string) error {
 	return nil
 }
 
+// finishGates, in the order task finish checks them — the dry run prints
+// them in this order, refused, ok, not reached or not applicable.
+var finishGates = []string{"task open", "no gate raised", "gates resolved", "owner", "closing PR", "CI checks", "review", "GitHub's required review", "operator confirmation", "bypass actor"}
+
 func taskFinish(w io.Writer, args []string) error {
 	refArg, args := splitLeadingRef(args)
 	fs := flag.NewFlagSet("task finish", flag.ContinueOnError)
@@ -177,6 +181,7 @@ func taskFinish(w io.Writer, args []string) error {
 		"solo tier: record explicit operator confirmation in place of a non-doer approval")
 	bypass := fs.Bool("bypass", false,
 		"merge with the ruleset's administrator bypass when GitHub does not count the recorded approval (recorded on the PR)")
+	dryRun := fs.Bool("dry-run", false, "print every gate and what the verb would do; write nothing; exit with the first refusal's code")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -184,7 +189,7 @@ func taskFinish(w io.Writer, args []string) error {
 		refArg = fs.Arg(0)
 	}
 	if refArg == "" {
-		return fmt.Errorf("usage: gh codecrew task finish <ref> [--operator-confirm] [--bypass]")
+		return fmt.Errorf("usage: gh codecrew task finish <ref> [--operator-confirm] [--bypass] [--dry-run]")
 	}
 	c, err := load()
 	if err != nil {
@@ -194,23 +199,55 @@ func taskFinish(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	task, err := c.t.Task(ref)
+	p, run, err := planFinish(c, ref, *operatorConfirm, *bypass)
 	if err != nil {
 		return err
 	}
-	if task.Closed {
-		return refuse("CLOSED", "%s is already closed", ref)
+	if *dryRun {
+		p.print(w)
+		return p.refusal
 	}
+	if p.refusal != nil {
+		return p.refusal
+	}
+	return run(w)
+}
+
+// planFinish evaluates task finish's gates in order and decides its
+// actions without writing anything; run performs them. A non-gate error
+// (the API) is returned as such — it is not a refusal.
+func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*plan, func(io.Writer) error, error) {
+	p := &plan{}
+	crew := func(login string) bool { return strings.HasSuffix(login, "[bot]") || c.roleFor(login) != "" }
+	task, err := c.t.Task(ref)
+	if err != nil {
+		return nil, nil, err
+	}
+	var e error
+	if task.Closed {
+		e = refuse("CLOSED", "%s is already closed", ref)
+	}
+	if !p.gate("task open", e) {
+		return p.stop(finishGates), nil, nil
+	}
+	e = nil
 	if tracker.HasLabel(task, tracker.LabelNeedsDecision) {
-		return refuse("GATED", "%s has %s raised — a human must resolve it and remove the label", ref, tracker.LabelNeedsDecision)
+		e = refuse("GATED", "%s has %s raised — a human must resolve it and remove the label", ref, tracker.LabelNeedsDecision)
+	}
+	if !p.gate("no gate raised", e) {
+		return p.stop(finishGates), nil, nil
 	}
 	comments, err := c.t.Comments(ref)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
+	e = nil
 	if unresolved := tracker.UnresolvedGates(comments); len(unresolved) > 0 {
-		return refuse("GATE_UNRECORDED", "%d gate(s) on %s lack a resolution record — reply with **Gate resolved:** stating the decision (SPEC §8): %s",
+		e = refuse("GATE_UNRECORDED", "%d gate(s) on %s lack a resolution record — reply with **Gate resolved:** stating the decision (SPEC §8): %s",
 			len(unresolved), ref, unresolved[0].URL)
+	}
+	if !p.gate("gates resolved", e) {
+		return p.stop(finishGates), nil, nil
 	}
 	// The seat that started a task finishes it (#165: the coordinator's
 	// table once sent "approved → the implementer" regardless of whose
@@ -220,39 +257,51 @@ func taskFinish(w io.Writer, args []string) error {
 	// recorded escape hatch, and it stays an operator's act.
 	viewer, err := c.t.Viewer()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	var ownerBypass string
 	owner := tracker.StartedBy(task, comments)
+	e = nil
 	if !sameSeat(owner, viewer, c.roleFor) {
-		if !*bypass {
-			return refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it: dispatch it, hand it over with task start, or an operator overrides on the record with --bypass (SPEC §8)", ref, owner, viewer)
+		switch {
+		case !bypass:
+			e = refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it: dispatch it, hand it over with task start, or an operator overrides on the record with --bypass (SPEC §8)", ref, owner, viewer)
+		case crew(viewer):
+			e = refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
+		default:
+			ownerBypass = owner
 		}
-		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
-			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
-		}
-		ownerBypass = owner
+	}
+	if !p.gate("owner", e) {
+		return p.stop(finishGates), nil, nil
 	}
 
 	prs, err := c.t.ClosingPRs(ref, false)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
+	e = nil
 	if len(prs) == 0 {
-		return refuse("NO_PR", "no open PR closes %s", ref)
+		e = refuse("NO_PR", "no open PR closes %s", ref)
+	}
+	if !p.gate("closing PR", e) {
+		return p.stop(finishGates), nil, nil
 	}
 	pr, err := c.t.PRInfo(ref.Repo, prs[0])
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	if pr.NoChecks {
-		return refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run", pr.Number)
+	e = nil
+	switch {
+	case pr.NoChecks:
+		e = refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run", pr.Number)
+	case pr.ChecksPending:
+		e = refuse("CHECKS_PENDING", "PR #%d checks still running", pr.Number)
+	case !pr.ChecksOK:
+		e = refuse("CHECKS_FAILING", "PR #%d has failing checks", pr.Number)
 	}
-	if pr.ChecksPending {
-		return refuse("CHECKS_PENDING", "PR #%d checks still running", pr.Number)
-	}
-	if !pr.ChecksOK {
-		return refuse("CHECKS_FAILING", "PR #%d has failing checks", pr.Number)
+	if !p.gate("CI checks", e) {
+		return p.stop(finishGates), nil, nil
 	}
 
 	approved := false
@@ -265,78 +314,105 @@ func taskFinish(w io.Writer, args []string) error {
 	// holds the reviewer seat, that holder's approving review is the gate —
 	// other approvals coexist but do not satisfy it, and the solo
 	// confirmation cannot stand in for a holder that exists.
+	e = nil
 	if reviewerHolder, err := holder(c.rolesConfig().Roles, "reviewer"); err == nil && reviewerHolder != "~" {
 		if !holderReviewed(pr.ApprovedBy, func(login string) bool { return c.holdsRole(login, "reviewer") }) {
-			return refuse("NO_HOLDER_REVIEW", "PR #%d has no approving review from the reviewer role's holder (%s) — the role defines whose review counts; dispatch the reviewer (docs/identities.md)", pr.Number, reviewerHolder)
+			e = refuse("NO_HOLDER_REVIEW", "PR #%d has no approving review from the reviewer role's holder (%s) — the role defines whose review counts; dispatch the reviewer (docs/identities.md)", pr.Number, reviewerHolder)
 		}
-	} else if !approved && !*operatorConfirm {
-		return refuse("NO_NONDOER_APPROVAL", "PR #%d has no approving review from a non-author (solo tier: rerun with --operator-confirm)", pr.Number)
+	} else if !approved && !operatorConfirm {
+		e = refuse("NO_NONDOER_APPROVAL", "PR #%d has no approving review from a non-author (solo tier: rerun with --operator-confirm)", pr.Number)
+	}
+	if !p.gate("review", e) {
+		return p.stop(finishGates), nil, nil
 	}
 	// Decide the merge path before writing anything: a REVIEW_NOT_COUNTED
 	// refusal must land before the operator-confirm comment, or a rerun
 	// with --bypass would record the confirmation twice (testy finding on
 	// PR #89).
-	admin, err := mergeGate(pr.ReviewDecision, *bypass)
-	if err != nil {
-		return err
+	admin, e := mergeGate(pr.ReviewDecision, bypass)
+	if !p.gate("GitHub's required review", e) {
+		return p.stop(finishGates), nil, nil
 	}
+
+	prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+	var posts []string
 	if ownerBypass != "" {
 		// Recorded before any merge path: the override is the fact, whatever
 		// GitHub then does with the merge.
-		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
-		msg := fmt.Sprintf("**Owner bypass:** %s was started by @%s; finished by @%s with --bypass (SPEC §8 — the seat that started a task finishes it; this is the operator's recorded override).", ref, ownerBypass, viewer)
-		if err := c.t.Comment(prRef, msg); err != nil {
-			return err
-		}
+		posts = append(posts, fmt.Sprintf("**Owner bypass:** %s was started by @%s; finished by @%s with --bypass (SPEC §8 — the seat that started a task finishes it; this is the operator's recorded override).", ref, ownerBypass, viewer))
 	}
 	if !approved {
 		// Crew identities can never waive review; a human operator can —
 		// including on their own PR, where no distinct principal exists
 		// (pure solo tier, SPEC §5) — and the record says so.
-		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
-			return refuse("SELF_CONFIRM", "--operator-confirm requires a human operator; @%s is a crew identity", viewer)
+		e = nil
+		if crew(viewer) {
+			e = refuse("SELF_CONFIRM", "--operator-confirm requires a human operator; @%s is a crew identity", viewer)
 		}
-		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+		if !p.gate("operator confirmation", e) {
+			return p.stop(finishGates), nil, nil
+		}
 		msg := fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s in place of a formal approval (solo tier, SPEC §6).", viewer)
 		if viewer == pr.Author {
 			msg = fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s as both author and operator (pure solo tier, SPEC §6) — no independent principal exists in this project.", viewer)
 		}
-		if err := c.t.Comment(prRef, msg); err != nil {
-			return err
-		}
+		posts = append(posts, msg)
+	} else {
+		p.na("operator confirmation")
 	}
-
 	if admin {
 		// A bypass is an operator act: crew identities never hold it.
-		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
-			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
+		e = nil
+		if crew(viewer) {
+			e = refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
 		}
-		prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+		if !p.gate("bypass actor", e) {
+			return p.stop(finishGates), nil, nil
+		}
 		// Worded as the act, not the outcome: GitHub enforces bypass
 		// eligibility after this comment posts, and a false "merged"
 		// record must not survive a refused bypass (testy finding on
 		// PR #89).
-		msg := fmt.Sprintf("**Merge bypass:** the protocol's review gate is satisfied, but GitHub's "+
+		posts = append(posts, fmt.Sprintf("**Merge bypass:** the protocol's review gate is satisfied, but GitHub's "+
 			"required-review rule does not count the recorded approvals — approvals count only from "+
 			"principals with write access (superseding Decision, radiusred/gh-codecrew#73). Merging with "+
 			"the ruleset's administrator bypass as @%s; GitHub enforces eligibility — if this PR remains "+
-			"unmerged, the bypass was refused.", viewer)
-		if err := c.t.Comment(prRef, msg); err != nil {
-			return err
+			"unmerged, the bypass was refused.", viewer))
+	} else {
+		p.na("bypass actor")
+	}
+	for _, m := range posts {
+		p.would("comment on PR #%d: %s", pr.Number, firstLine(m))
+	}
+	if admin {
+		p.would("merge PR #%d via the ruleset's administrator bypass", pr.Number)
+	} else {
+		p.would("merge PR #%d (rebase); %s closes via its closing keyword", pr.Number, ref)
+	}
+	if pr.HeadRef != "" {
+		p.would("delete head %s", pr.HeadRef)
+	}
+	run := func(w io.Writer) error {
+		for _, m := range posts {
+			if err := c.t.Comment(prRef, m); err != nil {
+				return err
+			}
 		}
-		if err := c.t.MergePRBypass(pr.Repo, pr.Number); err != nil {
-			return err
+		if admin {
+			if err := c.t.MergePRBypass(pr.Repo, pr.Number); err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
+		} else {
+			if err := c.t.MergePR(pr.Repo, pr.Number); err != nil {
+				return err
+			}
+			fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
 		}
-		fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
 		deleteHead(w, c.t, pr)
 		return nil
 	}
-	if err := c.t.MergePR(pr.Repo, pr.Number); err != nil {
-		return err
-	}
-	fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
-	deleteHead(w, c.t, pr)
-	return nil
+	return p, run, nil
 }
 
 // mergeGate decides the merge path from GitHub's own review decision,
