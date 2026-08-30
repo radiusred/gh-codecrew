@@ -337,7 +337,53 @@ func routeRole(path, role, slug string) error {
 // key under the docs/identities.md convention, and prints what remains
 // manual: installing the App (per-account — installations do not cross
 // account boundaries) and routing the role.
+// identityNewDeps are the flow's external pieces, so the wiring from flags
+// to conversion to the stored key and the receiver's secret is testable
+// without a browser: the hub and owner lookup, the manifest flow, the
+// conversion, and where credentials are stored.
+type identityNewDeps struct {
+	hub       func() (hub, dir string, err error)
+	ownerType func(owner string) (string, error)
+	flow      func(manifestJSON []byte, target string, w io.Writer) (code string, err error)
+	convert   func(code string) (*appCreds, error)
+	configDir func() (string, error)
+	now       func() time.Time
+}
+
+func liveIdentityNewDeps() identityNewDeps {
+	return identityNewDeps{
+		hub: func() (string, string, error) {
+			c, err := load()
+			if err != nil {
+				return "", "", err
+			}
+			dir := ""
+			if c.current == c.hub {
+				dir = c.cfg.Dir // routing is written only in the hub itself
+			}
+			return c.hub, dir, nil
+		},
+		ownerType: func(owner string) (string, error) {
+			var acct struct {
+				Type string `json:"type"`
+			}
+			if err := gh.JSON(&acct, "api", "users/"+owner); err != nil {
+				return "", err
+			}
+			return acct.Type, nil
+		},
+		flow:      nil, // the live loopback flow; a test supplies one
+		convert:   func(code string) (*appCreds, error) { return convertManifest(code) },
+		configDir: os.UserConfigDir,
+		now:       time.Now,
+	}
+}
+
 func identityNew(w io.Writer, args []string) error {
+	return identityNewWith(w, args, liveIdentityNewDeps())
+}
+
+func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	fs := flag.NewFlagSet("identity new", flag.ContinueOnError)
 	role, args := splitLeadingRef(args)
 	name := fs.String("name", "", "App name — a crew member (myorg-coder), not a role (required)")
@@ -371,68 +417,78 @@ func identityNew(w io.Writer, args []string) error {
 		return fmt.Errorf("--webhook-secret applies with --with-webhook")
 	}
 
-	c, err := load()
+	hub, hubDir, err := deps.hub()
 	if err != nil {
 		return err
 	}
 	if *owner == "" {
-		*owner, _, _ = strings.Cut(c.hub, "/")
+		*owner, _, _ = strings.Cut(hub, "/")
 	}
-	var acct struct {
-		Type string `json:"type"`
-	}
-	if err := gh.JSON(&acct, "api", "users/"+*owner); err != nil {
-		return err
-	}
-
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return err
-	}
-	defer l.Close()
-	local := fmt.Sprintf("http://%s", l.Addr())
-
-	manifest, err := buildManifest(role, *name, "https://github.com/"+c.hub, local+"/callback", *withWebhook, *webhookURL, events, *withApproval)
-	if err != nil {
-		return err
-	}
-	manifestJSON, err := json.Marshal(manifest)
+	ownerType, err := deps.ownerType(*owner)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(w, "open %s — it submits the manifest for %q to %s and GitHub asks you to confirm\n", local, *name, *owner)
-	fmt.Fprintln(w, "waiting for the browser flow…")
-	code, err := serveFlow(l, manifestJSON, manifestTarget(*owner, acct.Type), time.Hour)
+	var code string
+	if deps.flow != nil {
+		// Test seam: the manifest without a live loopback address.
+		manifest, err := buildManifest(role, *name, "https://github.com/"+hub, "http://127.0.0.1/callback", *withWebhook, *webhookURL, events, *withApproval)
+		if err != nil {
+			return err
+		}
+		manifestJSON, _ := json.Marshal(manifest)
+		if code, err = deps.flow(manifestJSON, manifestTarget(*owner, ownerType), w); err != nil {
+			return err
+		}
+	} else {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return err
+		}
+		defer l.Close()
+		local := fmt.Sprintf("http://%s", l.Addr())
+		manifest, err := buildManifest(role, *name, "https://github.com/"+hub, local+"/callback", *withWebhook, *webhookURL, events, *withApproval)
+		if err != nil {
+			return err
+		}
+		manifestJSON, err := json.Marshal(manifest)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "open %s — it submits the manifest for %q to %s and GitHub asks you to confirm\n", local, *name, *owner)
+		fmt.Fprintln(w, "waiting for the browser flow…")
+		if code, err = serveFlow(l, manifestJSON, manifestTarget(*owner, ownerType), time.Hour); err != nil {
+			return err
+		}
+	}
+	creds, err := deps.convert(code)
 	if err != nil {
 		return err
 	}
-	creds, err := convertManifest(code)
-	if err != nil {
-		return err
-	}
-
-	configDir, err := os.UserConfigDir()
+	configDir, err := deps.configDir()
 	if err != nil {
 		return err
 	}
 	// The receiver's secret, when given, is set under the key just stored
-	// — so the App signs for the platform from its first delivery (#157).
-	if _, _, err := storeAndReport(w, creds, configDir, *webhookSecret, *withApproval, time.Now()); err != nil {
+	// — so the App signs for the platform from its first protocol
+	// delivery (the creation ping is signed with GitHub's generated secret
+	// and fails the receiver's check, harmlessly: a ping fires nothing —
+	// #157, #164 finding 60).
+	if _, _, err := storeAndReport(w, creds, configDir, *webhookSecret, *withApproval, deps.now()); err != nil {
 		return err
 	}
 	fmt.Fprintf(w, "\nnext:\n")
 	fmt.Fprintf(w, "  1. install it: https://github.com/apps/%s/installations/new\n", creds.Slug)
 	fmt.Fprintln(w, "     (installations are per-account — repeat for any other account it must reach)")
 	routed := false
-	if !*noRoute && c.current == c.hub {
-		routed = routeRole(filepath.Join(c.cfg.Dir, ".codecrew.yml"), role, creds.Slug) == nil
+	if !*noRoute && hubDir != "" {
+		routed = routeRole(filepath.Join(hubDir, ".codecrew.yml"), role, creds.Slug) == nil
 	}
 	if routed {
 		fmt.Fprintf(w, "  2. routed %s → %s in .codecrew.yml — commit it via your next PR (--no-route to skip)\n", role, creds.Slug)
 	} else {
 		fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, creds.Slug)
 	}
-	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, acct.Type, creds.Slug))
+	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, ownerType, creds.Slug))
 	return nil
 }
