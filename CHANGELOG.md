@@ -24,6 +24,21 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   gate — and delete-on-merge cleans the branch (#164 findings 51, 68;
   #172, #183)
 
+### The ladder's last rung: hosting a crew on an orchestration platform
+- `docs/platform-interop.md` — the page SPEC §9 pointed at, written from the
+  orchestrator run's sixty-eight findings (#119 cycles 1–3, #164 cycle 4) and
+  nothing else: the separation of concerns (the platform keeps dispatch and
+  discussion, CodeCrew owns the record and routing); the coordinator seat,
+  its permission set, and why it is its own agent rather than the platform's
+  lead; mapping agents to roles by the routing table, with `roles show` as
+  the bundle and `roles/<role>.local.md` as the platform overlay; credential
+  injection and the 401 reflex; the three wake kinds and the one-wake-path
+  rule; an eleven-row onboarding checklist in setup order; the per-cycle cost
+  tables reproduced as recorded; the Paperclip recipe as the worked example,
+  ids as placeholders; and the seams still open, named as gaps. Linked as the
+  last rung from the introduction, the quickstart's ladder, the README and
+  SPEC §9. (M7-R7, #54, #182)
+
 ### An App's webhook signs for its platform
 - `identity webhook <slug> [--show] [--url U] [--secret S | --rotate-secret]`
   works an App's hook under its own key: prints the URL, content type,
