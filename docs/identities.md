@@ -109,9 +109,11 @@ It subscribes the App to the two transitions a platform routes to seats —
 cannot receive is refused before the browser opens). GitHub generates the
 hook secret; it is printed once and never written to disk — or, with
 `--webhook-secret <the receiver's>`, replaced by the receiver's as soon as
-the App exists — before its first protocol delivery; the creation `ping`
-GitHub sends is signed with the generated secret and fails the receiver's
-check, harmlessly, since a ping fires nothing (finding 60 below). Mint
+the App exists. Repository events reach an App only through an
+installation, and the App has none until you install it (the verb's next
+step, after the secret is set), so the only delivery ever signed with
+GitHub's generated secret is the creation `ping` — which the receiver
+rejects, harmlessly, since a ping fires nothing (finding 60 below). Mint
 with the hook if the App will ever listen: an App minted without one has
 no hook configuration GitHub's API can create — see "The receiver side".
 
@@ -367,8 +369,9 @@ github_hmac`) mints its own secret and a public fire URL
 <fire URL> --webhook-secret <the trigger's secret>` — or, for an App whose
 hook is already active, `identity webhook myorg-reviewy --url <fire URL>
 --secret <the trigger's secret>` — install it on the account, and the routine's
-`lastFiredAt` moves on the first PR (the creation `ping` arrives signed
-with GitHub's generated secret and is rejected — expected). The routine's body should say where
+`lastFiredAt` moves on the first PR. The creation `ping` arrives before
+the install, signed with GitHub's generated secret, and is rejected —
+expected, and the only delivery that can be. The routine's body should say where
 the payload lives (finding 61); the interop doc (#54) carries the whole
 onboarding checklist.
 

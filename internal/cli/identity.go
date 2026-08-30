@@ -469,11 +469,12 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	if err != nil {
 		return err
 	}
-	// The receiver's secret, when given, is set under the key just stored
-	// — so the App signs for the platform from its first protocol
-	// delivery (the creation ping is signed with GitHub's generated secret
-	// and fails the receiver's check, harmlessly: a ping fires nothing —
-	// #157, #164 finding 60).
+	// The receiver's secret, when given, is set under the key just stored.
+	// Repository events reach an App only through an installation, and
+	// this App has none until the operator installs it (step 1 below), so
+	// the only delivery that can precede this PATCH is the creation ping,
+	// signed with GitHub's generated secret — rejected by the receiver,
+	// harmlessly: a ping fires nothing (#157, #164 finding 60).
 	if _, _, err := storeAndReport(w, creds, configDir, *webhookSecret, *withApproval, deps.now()); err != nil {
 		return err
 	}
