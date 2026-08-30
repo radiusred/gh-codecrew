@@ -103,3 +103,35 @@ func TestCheckHTTPAgainstRealServer(t *testing.T) {
 		t.Error("dead server reported reachable")
 	}
 }
+
+// A URL ends at the first character that cannot be in one — the prose
+// ellipsis that cost milestone evidence a real citation (#138), quotes, a
+// backtick, brackets — and a closing parenthesis belongs to it only when
+// it opened one; trailing sentence punctuation is trimmed.
+func TestExtractURLsStopsWhereAURLCannotContinue(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		want []string
+	}{
+		{"upstream URLs (`…/blob/main/…`) resolve from https://github.com/radiusred/gh-codecrew/blob/main/… as", []string{"https://github.com/radiusred/gh-codecrew/blob/main/"}},
+		{"see https://github.com/o/r/issues/1…", []string{"https://github.com/o/r/issues/1"}},
+		{"in `https://github.com/o/r/pull/2` and \"https://example.com/a\" or 'https://example.com/b'", []string{"https://github.com/o/r/pull/2", "https://example.com/a", "https://example.com/b"}},
+		{"(see https://github.com/o/r/issues/3).", []string{"https://github.com/o/r/issues/3"}},
+		{"[link](https://github.com/o/r/issues/4), then [wiki](https://en.wikipedia.org/wiki/Foo_(bar)).", []string{"https://github.com/o/r/issues/4", "https://en.wikipedia.org/wiki/Foo_(bar)"}},
+		{"ends the sentence https://example.com/x: next https://example.com/y; and https://example.com/z,", []string{"https://example.com/x", "https://example.com/y", "https://example.com/z"}},
+		{"anchor https://github.com/o/r/issues/5#issuecomment-99 — dash", []string{"https://github.com/o/r/issues/5#issuecomment-99"}},
+		{"query https://example.com/p?a=1&b=2%20c stays whole", []string{"https://example.com/p?a=1&b=2%20c"}},
+		{"nothing here", nil},
+	} {
+		got := extractURLs(tc.text)
+		if len(got) != len(tc.want) {
+			t.Errorf("%q: got %v, want %v", tc.text, got, tc.want)
+			continue
+		}
+		for i := range tc.want {
+			if got[i] != tc.want[i] {
+				t.Errorf("%q: url[%d] = %q, want %q", tc.text, i, got[i], tc.want[i])
+			}
+		}
+	}
+}
