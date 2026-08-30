@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The scaffold is a commit
+- `init` commits exactly the files it wrote — `chore: scaffold codecrew`,
+  a pathspec commit, so the operator's own staged and unstaged work is
+  untouched (no stash) — on the current branch, or on
+  `codecrew-bootstrap` when the default branch requires pull requests
+  (asked through `gh`; assumed when it cannot be asked, since a commit
+  stranded on a protected `main` is the worse outcome). It never pushes,
+  never runs `git init`, and a rerun that writes nothing commits nothing.
+  In a fresh repository the scaffold is the root commit and the last
+  commit before the protocol starts; behind a ruleset the scaffold PR
+  remains the one merge the operator does by hand — the pre-milestone
+  gate — and delete-on-merge cleans the branch (#164 findings 51, 68;
+  #172, #183)
+
 ### An App's webhook signs for its platform
 - `identity webhook <slug> [--show] [--url U] [--secret S | --rotate-secret]`
   works an App's hook under its own key: prints the URL, content type,
