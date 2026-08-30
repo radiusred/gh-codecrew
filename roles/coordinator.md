@@ -65,7 +65,8 @@ read every seat's credentials through its own 401
   reviewer. Changes requested → the implementer, then the reviewer again on
   the new head; never both in parallel. Approved → **the seat that started
   the task** runs `gh codecrew task finish` — read `**Started by**` from
-  the record, never a fixed seat (#164, finding 58;
+  the record, never a fixed seat; the verb refuses any other seat with
+  `NOT_OWNER` (#164, finding 58;
   [#165](https://github.com/radiusred/gh-codecrew/issues/165)). The verb is
   the only merge point.
 - **One wake path per transition.** A transition GitHub emits — a PR
