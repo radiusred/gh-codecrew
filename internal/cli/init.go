@@ -47,7 +47,9 @@ GitHub issues and PRs, per the protocol at
 
 - ` + "`.codecrew.yml`" + ` names the hub; the hub's ` + "`roles/`" + ` holds the role
   contracts. Read the contract for the role you were dispatched as before
-  doing anything else.
+  doing anything else — ` + "`gh codecrew roles show <role>`" + ` prints it with this
+  project's ` + "`roles/<role>.local.md`" + ` extension appended (blank until the
+  project writes one; the file says what belongs there).
 - ` + "`gh codecrew status`" + ` shows where the project is; ` + "`gh codecrew help`" + `
   lists the workflow verbs. Blocked gates refuse with
   ` + "`refused[CODE]: detail`" + ` — act on the code, don't work around it.
@@ -84,6 +86,26 @@ const claudeScaffold = `@AGENTS.md
      instructions below it. -->
 `
 
+// extensionScaffold is the blank roles/<role>.local.md init writes beside
+// every contract: the mechanism made visible at onboarding the way the
+// routing table is, so "how do we customise this?" is answered where the
+// question arises. Stable and brief — the invariant (SPEC §7) and two
+// upstream links; the examples live on the page they point at and change
+// without touching anyone's scaffold. Comments only, so it composes to
+// nothing until someone writes something (M7-R4, #173).
+const extensionScaffold = `<!--
+roles/%[1]s.local.md — this project's extension to the %[1]s contract.
+Loaded after roles/%[1]s.md, append-only, never a replacement: an extension
+that contradicts its contract is a review finding. gh codecrew roles show %[1]s
+prints the composition. Comments only, it adds nothing.
+
+What belongs here, with worked examples (house style, repo conventions,
+a platform's wake syntax, ids and tooling):
+` + U + `/docs/extensions.md
+Protocol: ` + U + `/SPEC.md (section 7)
+-->
+`
+
 // scaffold writes the greenfield files into dir. Hub mode (hub == "self")
 // writes the full set; spoke mode writes only the pointer. Existing files
 // are never touched — they are reported as skipped.
@@ -113,6 +135,8 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 			// with, so drift can be judged three-way later (the base is
 			// fetchable from the upstream repo at this version).
 			files[filepath.Join("roles", e.Name())] = contractStamp(e.Name()) + string(data)
+			role := strings.TrimSuffix(e.Name(), ".md")
+			files[filepath.Join("roles", role+localSuffix)] = fmt.Sprintf(extensionScaffold, role)
 		}
 	}
 	for rel, content := range files {
