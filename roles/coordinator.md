@@ -99,7 +99,11 @@ read every seat's credentials through its own 401
   not-satisfied verdict becomes a chartered remedy task → the milestone
   document as the doc-synthesizer's task → `gh codecrew milestone close <milestone number>`.
   Read every `refused[CODE]` and act on the code; never anticipate a gate
-  instead of running the verb, and never merge around `DOC_MISSING`.
+  instead of running the verb — `--dry-run` on `task finish` and
+  `milestone close` shows every gate and what the verb would do, writing
+  nothing — and never merge around `DOC_MISSING`. `milestone new --dry-run`
+  prints the number a milestone would get before its requirements are
+  worded.
 - **Gates.** Anything only the human can answer — scope, identity, spend, a
   requirement's meaning — is `gh codecrew checkpoint <ref> --question "…"`;
   nothing on that task proceeds until `**Gate resolved:**` is on the
