@@ -220,9 +220,9 @@ func taskFinish(w io.Writer, args []string) error {
 		return err
 	}
 	var ownerBypass string
-	if owner := tracker.StartedBy(task, comments); owner != "" && !tracker.SameLogin(owner, viewer) {
+	if owner := tracker.StartedBy(task, comments); !sameSeat(owner, viewer, c.roleFor) {
 		if !*bypass {
-			return refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it; dispatch it (SPEC §8), or an operator overrides on the record with --bypass", ref, owner, viewer)
+			return refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it: dispatch it, hand it over with task start, or an operator overrides on the record with --bypass (SPEC §8)", ref, owner, viewer)
 		}
 		if strings.HasSuffix(viewer, "[bot]") || c.roleFor(viewer) != "" {
 			return refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
@@ -369,6 +369,21 @@ func holderReviewed(approvedBy []string, holds func(login string) bool) bool {
 // splitLeadingRef pulls a leading positional ref off the args so verbs
 // accept both "<ref> --flag" and "--flag <ref>" orders (stdlib flag stops
 // parsing at the first positional).
+// sameSeat reports whether viewer may finish a task owner started: the
+// same login, or the same routed seat — a role held by a GitHub team is
+// held by any member, so a teammate finishing a teammate's task is the
+// seat finishing its own. An owner who has since left the team resolves
+// to no role and no longer matches: the task is handed over by running
+// task start again (latest record wins) or finished by the operator with
+// --bypass on the record. No owner recorded: nothing to hold anyone to.
+func sameSeat(owner, viewer string, roleFor func(string) string) bool {
+	if owner == "" || tracker.SameLogin(owner, viewer) {
+		return true
+	}
+	role := roleFor(owner)
+	return role != "" && role == roleFor(viewer)
+}
+
 func splitLeadingRef(args []string) (string, []string) {
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		return args[0], args[1:]

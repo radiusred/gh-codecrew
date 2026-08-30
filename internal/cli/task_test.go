@@ -55,3 +55,41 @@ func TestHolderReviewed(t *testing.T) {
 		t.Error("no approvals satisfied the holder gate")
 	}
 }
+
+// The ownership gate holds a task to the seat that started it — the same
+// login, or the same routed seat (a team-held role is any member). An
+// owner who has left resolves to no role and no longer matches; no owner
+// recorded holds nobody (#165, operator's questions on #175).
+func TestSameSeat(t *testing.T) {
+	roleFor := func(login string) string {
+		switch strings.ToLower(strings.TrimSuffix(login, "[bot]")) {
+		case "radiusred-cody":
+			return "implementer"
+		case "radiusred-wordy":
+			return "doc-synthesizer"
+		case "alice", "bob": // members of the team the reviewer seat routes to
+			return "reviewer"
+		}
+		return ""
+	}
+	for _, c := range []struct {
+		owner, viewer string
+		want          bool
+	}{
+		{"", "anyone", true}, // no start record
+		{"radiusred-cody[bot]", "radiusred-cody[bot]", true}, // same login
+		{"radiusred-cody[bot]", "Radiusred-Cody", true},      // suffix and case
+		{"alice", "bob", true},                               // same team-held seat
+		{"bob", "alice", true},
+		{"alice", "radiusred-cody[bot]", false}, // different seats
+		{"radiusred-wordy[bot]", "radiusred-cody[bot]", false},
+		{"carol", "alice", false},                 // starter no longer holds any seat
+		{"davison", "radiusred-cody[bot]", false}, // operator-held task, a crew finisher
+		{"radiusred-cody[bot]", "davison", false}, // the operator is not exempt
+		{"davison", "davison", true},
+	} {
+		if got := sameSeat(c.owner, c.viewer, roleFor); got != c.want {
+			t.Errorf("sameSeat(%q, %q) = %v, want %v", c.owner, c.viewer, got, c.want)
+		}
+	}
+}
