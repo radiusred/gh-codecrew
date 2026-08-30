@@ -81,12 +81,31 @@ func prByHead(prs []tracker.PR) map[string]tracker.PR {
 // skipped silently. Failures are reported and never abort: the caller has
 // passed every gate by the time it sweeps.
 func sweepBranches(w io.Writer, t tracker.Tracker, m *tracker.Milestone) (deleted []string) {
+	items, notes := planSweep(t, m)
+	for _, n := range notes {
+		fmt.Fprintln(w, n)
+	}
+	return executeSweep(w, t, items)
+}
+
+// sweepItem is one branch the close would consider: delete it, or keep it
+// and say why.
+type sweepItem struct {
+	Repo, Name string
+	Delete     bool
+	Reason     string
+}
+
+// planSweep decides, without touching anything, what the sweep would do
+// to every branch a milestone's tasks left; notes are the lookups it had
+// to skip. The dry run prints the plan; the live close executes it.
+func planSweep(t tracker.Tracker, m *tracker.Milestone) (items []sweepItem, notes []string) {
 	defaults := map[string]string{}
 	for _, task := range m.Tasks {
 		if _, ok := defaults[task.Repo]; !ok {
 			info, err := t.RepoInfo(task.Repo)
 			if err != nil {
-				fmt.Fprintf(w, "note: branch sweep skipped for %s (%v)\n", task.Repo, err)
+				notes = append(notes, fmt.Sprintf("note: branch sweep skipped for %s (%v)", task.Repo, err))
 				defaults[task.Repo] = ""
 				continue
 			}
@@ -97,14 +116,14 @@ func sweepBranches(w io.Writer, t tracker.Tracker, m *tracker.Milestone) (delete
 		}
 		nums, err := t.ClosingPRs(task, true)
 		if err != nil {
-			fmt.Fprintf(w, "note: branch sweep skipped for %s (%v)\n", task, err)
+			notes = append(notes, fmt.Sprintf("note: branch sweep skipped for %s (%v)", task, err))
 			continue
 		}
 		var prs []tracker.PR
 		for _, num := range nums {
 			pr, err := t.PRInfo(task.Repo, num)
 			if err != nil {
-				fmt.Fprintf(w, "note: branch sweep skipped for %s (%v)\n", task, err)
+				notes = append(notes, fmt.Sprintf("note: branch sweep skipped for %s (%v)", task, err))
 				prs = nil
 				break
 			}
@@ -140,17 +159,25 @@ func sweepBranches(w io.Writer, t tracker.Tracker, m *tracker.Milestone) (delete
 			}
 			pr, hasPR := byHead[name]
 			del, reason := branchAction(pr, hasPR, ahead, tip)
-			if !del {
-				fmt.Fprintf(w, "branch %s: kept (%s)\n", name, reason)
-				continue
-			}
-			if err := t.DeleteBranch(task.Repo, name); err != nil {
-				fmt.Fprintf(w, "branch %s: kept (%s; delete failed: %v)\n", name, reason, err)
-				continue
-			}
-			fmt.Fprintf(w, "branch %s: deleted (%s)\n", name, reason)
-			deleted = append(deleted, name)
+			items = append(items, sweepItem{Repo: task.Repo, Name: name, Delete: del, Reason: reason})
 		}
+	}
+	return items, notes
+}
+
+// executeSweep performs a sweep plan, reporting each branch's fate.
+func executeSweep(w io.Writer, t tracker.Tracker, items []sweepItem) (deleted []string) {
+	for _, it := range items {
+		if !it.Delete {
+			fmt.Fprintf(w, "branch %s: kept (%s)\n", it.Name, it.Reason)
+			continue
+		}
+		if err := t.DeleteBranch(it.Repo, it.Name); err != nil {
+			fmt.Fprintf(w, "branch %s: kept (%s; delete failed: %v)\n", it.Name, it.Reason, err)
+			continue
+		}
+		fmt.Fprintf(w, "branch %s: deleted (%s)\n", it.Name, it.Reason)
+		deleted = append(deleted, it.Name)
 	}
 	return deleted
 }

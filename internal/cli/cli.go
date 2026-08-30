@@ -15,13 +15,16 @@ verbs:
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
            [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)
+           [--dry-run]                       (print the number and row it would get; create nothing)
   milestone close <milestone number>         close a milestone (gates: tasks closed, doc merged)
+           [--dry-run]                       (print every gate and the sweep; write nothing)
   milestone evidence <milestone number>      verify every cited link in the milestone's record resolves (M2 → 2)
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch
   task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge
            [--bypass]                        (recorded admin merge when GitHub won't count the approval)
+           [--dry-run]                       (print every gate and what it would do; write nothing)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
   role <name>                                who holds a role (identity, or ~ for the operator)
   roles diff <role>                          local contract vs the one embedded in the CLI
