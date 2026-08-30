@@ -13,23 +13,42 @@ import (
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
-// urlPattern matches https?:// links in issue bodies and comments;
-// extractURLs trims the markdown and punctuation that ride along.
-var urlPattern = regexp.MustCompile(`https?://[^\s<>"'*` + "`" + `)\]]+`)
+// urlPattern matches https?:// links in issue bodies and comments: a URL
+// ends at the first character that cannot be in one — whitespace, quotes,
+// backticks, brackets, and anything outside ASCII (a prose ellipsis glued
+// to a link once made milestone evidence refuse a real citation, #138).
+// Parentheses are matched so a Wikipedia-style path survives; extractURLs
+// trims the markdown and punctuation that ride along.
+var urlPattern = regexp.MustCompile(`https?://[A-Za-z0-9\-._~:/?#@!$&+,;=%()]+`)
 
 // extractURLs pulls the deduplicated, ordered links from a piece of record
-// text. Trailing punctuation that prose attaches (., ,, ;, :) is trimmed.
+// text. Trailing punctuation that prose attaches (., ,, ;, :) is trimmed,
+// and a closing parenthesis is kept only when the URL opened it — a
+// markdown link's `)` and a sentence's `)` are not part of the address.
 func extractURLs(text string) []string {
 	seen := map[string]bool{}
 	var urls []string
 	for _, u := range urlPattern.FindAllString(text, -1) {
-		u = strings.TrimRight(u, ".,;:")
-		if !seen[u] {
+		u = trimURL(u)
+		if u != "" && !seen[u] {
 			seen[u] = true
 			urls = append(urls, u)
 		}
 	}
 	return urls
+}
+
+func trimURL(u string) string {
+	for {
+		trimmed := strings.TrimRight(u, ".,;:")
+		if strings.HasSuffix(trimmed, ")") && strings.Count(trimmed, ")") > strings.Count(trimmed, "(") {
+			trimmed = strings.TrimSuffix(trimmed, ")")
+		}
+		if trimmed == u {
+			return u
+		}
+		u = trimmed
+	}
 }
 
 // githubAPIPath maps a github.com record link — issue, PR, comment anchor,
