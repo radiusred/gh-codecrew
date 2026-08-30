@@ -21,6 +21,26 @@ this page cites one of those findings, a shipped contract, or the PR that
 changed the CLI because of it. Where the record names something that is still not solved, the last
 section names it rather than rounding it up.
 
+**A note on releases.** This page is written against the 1.1 line. The
+installed release is **v1.0.3**, and six things named below ship in
+**v1.1.0**: the coordinator seat — `roles/coordinator.md`, the `coordinator`
+row in the routing table, and `gh codecrew identity new coordinator`
+([#169](https://github.com/radiusred/gh-codecrew/pull/169)); `gh codecrew identity token`
+([#171](https://github.com/radiusred/gh-codecrew/pull/171)); the blank `roles/<role>.local.md` that
+`gh codecrew init` scaffolds beside each contract
+([#174](https://github.com/radiusred/gh-codecrew/pull/174)); `task finish` refusing `NOT_OWNER`
+when a seat that did not start a task tries to finish it
+([#176](https://github.com/radiusred/gh-codecrew/pull/176)); `gh codecrew identity webhook`,
+the `--webhook-secret` flag and the narrowed default event set
+([#181](https://github.com/radiusred/gh-codecrew/pull/181)); and `gh codecrew init` committing
+the scaffold it wrote ([#184](https://github.com/radiusred/gh-codecrew/pull/184)). On v1.0.3
+the coordination layer is briefed by hand, a token is minted by a script or
+in-line, an App's hook is worked on its settings page, and the scaffold is
+committed by whoever ran `init` — which is precisely what the run did, at
+the cost its findings record. Everything else here — the routing table,
+`gh codecrew roles show`, the workflow verbs, the wake rules and the rest of
+the onboarding checklist — is true of v1.0.3 today.
+
 The crew that wrote and reviewed this page is itself agent-staffed, on the
 protocol it describes.
 
@@ -82,7 +102,7 @@ and learned the gates well enough to route around ever invoking them
 ([finding 36](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5453727497)).
 
 So the coordination layer became the fifth seat: `roles/coordinator.md`
-([the contract](../roles/coordinator.md), shipped in
+([the contract](../roles/coordinator.md), added in
 [#169](https://github.com/radiusred/gh-codecrew/pull/169)), a
 `coordinator` row in the routing table, and an identity of its own.
 Unrouted (`~`) it is the operator — a solo project has a coordinator too, and
@@ -220,7 +240,9 @@ and [12](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-544414
 A supplied installation id was stale, and the agent that ignored it and
 discovered its own was right
 ([finding 35](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5453727497)).
-The verb now does all of that, so the platform binds whatever it binds.
+From v1.1.0 the verb does all of that, so the platform binds whatever it
+binds; before it, every seat wrote its own JWT helper — which is what the run
+watched them do, three times, in three dialects.
 
 **The 401 reflex: mint again.** This is the single most expensive habit the
 run found, and it is a habit, not a knowledge gap. Three of three agents
@@ -230,8 +252,8 @@ mint tokens from the PEM file in your environment?"* — and 67 seconds later
 it had built the JWT, discovered the installation, minted, and posted its
 review as itself
 ([finding 12](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5444149238)).
-The tokens last an hour; a 401 means the hour is up. Every contract now opens
-with the mint and says a 401 means run it again.
+The tokens last an hour; a 401 means the hour is up. Every seat contract in
+this hub now opens with the mint and says a 401 means run it again.
 
 Three more rules the run paid for:
 
@@ -341,7 +363,7 @@ where it cost something.
 | # | step | why, from the record |
 |---|---|---|
 | 1 | **The Project first.** Declare the hub as the platform's own unit of scope — name, the GitHub remote, a workspace, lead = the coordinator — and create the routines and the kickoff item under it. | Every run of cycle 4 opened with *"No project or prior session workspace was available"*, so each wake re-cloned or reused whatever checkout it last had; the coordinator's was another project's. The Project makes hub ↔ project one to one and finding 62's "which repo?" cannot arise ([#164](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5465157957)). |
-| 2 | **App hooks, not repository hooks.** Point each seat's App webhook at the receiver that dispatches that seat: `gh codecrew identity new <role> --with-webhook --webhook-url <receiver> --webhook-secret <the receiver's>`, or `gh codecrew identity webhook <slug> --url … --secret …` for an App already minted. This is opt-in by design — *a crew App acts, it never listens* until an operator says otherwise ([#54](https://github.com/radiusred/gh-codecrew/issues/54#issuecomment-5454775046)). | One App hook delivers for every repository its installation covers, so a platform needs no repository hooks at all; cycle 4's two hand-pasted repository hooks were a workaround for seats whose Apps had no receiver ([identities.md, "The receiver side"](identities.md); [#181](https://github.com/radiusred/gh-codecrew/pull/181)). |
+| 2 | **App hooks, not repository hooks.** Point each seat's App webhook at the receiver that dispatches that seat: `gh codecrew identity new <role> --with-webhook --webhook-url <receiver> --webhook-secret <the receiver's>`, or `gh codecrew identity webhook <slug> --url … --secret …` for an App whose hook is already **active** — an App minted without a webhook has no hook configuration at all, GitHub's API cannot create one, and the verb refuses `NO_WEBHOOK` naming the settings page where Webhook → Active is ticked by hand first. This is opt-in by design — *a crew App acts, it never listens* until an operator says otherwise ([#54](https://github.com/radiusred/gh-codecrew/issues/54#issuecomment-5454775046)). | One App hook delivers for every repository its installation covers, so a platform needs no repository hooks at all; cycle 4's two hand-pasted repository hooks were a workaround for seats whose Apps had no receiver ([identities.md, "The receiver side"](identities.md); [#181](https://github.com/radiusred/gh-codecrew/pull/181)). |
 | 3 | **Instructions layered, never replaced.** Keep or supply the platform's own managed files (its run-loop, its wake semantics), *append* `gh codecrew roles show <role>`, and add the platform overlay. | Seats created by a lead agent's hiring plan carried exactly one file each and were never told how the platform wakes, blocks or hands off; the free-text parking that deadlocked the graph is what an agent invents without it ([#119 finding 41](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5455092737); [#54](https://github.com/radiusred/gh-codecrew/issues/54#issuecomment-5455092966)). |
 | 4 | **Reinstall bundles from `roles show` whenever a contract or overlay changes** — a scripted step, run for every seat, not a coordinator's chore. The sequence is: contracts on `main` → `gh codecrew roles show <role>` → bundles. | A fix committed to the overlay is inert until the seats carry it; fifteen minutes after the change landed the seats were still emitting the old hand-back, and the reinstall had to be done through the API by hand ([#119, change point 3](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5462283121)). |
 | 5 | **Single-flight: one run at a time per agent** (`maxConcurrentRuns: 1` on Paperclip), set on the coordinator and, in a one-task-at-a-time crew, on the seats — before the first event. | The platform default assumes independent tickets, and CodeCrew's transitions are not independent; a coordinator running three copies of itself dispatched three reviewers for one PR ([#119, change point 2](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5462261574); [finding 46](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5462194623)). Pair it with the act-time re-read, or the queue goes stale ([finding 48](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5462312601)). |
@@ -480,10 +502,11 @@ gh codecrew identity new reviewer --name my-org-reviewer \
 gh codecrew identity webhook my-org-reviewer --url <fire URL> --secret <the trigger's secret>
 ```
 
-`gh codecrew identity new --with-webhook` subscribes `pull_request` and
-`pull_request_review` by default — the transitions a platform routes to
-seats; `--events` names others
-([#181](https://github.com/radiusred/gh-codecrew/pull/181)). The creation
+From v1.1.0, `gh codecrew identity new --with-webhook` subscribes
+`pull_request` and `pull_request_review` by default — the transitions a
+platform routes to seats; `--events` names others
+([#181](https://github.com/radiusred/gh-codecrew/pull/181)). On v1.0.3 it
+subscribes five, three of which wake a platform for nothing. The creation
 ping is signed with GitHub's generated secret and rejected; that is expected,
 and it is the only delivery that can precede the App's install. No repository
 webhooks are needed (checklist row 2).
@@ -532,8 +555,9 @@ page is not read as a finished story.
   obligation in it traces to a finding, but the contract itself awaits its
   first cycle.
 - **The scaffold still costs the operator one merge, where a ruleset makes
-  it a PR.** This one has narrowed since the run. `gh codecrew init` now
-  commits exactly the files it wrote — on the current branch, or on
+  it a PR.** This one has narrowed since the run. From v1.1.0
+  `gh codecrew init` commits exactly the files it wrote — on the current
+  branch, or on
   `codecrew-bootstrap` cut from the default branch when that branch requires
   pull requests — so the scaffold is the last commit before the protocol
   starts rather than a PR with no task behind it, and delete-on-merge sweeps
