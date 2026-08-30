@@ -531,14 +531,27 @@ page is not read as a finished story.
   ([#169](https://github.com/radiusred/gh-codecrew/pull/169)). Every
   obligation in it traces to a finding, but the contract itself awaits its
   first cycle.
-- **The scaffold PR still lands outside the protocol.** `gh codecrew init`
-  writes no CI workflow, so on a repository whose org requires a check the
-  first PR reports none and sits pending forever — met on three repositories
-  now, the last needing an administrator merge — and the scaffold branch is
-  not swept at close, because it was never a task's
-  ([#164 findings 51 and 68](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5463692218)).
-  Captured as [#172](https://github.com/radiusred/gh-codecrew/issues/172):
-  `init` writing the workflows, or the bootstrap becoming a protocol act.
+- **The scaffold still costs the operator one merge, where a ruleset makes
+  it a PR.** This one has narrowed since the run. `gh codecrew init` now
+  commits exactly the files it wrote — on the current branch, or on
+  `codecrew-bootstrap` cut from the default branch when that branch requires
+  pull requests — so the scaffold is the last commit before the protocol
+  starts rather than a PR with no task behind it, and delete-on-merge sweeps
+  the branch the run found stranded
+  ([SPEC §6](../SPEC.md)'s `init` row;
+  [#183](https://github.com/radiusred/gh-codecrew/issues/183),
+  [PR #184](https://github.com/radiusred/gh-codecrew/pull/184), which closed
+  the capture the run's findings opened). What remains: behind a ruleset the
+  scaffold arrives as a pull request, and it is the one merge the operator
+  does by hand — recorded, because no milestone exists yet to `checkpoint`
+  on, as a `**Gate raised:**` / `**Gate resolved:**` pair on the scaffold PR
+  itself ([#164 finding 52](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5463692218);
+  [`roles/coordinator.md`](../roles/coordinator.md)). On a fresh repository
+  whose org also requires a check that cannot report yet, that hand merge is
+  an administrator merge — three repositories have met it
+  ([#164 findings 51 and 68](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5463692218)) —
+  because `init` writes no CI workflow: the protocol reads check results and
+  never defines CI ([SPEC §5](../SPEC.md)).
 - **Wake coalescing is the platform's half, and is missing.** Single-flight
   plus one wake per signal is a queue, and a queue of stale wakes costs about
   what concurrency did, minus the collisions
