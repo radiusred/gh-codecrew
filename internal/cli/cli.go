@@ -32,6 +32,10 @@ verbs:
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
            [--with-approval-permission]      (reviewer only: its approvals satisfy required reviews)
+           [--events E,E] [--webhook-secret S]  (with --with-webhook: default pull_request,pull_request_review;
+                                             set the receiver's secret right after creation)
+  identity webhook <slug> [--show]           the App's hook: print it, --url U / --secret S to set,
+           [--url U] [--secret S|--rotate-secret]  --rotate-secret to mint one (events change on the settings page)
   identity token [<slug>]                    mint an installation token: env bindings first
            [--installation ID]               (GITHUB_APP_ID|GITHUB_CLIENT_ID + GITHUB_PRIVATE_KEY|GITHUB_PEM),
                                              else ~/.config/codecrew/<slug>; the token alone on stdout
@@ -80,6 +84,8 @@ func run(args []string) error {
 			return identityNew(os.Stdout, rest[1:])
 		case "token":
 			return identityToken(os.Stdout, rest[1:])
+		case "webhook":
+			return identityWebhook(os.Stdout, rest[1:])
 		default:
 			fmt.Fprint(os.Stderr, usage)
 			return fmt.Errorf("identity: unknown subcommand %q", rest[0])

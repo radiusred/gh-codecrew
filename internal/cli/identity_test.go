@@ -18,7 +18,7 @@ import (
 
 func TestBuildManifestPermissionsPerRole(t *testing.T) {
 	for role, want := range rolePermissions {
-		m, err := buildManifest(role, "myorg-crew", "https://github.com/o/r", "http://127.0.0.1:1/callback", false, "", false)
+		m, err := buildManifest(role, "myorg-crew", "https://github.com/o/r", "http://127.0.0.1:1/callback", false, "", nil, false)
 		if err != nil {
 			t.Fatalf("%s: %v", role, err)
 		}
@@ -35,22 +35,22 @@ func TestBuildManifestPermissionsPerRole(t *testing.T) {
 }
 
 func TestBuildManifestRefusals(t *testing.T) {
-	if _, err := buildManifest("navigator", "x", "u", "r", false, "", false); err == nil {
+	if _, err := buildManifest("navigator", "x", "u", "r", false, "", nil, false); err == nil {
 		t.Error("unknown role accepted")
 	}
-	if _, err := buildManifest("qa", "", "u", "r", false, "", false); err == nil {
+	if _, err := buildManifest("qa", "", "u", "r", false, "", nil, false); err == nil {
 		t.Error("empty name accepted")
 	}
-	if _, err := buildManifest("qa", "qa", "u", "r", false, "", false); err == nil {
+	if _, err := buildManifest("qa", "qa", "u", "r", false, "", nil, false); err == nil {
 		t.Error("role-named App accepted — identities outlive role reassignments")
 	}
-	if _, err := buildManifest("qa", "myorg-testy", "u", "r", true, "", false); err == nil {
+	if _, err := buildManifest("qa", "myorg-testy", "u", "r", true, "", nil, false); err == nil {
 		t.Error("--with-webhook without --webhook-url accepted")
 	}
 }
 
 func TestBuildManifestWebhookDefaultsOff(t *testing.T) {
-	m, _ := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", false)
+	m, _ := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", nil, false)
 	// GitHub requires hook_attributes.url whenever the object is present,
 	// regardless of active (the #73 finding) — a webhook-less manifest
 	// must omit the object entirely.
@@ -63,7 +63,7 @@ func TestBuildManifestWebhookDefaultsOff(t *testing.T) {
 }
 
 func TestBuildManifestWithWebhook(t *testing.T) {
-	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook", false)
+	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,20 +71,30 @@ func TestBuildManifestWithWebhook(t *testing.T) {
 	if hook["active"] != true || hook["url"] != "https://platform.example/hook" {
 		t.Errorf("hook_attributes = %v", hook)
 	}
-	events := m["default_events"].([]string)
-	if len(events) == 0 {
-		t.Fatal("no events with --with-webhook")
+	// The default is the two transitions a platform routes to seats; the
+	// 1.0 set's issues/issue_comment/check_suite were wakes for nothing on
+	// a platform (#164 findings 46, 53) and are opt-in now.
+	if events := m["default_events"].([]string); strings.Join(events, ",") != "pull_request,pull_request_review" {
+		t.Errorf("default events = %v", events)
 	}
-	for _, want := range []string{"issues", "pull_request_review"} {
-		found := false
-		for _, e := range events {
-			if e == want {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("protocol-traffic event %q missing from %v", want, events)
-		}
+	m, err = buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook", []string{"pull_request", "issues", " pull_request "}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if events := m["default_events"].([]string); strings.Join(events, ",") != "pull_request,issues" {
+		t.Errorf("--events = %v (deduplicated, trimmed, in order)", events)
+	}
+	// An event GitHub does not have, or one the role's permissions cannot
+	// receive (the coordinator has no checks), is refused before the
+	// browser flow; push needs only contents: read, which every set has.
+	if _, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", true, "https://platform.example/hook", []string{"release"}, false); err == nil {
+		t.Error("unknown event accepted")
+	}
+	if _, err := buildManifest("coordinator", "myorg-loopy", "u", "r", true, "https://platform.example/hook", []string{"check_suite"}, false); err == nil {
+		t.Error("check_suite accepted for the coordinator, whose set has no checks")
+	}
+	if _, err := buildManifest("implementer", "myorg-coder", "u", "r", true, "https://platform.example/hook", []string{"push"}, false); err != nil {
+		t.Errorf("push refused for the implementer, whose set carries contents: %v", err)
 	}
 }
 
@@ -313,7 +323,7 @@ func TestWriteCredentials(t *testing.T) {
 }
 
 func TestBuildManifestWithApprovalPermission(t *testing.T) {
-	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", true)
+	m, err := buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,12 +349,12 @@ func TestBuildManifestWithApprovalPermission(t *testing.T) {
 	}
 	// Reviewer-only: approvals gate merges nowhere else.
 	for _, role := range []string{"implementer", "qa", "doc-synthesizer", "coordinator"} {
-		if _, err := buildManifest(role, "myorg-x", "u", "r", false, "", true); err == nil {
+		if _, err := buildManifest(role, "myorg-x", "u", "r", false, "", nil, true); err == nil {
 			t.Errorf("--with-approval-permission accepted for %s", role)
 		}
 	}
 	// Default path unchanged.
-	m, _ = buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", false)
+	m, _ = buildManifest("reviewer", "myorg-reviewy", "u", "r", false, "", nil, false)
 	if m["default_permissions"].(map[string]string)["contents"] != "read" {
 		t.Error("default reviewer manifest no longer read-only")
 	}
@@ -354,7 +364,7 @@ func TestBuildManifestWithApprovalPermission(t *testing.T) {
 // issues, comments and labels and never pushes, reviews or merges — so
 // contents and pull requests stay read, and no flag can widen them.
 func TestCoordinatorManifestIsReadOnlyOnCode(t *testing.T) {
-	m, err := buildManifest("coordinator", "myorg-loopy", "u", "r", false, "", false)
+	m, err := buildManifest("coordinator", "myorg-loopy", "u", "r", false, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +381,7 @@ func TestCoordinatorManifestIsReadOnlyOnCode(t *testing.T) {
 	if _, ok := perms["checks"]; ok {
 		t.Error("coordinator granted checks — it reads gate results through the verbs, not the API")
 	}
-	if _, err := buildManifest("coordinator", "coordinator", "u", "r", false, "", false); err == nil {
+	if _, err := buildManifest("coordinator", "coordinator", "u", "r", false, "", nil, false); err == nil {
 		t.Error("App named after the role accepted")
 	}
 }
