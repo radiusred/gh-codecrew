@@ -6,6 +6,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.1.0] — 2026-08-31
+
 ### The scaffold is a commit
 - `init` commits exactly the files it wrote — `chore: scaffold codecrew`,
   a pathspec commit, so the operator's own staged and unstaged work is
@@ -328,7 +332,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/radiusred/gh-codecrew/compare/v1.0.0...v1.0.1
