@@ -66,16 +66,19 @@ additions to a contract (the file says what belongs there; it adds
 nothing until you write into it) — and an
 `AGENTS.md` entry point for any agent you later dispatch — plus, from
 v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
-`CLAUDE.md` and never `AGENTS.md`. Commit and push:
+`CLAUDE.md` and never `AGENTS.md` — and commits exactly those files
+(`chore: scaffold codecrew`), leaving anything else you had staged or
+modified as it was. It never pushes; that is yours:
 
 ```sh
-git add -A && git commit -m "chore: scaffold codecrew" && git push
+git push
 ```
 
-If your default branch is protected (pull requests required), the
-scaffold is your project's first PR — and the one merge you do yourself:
-no milestone or task exists yet, so there is nothing for `task finish` to
-merge it through. Everything after it goes through a task.
+If your default branch requires pull requests, `init` will have put the
+commit on a branch it made, `codecrew-bootstrap`, and said so: push it
+and open the scaffold PR — the one merge you do yourself, since no
+milestone or task exists yet for `task finish` to merge it through.
+Everything after it goes through a task.
 
 ## 2. Open a milestone
 
