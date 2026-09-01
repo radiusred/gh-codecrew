@@ -2,6 +2,3 @@
 /gh-codecrew
 /dist/
 *.xcf
-# Logo export masters beside the GIMP sources; the committed exports are assets/codecrew-*
-/assets/cc_*
-/assets/cci_*
