@@ -9,6 +9,7 @@
 | M5 | Crew expansion | [#67](https://github.com/radiusred/gh-codecrew/issues/67) | [Done](docs/milestones/5-crew-expansion.md) |
 | M6 | Polish and 1.0 | [#109](https://github.com/radiusred/gh-codecrew/issues/109) | [Done](docs/milestones/6-polish-and-1-0.md) |
 | M7 | The coordinator seat and platform interop | [#163](https://github.com/radiusred/gh-codecrew/issues/163) | [Done](docs/milestones/7-the-coordinator-seat-and-platform-interop.md) |
+| M8 | A product home page for codecrew.works | [#196](https://github.com/radiusred/gh-codecrew/issues/196) | Open |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
