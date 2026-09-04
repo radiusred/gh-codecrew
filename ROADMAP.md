@@ -11,6 +11,7 @@
 | M7 | The coordinator seat and platform interop | [#163](https://github.com/radiusred/gh-codecrew/issues/163) | [Done](docs/milestones/7-the-coordinator-seat-and-platform-interop.md) |
 | M8 | A product home page for codecrew.works | [#196](https://github.com/radiusred/gh-codecrew/issues/196) | [Done](docs/milestones/8-a-product-home-page-for-codecrew-works.md) |
 | M9 | The docs at codecrew.works | [#201](https://github.com/radiusred/gh-codecrew/issues/201) | [Done](docs/milestones/9-the-docs-at-codecrew-works.md) |
+| M10 | Protocol bookkeeping from the field | [#207](https://github.com/radiusred/gh-codecrew/issues/207) | [Done](docs/milestones/10-protocol-bookkeeping-from-the-field.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
