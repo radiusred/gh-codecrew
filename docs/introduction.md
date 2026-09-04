@@ -1,20 +1,21 @@
 # CodeCrew, precisely
 
-The [landing page](../README.md) says why you would want a crew. This page
-says what CodeCrew is, what exists today, and where everything else lives —
-it is the map.
+[codecrew.works](https://codecrew.works) says why you would want a crew, and
+the [repository's README](../README.md) is the short version with the install
+line in it. This page says what CodeCrew is, what exists today, and where
+everything else lives — it is the map.
 
 ## Read in this order
 
 Two things first, because the pages below can give the wrong impression.
 The verbs are documented so you *can* run them; in practice your coding
 agent runs them and you answer the gates. And the whole of onboarding is
-the four lines on the landing page — install, `init`, start your agent,
-"Let's build this project!" — the quickstart is the long form of what
-happens next, not a prerequisite.
+the four lines under [Start now](../README.md#start-now) — install, `init`,
+start your agent, "Let's build this project!" — the quickstart is the long
+form of what happens next, not a prerequisite.
 
-1. [Why you'd want a crew](../README.md) — the landing page: the problem,
-   the four beats, the receipts.
+1. [Why you'd want a crew](https://codecrew.works) — the home page: the
+   problem, how it works in four beats, and what the protocol has done.
 2. **This page** — the three parts, what is shipped, the refusal codes.
 3. [Your first milestone](first-milestone.md) — the quickstart: one human,
    one agent, a milestone from opening to audited close.
@@ -85,6 +86,14 @@ identity through the manifest flow and routes it for you — minted with
 GitHub's own required-review rules, which makes fully agent-gated merges
 possible ([identities.md](identities.md)).
 
+**The routing table.** Who holds which seat is one `roles:` table in the hub's
+`.codecrew.yml`: a row per seat, naming the identity that holds it and the
+harness and model it is dispatched under, with `~` where a human holds it. Two
+worked examples are one click away — this repository's own table, as it stands
+today, in the [README](../README.md#the-routing-table), and an annotated
+generic one on [the home page](https://codecrew.works/#the-crew). SPEC §5 is
+the field-by-field reference.
+
 **How a repo joins.** Every repo in a CodeCrew project carries a
 `.codecrew.yml` pointing at the hub — a spoke's is a two-line pointer
 (`init --hub owner/repo`); this repo is its own hub (`hub: self`; SPEC §3
@@ -97,8 +106,8 @@ mints a short-lived installation token from the platform's env bindings
 or the local key and stub and discovers the installation from the App
 itself — see [identities.md](identities.md) (SPEC §5 for the tiers).
 
-**What it has done** — the receipts are on the [landing
-page](../README.md#the-receipts); the per-milestone records are in
+**What it has done** — the receipts are on the [home
+page](https://codecrew.works/#codecrew-works); the per-milestone records are in
 [milestones/](milestones/). The largest environment it has run in — an
 orchestration platform dispatching all five seats — has its own page:
 [Platform interop](platform-interop.md).
