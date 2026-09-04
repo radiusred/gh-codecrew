@@ -563,9 +563,16 @@ restatement of the sections above.
   created #233, with the fourth call succeeding; the issue numbers bear it out —
   the only task created before the capture is the spoke's, codecrew-www#21 at
   21:01:19Z, four seconds after the milestone issue, while #235, #236 and
-  codecrew-www#22 were all created after #234 at 21:02:01Z. The cause the capture
-  gives is the one M10-R2 closed for `milestone new`'s own number check: "`task
-  new` still trusts a single listing read." M10 fixed the collision at one end of
+  codecrew-www#22 were all created after #234 at 21:02:01Z. The capture's body
+  cites a time that does not fit those numbers — "this session's shell output,
+  2026-09-04 ~19:55 BST" — and the operator
+  [corrected it on the issue](https://github.com/radiusred/gh-codecrew/issues/234#issuecomment-5547397489)
+  at 22:59:04Z rather than editing the body: "the issue timestamps are the
+  record … the three refused `task new` calls fell between them. The body is
+  left as written so the M11 record's quotation of it stays accurate; this
+  comment supersedes the time." The cause the capture gives is the one M10-R2
+  closed for `milestone new`'s own number check: "`task new` still trusts a
+  single listing read." M10 fixed the collision at one end of
   the same eventual-consistency window and left the other end open; it was hit
   while opening the very next milestone.
 - **The doc-synthesizer seat held a delivery task again, and nothing recorded the
@@ -600,13 +607,15 @@ rather than a gap in the work.
   *Recorded as quoted, not as independently sourced:* nothing on the trail shows
   the original channel, the exact wording before transcription, or the moment the
   operator formed the view.
-- **#234's own timestamp does not match the issues it describes.** The capture
-  cites "this session's shell output, 2026-09-04 ~19:55 BST", while #233 was
-  created at 21:01:15Z — 22:01 BST — and #234 itself at 21:02:01Z. *Recorded as
-  written; nothing on the trail reconciles the two.* No shell log is attached, so
-  the three refusals rest on the capture's account, and the fourth call's success
-  (codecrew-www#21, 21:01:19Z) is the only corroborating artefact in either
-  direction.
+- **The three refused `task new` calls have no artefact of their own.** #234's
+  timestamp is no longer a gap — the operator's
+  [Correction](https://github.com/radiusred/gh-codecrew/issues/234#issuecomment-5547397489)
+  of 22:59:04Z supersedes the body's "~19:55 BST" with the issue timestamps, and
+  the record cites it above. What remains missing is the evidence beneath it: no
+  shell log is attached to the capture, so the three refusals and their
+  `NOT_FOUND` wording rest on the operator's account, and the fourth call's
+  success (codecrew-www#21, 21:01:19Z) is the only artefact corroborating the
+  sequence. The cause is stated "by analogy with #195" rather than reproduced.
 - **Whether the three unreferenced SVGs are hotlinked from outside this
   repository was never checked.** The Decision keeps them on the possibility that
   raw URLs elsewhere point at them; no check was run, no capture holds the
