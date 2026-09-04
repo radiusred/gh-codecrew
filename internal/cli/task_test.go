@@ -99,7 +99,11 @@ func TestSameSeat(t *testing.T) {
 }
 
 // gateFake is the slice of the tracker checkpoint touches: it reads the
-// target's labels and records the comment and label it writes.
+// target's labels through IssueLabels — the endpoint that serves PRs — and
+// records the comment and label it writes. Task is deliberately not
+// defined: a checkpoint that reached for the GraphQL issue query would
+// panic on the embedded nil interface, which is how the pull-request case
+// below proves the target stays reachable.
 type gateFake struct {
 	tracker.Tracker
 	labels   []string
@@ -107,9 +111,7 @@ type gateFake struct {
 	added    []string
 }
 
-func (f *gateFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
-	return tracker.Task{Ref: ref, Labels: f.labels}, nil
-}
+func (f *gateFake) IssueLabels(tracker.IssueRef) ([]string, error) { return f.labels, nil }
 func (f *gateFake) Comment(_ tracker.IssueRef, body string) error {
 	f.comments = append(f.comments, body)
 	return nil
@@ -122,15 +124,22 @@ func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
 // checkpoint accepts a milestone ref — a question about a requirement has
 // no task to carry it — and says so: nothing mechanical blocks on that
 // label, status lists the gate instead. A task keeps the task finish
-// wording (#200).
+// wording (#200), and so does a pull request — the scaffold PR carries the
+// pre-milestone gate (roles/coordinator.md) and must stay a valid target
+// (checky's finding on PR #218).
 func TestRaiseGateWordingByTarget(t *testing.T) {
 	for _, tc := range []struct {
-		name, label, comment, receipt, absent string
+		name    string
+		labels  []string
+		comment string
+		receipt string
+		absent  string
 	}{
-		{"task", "cc:task", "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
-		{"milestone", tracker.LabelMilestone, "`status` lists this gate beside the tasks' gates", "gate raised on o/r#6 (milestone issue) — status lists it beside the tasks' gates until a human removes cc:needs-decision\n", "`task finish` refuses"},
+		{"task", []string{"cc:task"}, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
+		{"pull request", nil, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
+		{"milestone", []string{tracker.LabelMilestone}, "`status` lists this gate beside the tasks' gates", "gate raised on o/r#6 (milestone issue) — status lists it beside the tasks' gates until a human removes cc:needs-decision\n", "`task finish` refuses"},
 	} {
-		f := &gateFake{labels: []string{tc.label}}
+		f := &gateFake{labels: tc.labels}
 		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
 		c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
 		var out bytes.Buffer
