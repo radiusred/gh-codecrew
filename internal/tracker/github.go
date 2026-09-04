@@ -26,22 +26,37 @@ func (g GitHub) OpenMilestones(hub string) ([]Milestone, error) {
 }
 
 func listMilestones(hub, state string) ([]Milestone, error) {
-	var issues []struct {
-		Number int    `json:"number"`
-		Title  string `json:"title"`
-	}
-	path := fmt.Sprintf("repos/%s/issues?labels=cc:milestone&state=%s&per_page=100", hub, state)
-	if err := gh.JSON(&issues, "api", path); err != nil {
+	issues, err := listIssues(hub, fmt.Sprintf("labels=cc:milestone&state=%s", state))
+	if err != nil {
 		return nil, err
 	}
 	milestones := make([]Milestone, 0, len(issues))
 	for _, is := range issues {
-		milestones = append(milestones, Milestone{
-			Ref:   IssueRef{Repo: hub, Number: is.Number},
-			Title: is.Title,
-		})
+		milestones = append(milestones, Milestone{Ref: is.Ref, Title: is.Title})
 	}
 	return milestones, nil
+}
+
+// listIssues is one page of repo's issue listing under query, pull requests
+// dropped: the REST listing returns both, marked by a pull_request object.
+func listIssues(repo, query string) ([]TitledIssue, error) {
+	var items []struct {
+		Number      int       `json:"number"`
+		Title       string    `json:"title"`
+		PullRequest *struct{} `json:"pull_request"`
+	}
+	path := fmt.Sprintf("repos/%s/issues?%s&per_page=100", repo, query)
+	if err := gh.JSON(&items, "api", path); err != nil {
+		return nil, err
+	}
+	issues := make([]TitledIssue, 0, len(items))
+	for _, it := range items {
+		if it.PullRequest != nil {
+			continue
+		}
+		issues = append(issues, TitledIssue{Ref: IssueRef{Repo: repo, Number: it.Number}, Title: it.Title})
+	}
+	return issues, nil
 }
 
 func (GitHub) AddSubIssue(parent, child IssueRef) error {
@@ -77,16 +92,16 @@ func (GitHub) SubIssues(parent IssueRef) ([]IssueRef, error) {
 	return refs, nil
 }
 
-func (GitHub) AllMilestoneTitles(hub string) ([]string, error) {
-	milestones, err := listMilestones(hub, "all")
-	if err != nil {
-		return nil, err
-	}
-	titles := make([]string, len(milestones))
-	for i, m := range milestones {
-		titles[i] = m.Title
-	}
-	return titles, nil
+func (GitHub) MilestoneIssues(hub string) ([]TitledIssue, error) {
+	return listIssues(hub, "labels=cc:milestone&state=all")
+}
+
+// RecentIssues reads the newest page of the unfiltered listing. The
+// label-filtered listing lagged an issue created seconds earlier and three
+// milestones came back as M2 (#195); the unfiltered listing is a second
+// source for the floor, not a guarantee — the post-create check is that.
+func (GitHub) RecentIssues(repo string) ([]TitledIssue, error) {
+	return listIssues(repo, "state=all&sort=created&direction=desc")
 }
 
 func (GitHub) IssueBody(ref IssueRef) (string, error) {
@@ -126,6 +141,13 @@ func (GitHub) CreateIssue(repo, title, body string, labels []string) (IssueRef, 
 		return IssueRef{}, err
 	}
 	return IssueRef{Repo: repo, Number: created.Number}, nil
+}
+
+func (GitHub) EditIssue(ref IssueRef, title, body string) error {
+	_, err := gh.Run("api", "-X", "PATCH",
+		fmt.Sprintf("repos/%s/issues/%d", ref.Repo, ref.Number),
+		"-f", "title="+title, "-f", "body="+body)
+	return err
 }
 
 func (GitHub) Comment(ref IssueRef, body string) error {

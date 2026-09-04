@@ -113,12 +113,17 @@ func milestoneNew(w io.Writer, args []string) error {
 // ROADMAP.md — that row is the doc-synthesizer's, added as Done by the
 // record PR (roles/doc-synthesizer.md), because a milestone whose tasks
 // all live in spokes has no hub PR for an Open row to ride in (#197).
+//
+// The number is derived twice. Before creating, from the max over two
+// listings; after creating, the listings are read again and the number is
+// verified to be this issue's alone — the label-filtered listing lagged an
+// issue created seconds earlier and three milestones came back as M2 (#195).
 func runMilestoneNew(c *ctx, w io.Writer, title, goal string, reqs []string, dryRun bool) error {
-	titles, err := c.t.AllMilestoneTitles(c.hub)
+	milestones, recent, err := milestoneListings(c)
 	if err != nil {
 		return err
 	}
-	n := tracker.NextMilestoneNumber(titles)
+	n := tracker.NextMilestoneNumber(tracker.Titles(milestones, recent))
 	fullTitle, err := milestoneTitle(title, n)
 	if err != nil {
 		return err
@@ -141,8 +146,82 @@ func runMilestoneNew(c *ctx, w io.Writer, title, goal string, reqs []string, dry
 		return err
 	}
 	fmt.Fprintf(w, "created milestone %s (%s)\n", fullTitle, ref)
+	body, err = verifyMilestoneNumber(c, w, ref, n, fullTitle, goal, reqs)
+	if err != nil {
+		return err
+	}
 	fmt.Fprintln(w, requirementsNote(tracker.RequirementIDs(body)))
 	return nil
+}
+
+// milestoneListings reads the two listings the milestone number is derived
+// from: the label-filtered milestone listing, and the newest issues in the
+// hub regardless of label. The second is a cheap guard for the milestone
+// the first has not indexed yet; neither is trusted alone (#195).
+func milestoneListings(c *ctx) (milestones, recent []tracker.TitledIssue, err error) {
+	if milestones, err = c.t.MilestoneIssues(c.hub); err != nil {
+		return nil, nil, err
+	}
+	if recent, err = c.t.RecentIssues(c.hub); err != nil {
+		return nil, nil, err
+	}
+	return milestones, recent, nil
+}
+
+// milestoneNumberRepairs bounds the post-create renumbering: each round
+// re-reads the listings, and a number still taken after this many rounds is
+// refused rather than chased.
+const milestoneNumberRepairs = 3
+
+// verifyMilestoneNumber is the post-create check. The listings are read
+// again and, when another issue already carries "M<n>:", the new issue is
+// renumbered to the next free number — its title and every M<n>-R<k> ID —
+// through EditIssue, the verb prints what it did, and the check repeats,
+// bounded. A collision that cannot be repaired is refused
+// MILESTONE_NUMBER_TAKEN naming both issues and the fix, so two milestones
+// never share a prefix unannounced (M10-R2). Repair over refusal: the
+// record stays clean without operator work, and the renumbering happens
+// before anything cites the number — a task, a plan, a requirement ID —
+// so nothing downstream has to be rewritten. Returns the body as it stands
+// on GitHub, so the caller reports the IDs the issue actually carries.
+func verifyMilestoneNumber(c *ctx, w io.Writer, ref tracker.IssueRef, n int, fullTitle, goal string, reqs []string) (string, error) {
+	rest := strings.TrimPrefix(fullTitle, fmt.Sprintf("M%d: ", n))
+	body, err := milestoneBody(goal, n, reqs)
+	if err != nil {
+		return "", err
+	}
+	for round := 0; ; round++ {
+		milestones, recent, err := milestoneListings(c)
+		if err != nil {
+			return "", fmt.Errorf("milestone new: created %s but could not re-read the listing to check M%d is unique: %w — run gh codecrew status and compare the open milestones' numbers", ref, n, err)
+		}
+		other := tracker.MilestoneNumberHolder(n, ref, milestones, recent)
+		if other == nil {
+			fmt.Fprintf(w, "number check: M%d is carried by %s alone\n", n, ref)
+			return body, nil
+		}
+		if round == milestoneNumberRepairs {
+			return "", numberTaken(n, ref, *other, "still taken after %d renumberings", round)
+		}
+		m := tracker.NextMilestoneNumber(tracker.Titles(milestones, recent))
+		newTitle := fmt.Sprintf("M%d: %s", m, rest)
+		newBody, err := milestoneBody(goal, m, reqs)
+		if err != nil {
+			return "", err
+		}
+		if err := c.t.EditIssue(ref, newTitle, newBody); err != nil {
+			return "", numberTaken(n, ref, *other, "the renumbering to M%d failed: %v", m, err)
+		}
+		fmt.Fprintf(w, "renumbered: M%d was already %s (%s), so %s is now %s\n", n, other.Ref, other.Title, ref, newTitle)
+		n, body = m, newBody
+	}
+}
+
+// numberTaken is milestone new's one refusal: the issue exists, the number
+// on it is not its own, and the verb could not fix that. Both issues are
+// named, and so is the hand repair — the recovery #195 used.
+func numberTaken(n int, ref tracker.IssueRef, other tracker.TitledIssue, format string, args ...any) error {
+	return refuse("MILESTONE_NUMBER_TAKEN", "M%d is carried by both %s (%s) and the just-created %s; %s — retitle %s to the next free number with gh issue edit --title and rewrite its M%d-R<k> IDs to match, then rerun gh codecrew status", n, other.Ref, other.Title, ref, fmt.Sprintf(format, args...), ref, n)
 }
 
 // closeGates, in the order milestone close checks them.

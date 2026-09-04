@@ -27,6 +27,13 @@ type Milestone struct {
 	Tasks []IssueRef
 }
 
+// TitledIssue is an issue's ref and title — all that milestone numbering
+// reads from a listing.
+type TitledIssue struct {
+	Ref   IssueRef
+	Title string
+}
+
 // Task is a cc:task issue in a spoke.
 type Task struct {
 	Ref          IssueRef
@@ -95,9 +102,16 @@ func NoChecksReported(err error) bool {
 type Tracker interface {
 	// OpenMilestones returns the open cc:milestone issues in the hub repo.
 	OpenMilestones(hub string) ([]Milestone, error)
-	// AllMilestoneTitles returns titles of every cc:milestone issue, open or
-	// closed, for milestone-number derivation.
-	AllMilestoneTitles(hub string) ([]string, error)
+	// MilestoneIssues returns every cc:milestone issue in the hub, open or
+	// closed, with its title — the listing milestone-number derivation and
+	// the post-create collision check read. The listing is label-filtered
+	// and eventually consistent: it can lag an issue created seconds ago
+	// (#195).
+	MilestoneIssues(hub string) ([]TitledIssue, error)
+	// RecentIssues returns the newest issues in repo, newest first, with no
+	// label filter and pull requests excluded — the first page only. It
+	// catches a milestone the label-filtered listing has not indexed yet.
+	RecentIssues(repo string) ([]TitledIssue, error)
 	// Task fetches one task issue.
 	Task(ref IssueRef) (Task, error)
 	// IssueBody fetches an issue's body text.
@@ -109,6 +123,8 @@ type Tracker interface {
 	IssueLabels(ref IssueRef) ([]string, error)
 	// CreateIssue opens an issue and returns its ref.
 	CreateIssue(repo, title, body string, labels []string) (IssueRef, error)
+	// EditIssue replaces an issue's title and body.
+	EditIssue(ref IssueRef, title, body string) error
 	// AddSubIssue attaches child to parent as a GitHub sub-issue; the parent
 	// tracks progress natively, so nothing is hand-maintained.
 	AddSubIssue(parent, child IssueRef) error
@@ -235,6 +251,34 @@ func NextMilestoneNumber(titles []string) int {
 		}
 	}
 	return max + 1
+}
+
+// MilestoneNumberHolder returns the first issue in the listings, other than
+// self, whose title carries "M<n>:" — the collision `milestone new` checks
+// for after creating — or nil when the number is self's alone.
+func MilestoneNumberHolder(n int, self IssueRef, listings ...[]TitledIssue) *TitledIssue {
+	for _, issues := range listings {
+		for i := range issues {
+			if issues[i].Ref == self {
+				continue
+			}
+			if got, ok := MilestoneNumber(issues[i].Title); ok && got == n {
+				return &issues[i]
+			}
+		}
+	}
+	return nil
+}
+
+// Titles flattens listings into the titles NextMilestoneNumber reads.
+func Titles(listings ...[]TitledIssue) []string {
+	var titles []string
+	for _, issues := range listings {
+		for _, is := range issues {
+			titles = append(titles, is.Title)
+		}
+	}
+	return titles
 }
 
 // PlanPlaceholder is the Plan section content task new writes; task start
