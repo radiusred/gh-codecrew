@@ -107,9 +107,15 @@ read every seat's credentials through its own 401
 - **Gates.** Anything only the human can answer — scope, identity, spend, a
   requirement's meaning — is `gh codecrew checkpoint <ref> --question "…"`;
   nothing on that task proceeds until `**Gate resolved:**` is on the
-  record. Before the first milestone exists the record has no issue to gate
-  on: record the gate on the scaffold PR itself, in the same
-  `**Gate raised:**` / `**Gate resolved:**` form (#164, finding 52).
+  record. A question about a requirement — its meaning, whether it can be
+  met as written — has no task to carry it: raise it on the milestone
+  issue (`gh codecrew checkpoint <hub>#<milestone issue> --question "…"`).
+  `status` lists that gate beside the tasks' gates, marked `(milestone)`,
+  and on the milestone's own line; nothing mechanical blocks on it, so the
+  board is where it is seen (#200). Before the first milestone exists the
+  record has no issue to gate on: record the gate on the scaffold PR
+  itself, in the same `**Gate raised:**` / `**Gate resolved:**` form (#164,
+  finding 52).
 - **The record is on GitHub.** A decision that matters is a `**Decision:**`
   comment on the task or milestone issue when it happens; the platform's
   tickets are dispatch, not record.
