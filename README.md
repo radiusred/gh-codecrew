@@ -104,11 +104,11 @@ roles:
     identity: radiusred-cody
   reviewer:
     harness: codex
-    model: gpt-5.6-sol
+    model: gpt-5.5
     identity: radiusred-checky
   qa:
     harness: codex
-    model: gpt-5.6-sol
+    model: gpt-5.5
     identity: radiusred-testy
   doc-synthesizer:
     harness: claude-code
