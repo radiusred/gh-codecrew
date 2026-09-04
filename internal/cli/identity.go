@@ -22,11 +22,14 @@ import (
 // table in docs/identities.md. Metadata: read is implicit in the manifest
 // flow. Workflows is deliberately absent — an implementer that will touch
 // .github/workflows/ files gains it in the App's settings afterwards.
+// checks: read and actions: read are what `gh pr checks` needs on a
+// private repo — the status check rollup and each suite's workflow run;
+// without them task finish refuses NO_CHECKS_PERMISSION (#198).
 var rolePermissions = map[string]map[string]string{
-	"implementer":     {"contents": "write", "issues": "write", "pull_requests": "write", "checks": "read"},
-	"reviewer":        {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read"},
-	"qa":              {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read"},
-	"doc-synthesizer": {"contents": "write", "issues": "write", "pull_requests": "write", "checks": "read"},
+	"implementer":     {"contents": "write", "issues": "write", "pull_requests": "write", "checks": "read", "actions": "read"},
+	"reviewer":        {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read", "actions": "read"},
+	"qa":              {"contents": "read", "issues": "write", "pull_requests": "write", "checks": "read", "actions": "read"},
+	"doc-synthesizer": {"contents": "write", "issues": "write", "pull_requests": "write", "checks": "read", "actions": "read"},
 	// The coordinator opens issues, comments and labels and nothing else:
 	// it never pushes, reviews or merges, so contents and pull requests
 	// stay read (#119 finding 16 specified the set; SPEC §7).
