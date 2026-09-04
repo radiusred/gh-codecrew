@@ -163,7 +163,7 @@ routing table changes. And `gh` never auto-updates extensions —
 We would rather show you than tell you, so here is what the protocol has
 actually done so far.
 
-- **Nine milestones of this framework were delivered *with* it** —
+- **Ten milestones of this framework were delivered *with* it** —
   agent-authored PRs under GitHub App identities, independent review,
   deterministic CI gates, QA verdicts enforced at close, and a synthesized
   document for each: [docs/milestones/](docs/milestones/).

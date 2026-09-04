@@ -6,6 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M10 record
+- `docs/milestones/10-protocol-bookkeeping-from-the-field.md` — the milestone
+  document for "Protocol bookkeeping from the field": the seven backlog captures
+  adopted and closed, the ROADMAP row moving to the doc-synthesizer at both ends,
+  `milestone new` repairing a number collision instead of refusing on it, the
+  refusal that names the missing App permission, the dispatch guidance verified
+  against the installed Codex CLI, the codex seats re-pinned mid-milestone, and
+  the README routing table shipped as a mirror and amended into a worked example
+  — with the home page's placeholder-identity variant that diverges from it by
+  the operator's decision. The ROADMAP row is added Done — the first record PR to
+  add one rather than flip one — and the README's milestone count is refreshed
+  with it. Docs only. (#231)
+
 ### The README's routing table is an example, not a mirror
 - The block under "Four seats, always staffed" stays, and its gloss now says
   what it is: this hub's table *as it stands today*, showing what a routing
