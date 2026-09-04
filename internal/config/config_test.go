@@ -13,6 +13,7 @@ roles:
     identity: radiusred-cody
   reviewer:
     harness: codex
+    model: gpt-5.6-sol
     identity: ~
 `))
 	if err != nil {
@@ -26,6 +27,9 @@ roles:
 	}
 	if got := cfg.Roles["reviewer"].Identity; got != "" {
 		t.Errorf("nil identity should parse as empty, got %q", got)
+	}
+	if got := cfg.Roles["reviewer"].Model; got != "gpt-5.6-sol" {
+		t.Errorf("model on a codex row should load, got %q", got)
 	}
 }
 
