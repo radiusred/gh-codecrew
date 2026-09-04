@@ -51,6 +51,9 @@ const (
 // LabelNeedsDecision marks a raised human gate.
 const LabelNeedsDecision = "cc:needs-decision"
 
+// LabelMilestone marks a milestone tracking issue in the hub.
+const LabelMilestone = "cc:milestone"
+
 // Comment is one issue or PR comment.
 type Comment struct {
 	Author string
