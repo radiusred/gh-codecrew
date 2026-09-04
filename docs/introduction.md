@@ -120,7 +120,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All twenty-nine, by the verb that raises
+the agent; the detail is for the human. All thirty, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -176,6 +176,15 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   human operator can waive review.
 - `CREW_BYPASS` — `--bypass` was given by a crew identity; a bypass is an
   operator's act.
+
+**`milestone new`**
+
+- `MILESTONE_NUMBER_TAKEN` — the issue was created, but another milestone
+  already carries its `M<n>:` prefix (the listing the number came from
+  lagged) and the verb's own renumbering failed or found the next number
+  taken too; the detail names both issues and the fix: retitle the new one
+  to the next free number and rewrite its `M<n>-R<k>` IDs. A repair that
+  succeeds is not a refusal — it prints a `renumbered:` line.
 
 **`milestone close`**
 
