@@ -6,6 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The ROADMAP row belongs to the doc-synthesizer at both ends
+- `milestone new` creates the tracking issue and nothing else: the local
+  append to `ROADMAP.md`, the "rides in this milestone's first PR" line and
+  `--dry-run`'s row are gone. The row had no PR to ride in when a milestone's
+  tasks all lived in spokes — hit three times in the field — so the
+  doc-synthesizer now adds it, already Done, in the record PR; the roadmap
+  lists finished milestones and `status` reports the open one. The
+  implementer contract drops "The ROADMAP row is yours", the doc-synthesizer's
+  "Flip the ROADMAP row" becomes "Add the ROADMAP row", and SPEC §4, the CLI
+  table, the first-milestone guide and the interop page say so; the README
+  and CONTRIBUTING stop claiming the roadmap names the open milestone.
+  Adopts #197, shape 3. (#208)
+
 ### Removed
 - The ten crew badge PNGs, `assets/codecrew-{code,coord,docs,review,test}.png`
   and their `-t` variants: nothing in the repo referenced them, the App
