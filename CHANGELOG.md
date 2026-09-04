@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M11 record
+- `docs/milestones/11-housekeeping.md` — the milestone document for
+  "Housekeeping": the three backlog captures adopted and closed, the README cut
+  from 226 lines to 133 with the receipts moved to the home page and the
+  reference links kept at source in this repository, the routing-table anchor
+  renamed and the spoke's sync table and home-page gloss repaired behind it, the
+  introduction linking the example rather than carrying a third copy, and both
+  repositories' commit lint moved onto the organisation's shared action with the
+  `Lint commit messages` check context unchanged — with the operator's tone pass
+  that amended M11-R1 mid-review, and the reviewer finding the introduction still
+  narrating the README it no longer describes. The ROADMAP row is added Done, and
+  the boundary refresh of `README.md` and `docs/introduction.md` found no stale
+  claim to fix. Docs only. (#239)
+
 ### The README is the technical entry point
 - `README.md` goes from 226 lines to 133, dry and technical, written for
   whoever wants more detail than the site gives — someone running a coding
