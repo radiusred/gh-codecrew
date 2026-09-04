@@ -273,6 +273,32 @@ however it is triggered:
   implementer could not have produced: an assessment of the shipped tests
   against each requirement and a probe the suite does not enumerate — not
   a rerun of `npm test` (the contract's hairbrush).
+- **Reachability.** Every step below assumes the session can reach
+  `api.github.com`: the mint is an HTTPS call, and so are reading the PR
+  and posting the review. A sandboxed harness may deny network by default,
+  and the failure is quiet — the seat does real work, forms a real
+  judgement, and can post none of it, which from the hub's side is
+  indistinguishable from no dispatch at all
+  ([#202](https://github.com/radiusred/gh-codecrew/issues/202): the
+  codex-harnessed reviewer on
+  [codecrew-www#7](https://github.com/radiusred/codecrew-www/pull/7)
+  reached a sound verdict and every `identity token` call died with
+  `socket: operation not permitted`). Worked example, Codex CLI:
+  `--sandbox workspace-write` denies network unless the dispatch passes
+  `-c sandbox_workspace_write.network_access=true`. Confirm the mint
+  succeeded before the seat starts reading, not when it comes to post.
+  The same harness takes its model and reasoning effort as dispatch flags
+  too: `-m <model>` (or `-c model=…`) carries the routing table's `model:`,
+  and `-c model_reasoning_effort=<level>` sets the effort — which the
+  table does not carry and nothing else sets, so a seat dispatched without
+  it runs at the model's own default (`low` for `gpt-5.6-sol`); the levels
+  are `low`, `medium`, `high`, `xhigh`, `max` and `ultra`. Both keys were
+  verified against codex-cli 0.152.1 with `--strict-config`, which refuses
+  an unrecognised `-c` key
+  ([#212](https://github.com/radiusred/gh-codecrew/issues/212)). A
+  session asked to run a test suite also needs a writable cache directory
+  for its package manager (`UV_CACHE_DIR`, for one), or the suite cannot
+  build.
 - **Credentials.** `gh codecrew identity token <slug>` — the env-var path
   from SPEC §5 first, the local key and stub second, a refusal third (the
   verb above). Beside the private key, `identity new`
