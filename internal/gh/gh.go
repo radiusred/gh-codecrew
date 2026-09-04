@@ -10,9 +10,15 @@ import (
 	"os/exec"
 )
 
+// Command builds the gh process every call runs through. It is a variable
+// so tests can stand a fake gh behind the adapters that parse its output
+// and errors (the pattern cli's ghVersion set): production never
+// reassigns it.
+var Command = exec.Command
+
 // Run executes gh with args and returns stdout.
 func Run(args ...string) ([]byte, error) {
-	cmd := exec.Command("gh", args...)
+	cmd := Command("gh", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -42,7 +48,7 @@ func JSON(v any, args ...string) error {
 // valid result (e.g. `gh pr checks` with failing checks). The exit error is
 // ignored when stdout unmarshals cleanly.
 func JSONLoose(v any, args ...string) error {
-	cmd := exec.Command("gh", args...)
+	cmd := Command("gh", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
