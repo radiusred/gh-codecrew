@@ -6,6 +6,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.2.0] — 2026-09-05
+
 ### The M11 record
 - `docs/milestones/11-housekeeping.md` — the milestone document for
   "Housekeeping": the three backlog captures adopted and closed, the README cut
@@ -527,7 +531,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/radiusred/gh-codecrew/compare/v1.0.1...v1.0.2
