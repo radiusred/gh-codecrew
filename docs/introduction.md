@@ -120,7 +120,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty, by the verb that raises
+the agent; the detail is for the human. All thirty-one, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -160,6 +160,12 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   starter has left); or a human operator overrides on the record with
   `--bypass`. A task with no start record is not gated.
 - `NO_PR` — no open PR closes the task.
+- `NO_CHECKS_PERMISSION` — the installation token cannot read the PR's
+  checks at all: on a private repo the App needs `checks: read` (the status
+  check rollup) and `actions: read` (the workflow run behind each suite);
+  the detail names the App and the missing one, and the fix is the App's
+  settings page followed by the installation's acceptance
+  (docs/identities.md).
 - `NO_CHECKS` — the PR reports no CI checks at all; absence cannot satisfy
   the deterministic gate, and there is no override.
 - `CHECKS_PENDING` — checks are still running.

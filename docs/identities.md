@@ -126,16 +126,32 @@ quirk), the manual ritual it automates — one App per role:
 2. **Grant the minimum repository permissions** for the role's contract.
    `Metadata: read` is always required; beyond that:
 
-   | Role            | Contents      | Issues        | Pull requests  | Checks |
-   |-----------------|---------------|---------------|----------------|--------|
-   | implementer     | Read & write  | Read & write  | Read & write   | Read   |
-   | reviewer        | Read          | Read & write  | Read & write   | Read   |
-   | qa              | Read          | Read & write  | Read & write   | Read   |
-   | doc-synthesizer | Read & write  | Read & write  | Read & write   | Read   |
-   | coordinator     | Read          | Read & write  | Read           | —      |
+   | Role            | Contents      | Issues        | Pull requests  | Checks | Actions |
+   |-----------------|---------------|---------------|----------------|--------|---------|
+   | implementer     | Read & write  | Read & write  | Read & write   | Read   | Read    |
+   | reviewer        | Read          | Read & write  | Read & write   | Read   | Read    |
+   | qa              | Read          | Read & write  | Read & write   | Read   | Read    |
+   | doc-synthesizer | Read & write  | Read & write  | Read & write   | Read   | Read    |
+   | coordinator     | Read          | Read & write  | Read           | —      | —       |
 
    Add `Workflows: read & write` to the implementer if it will ever touch
    `.github/workflows/` files — `Contents` alone cannot push those.
+
+   `Checks: read` and `Actions: read` are what `task finish`'s CI gate
+   reads with, through `gh pr checks`: the status check rollup, and the
+   workflow run behind each check suite. **On a private repo both are
+   required** for every seat that runs `task finish` or reads checks —
+   implementer, doc-synthesizer, reviewer, qa. A public repo hands out
+   check data without either, which is how an App minted before the table
+   carried them merges cleanly on public spokes and then dies on its first
+   private hub ([#198](https://github.com/radiusred/gh-codecrew/issues/198)):
+   `task finish` refuses `NO_CHECKS_PERMISSION`, naming the App and
+   whichever of the two is missing. An existing App gains a permission in
+   two steps, neither of which has an API: add it on the App's settings
+   page (Permissions & events → Repository permissions), then accept the
+   change on the installation (the account's Installed GitHub Apps →
+   Configure, where the pending change waits for approval). Until the
+   second step the token still lacks it, whatever the App's page says.
 
    The reviewer row's `Contents: read` is least-privilege and deliberate —
    but GitHub counts approvals only from write-access principals, so a
@@ -421,6 +437,14 @@ dispatched reviewer seat does that, whatever else also comments on the PR.
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
   the routing table names the bare slug; the CLI normalises this everywhere
   it resolves roles.
+- **Private repos refuse check data to an App without `Checks: read` and
+  `Actions: read`** — GitHub answers `Resource not accessible by
+  integration`, which `task finish` turns into `refused[NO_CHECKS_PERMISSION]`
+  naming the App and the missing permission (`--dry-run` shows it as the
+  CI checks gate's line). Public repos never trip it, so an App minted
+  before the table carried the two can look fine for months. The fix — the
+  App's settings page, then the installation's acceptance — is in step 2
+  of the manual ritual above.
 - **Approvals from Apps and required-review rules:** count only from
   principals with **write access** — the full rule, the trade it implies
   and the `--with-approval-permission` path are in step 2 of the manual
