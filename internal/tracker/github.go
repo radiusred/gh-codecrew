@@ -293,6 +293,10 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 			pr.NoChecks = true
 			return pr, nil
 		}
+		if perm := MissingChecksPermission(err); perm != "" {
+			pr.ChecksUnreadable = perm
+			return pr, nil
+		}
 		return PR{}, err
 	}
 	if len(checks) == 0 {

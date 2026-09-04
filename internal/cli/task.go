@@ -320,6 +320,11 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	}
 	e = nil
 	switch {
+	case pr.ChecksUnreadable != "":
+		// The token could not read the checks at all — a private repo
+		// refuses the rollup to an App without the permission, where a
+		// public one reads it freely (#198). The App is the viewer.
+		e = refuse("NO_CHECKS_PERMISSION", "PR #%d's checks are unreadable by %s: the installation token lacks `%s`, which a private repo requires to read the status check rollup (a public repo reads it without) — add the permission on the App's settings page (Permissions & events → Repository permissions), then accept the change on the installation (Installed GitHub Apps → Configure); GitHub exposes neither through the API (docs/identities.md)", pr.Number, seatName(viewer), pr.ChecksUnreadable)
 	case pr.NoChecks:
 		e = refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run", pr.Number)
 	case pr.ChecksPending:
@@ -440,6 +445,15 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 		return nil
 	}
 	return p, run, nil
+}
+
+// seatName names the identity a refusal is about: the App behind a
+// `[bot]` login by its slug, anyone else by their login.
+func seatName(viewer string) string {
+	if slug, ok := strings.CutSuffix(viewer, "[bot]"); ok {
+		return "App " + slug
+	}
+	return "@" + viewer
 }
 
 // mergeGate decides the merge path from GitHub's own review decision,

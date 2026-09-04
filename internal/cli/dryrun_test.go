@@ -315,3 +315,42 @@ func TestPlanCloseUnroutedNoteSurvivesDocMissing(t *testing.T) {
 		t.Errorf("run: err %v writes %v", err, f.writes)
 	}
 }
+
+// An App whose installation token cannot read the checks at all (a private
+// repo, no checks: read or actions: read — #198): the CI checks gate
+// refuses with a code naming the App and the permission, the gates after
+// it are not reached, the dry run writes nothing — and the raw GraphQL
+// error never reaches the operator.
+func TestPlanFinishNoChecksPermissionNamesAppAndPermission(t *testing.T) {
+	for _, perm := range []string{"checks: read", "actions: read"} {
+		f := cleanFinish()
+		f.pr.ChecksOK = false
+		f.pr.ChecksUnreadable = perm
+		p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+		if err != nil || run != nil {
+			t.Fatalf("%s: err %v, run %v", perm, err, run != nil)
+		}
+		var r refusal
+		if !errors.As(p.refusal, &r) || r.Code != "NO_CHECKS_PERMISSION" {
+			t.Fatalf("%s: refusal = %v", perm, p.refusal)
+		}
+		l := gateLine(p, "CI checks")
+		for _, want := range []string{"refused[NO_CHECKS_PERMISSION]", "PR #9", "App myorg-coder", "`" + perm + "`", "private repo", "settings page", "installation", "docs/identities.md"} {
+			if !strings.Contains(l, want) {
+				t.Errorf("%s: CI checks line lacks %q: %q", perm, want, l)
+			}
+		}
+		for _, g := range []string{"review", "GitHub's required review", "operator confirmation", "bypass actor"} {
+			if gl := gateLine(p, g); !strings.HasSuffix(gl, ": not reached") {
+				t.Errorf("%s: %s: %q", perm, g, gl)
+			}
+		}
+		if len(f.writes) != 0 {
+			t.Errorf("%s: planning wrote: %v", perm, f.writes)
+		}
+	}
+	// A human's token meeting the same failure is named by login.
+	if got := seatName("davison"); got != "@davison" {
+		t.Errorf("seatName(human) = %q", got)
+	}
+}

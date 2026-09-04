@@ -383,3 +383,27 @@ func TestSameLogin(t *testing.T) {
 		}
 	}
 }
+
+// The two shapes #198 recorded, in the order the field met them: the
+// rollup itself needs checks: read; once granted, the workflow run under
+// each suite needs actions: read. The same message on any other path, and
+// every other failure, is not this — it must surface raw.
+func TestMissingChecksPermission(t *testing.T) {
+	cases := map[string]string{
+		"gh pr: GraphQL: Resource not accessible by integration (node.statusCheckRollup.nodes.0.commit.statusCheckRollup)":                                                                                                                                           "checks: read",
+		"gh pr: GraphQL: Resource not accessible by integration (node.statusCheckRollup.nodes.0.commit.statusCheckRollup.contexts.nodes.0.checkSuite.workflowRun)":                                                                                                   "actions: read",
+		"gh pr: GraphQL: Resource not accessible by integration (repository.collaborators)":                                                                                                                                                                          "",
+		"gh pr: GraphQL: Resource not accessible by integration (node.statusCheckRollup.nodes.0.commit.statusCheckRollup.contexts.nodes.0.checkSuite.workflowRun), Resource not accessible by integration (node.statusCheckRollup.nodes.0.commit.statusCheckRollup)": "actions: read",
+		"gh pr: GraphQL: Something went wrong while executing your query (node.statusCheckRollup)":                                                                                                                                                                   "",
+		"gh pr: HTTP 502": "",
+		"gh pr: no checks reported on the 'probe' branch": "",
+	}
+	for msg, want := range cases {
+		if got := MissingChecksPermission(fmt.Errorf("%s", msg)); got != want {
+			t.Errorf("%q: got %q, want %q", msg, got, want)
+		}
+	}
+	if got := MissingChecksPermission(nil); got != "" {
+		t.Errorf("nil: %q", got)
+	}
+}
