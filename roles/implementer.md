@@ -87,12 +87,6 @@ Then, every run:
 - **Stop at ask-the-human points.** They are in the plan because the answer is
   a judgment call belonging to a human. Do not resolve them yourself, however
   obvious the answer seems.
-- **The ROADMAP row is yours.** `milestone new` appends the milestone's row
-  to the hub's `ROADMAP.md` locally and prints it; it rides in the
-  milestone's first PR — the coordination layer's identity may hold
-  `contents: read` and cannot commit it
-  ([#119](https://github.com/radiusred/gh-codecrew/issues/119), finding 29).
-  The doc-synthesizer flips it to Done in the document PR.
 - **Open the PR** referencing the task (`Closes #123`) and finalize its
   description as the task summary: what was done, which requirements it
   satisfies, links to any deviation comments. Request review from the

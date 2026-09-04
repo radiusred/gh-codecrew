@@ -32,9 +32,13 @@ a 401 means mint again; commit as the App's bot user), using
   discipline.
 - **Requirement outcomes:** a short table of requirement IDs with their final
   status, drawn from QA verdicts and task closure.
-- **Flip the ROADMAP row.** The milestone's row in the hub's `ROADMAP.md`
-  went in with the milestone's first PR as Open; the document PR sets it
-  to Done, linking the document.
+- **Add the ROADMAP row.** The document PR appends the milestone's row to
+  the hub's `ROADMAP.md`, after the last row and already Done:
+  `| M<n> | <title> | [#<issue>](<issue URL>) | [Done](docs/milestones/<n>-<slug>.md) |`.
+  Nothing writes the row earlier — `milestone new` creates the issue and
+  nothing else — so the roadmap lists finished milestones and
+  `gh codecrew status` reports the open one
+  ([#197](https://github.com/radiusred/gh-codecrew/issues/197)).
 - **Refresh the README and the introduction** (`docs/introduction.md`) in
   the same PR: update them so they reflect what the milestone delivered.
   Their claims about what exists and works — the landing page's proof
