@@ -385,3 +385,35 @@ func TestCoordinatorManifestIsReadOnlyOnCode(t *testing.T) {
 		t.Error("App named after the role accepted")
 	}
 }
+
+// The four seats that read checks — task finish's CI gate runs through
+// `gh pr checks`, which on a private repo needs checks: read for the rollup
+// and actions: read for each suite's workflow run (#198) — carry both; the
+// coordinator, which reads gate results through the verbs, carries neither.
+// Spelled out rather than read back from rolePermissions, so dropping a
+// grant from the table fails here.
+func TestBuildManifestGrantsCheckReadersActionsRead(t *testing.T) {
+	for _, role := range []string{"implementer", "reviewer", "qa", "doc-synthesizer"} {
+		m, err := buildManifest(role, "myorg-crew", "u", "r", false, "", nil, false)
+		if err != nil {
+			t.Fatalf("%s: %v", role, err)
+		}
+		perms := m["default_permissions"].(map[string]string)
+		if perms["actions"] != "read" {
+			t.Errorf("%s: actions = %q, want read", role, perms["actions"])
+		}
+		if perms["checks"] != "read" {
+			t.Errorf("%s: checks = %q, want read", role, perms["checks"])
+		}
+	}
+	m, err := buildManifest("coordinator", "myorg-loopy", "u", "r", false, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	perms := m["default_permissions"].(map[string]string)
+	for _, p := range []string{"actions", "checks"} {
+		if _, ok := perms[p]; ok {
+			t.Errorf("coordinator granted %s — it reads gate results through the verbs", p)
+		}
+	}
+}
