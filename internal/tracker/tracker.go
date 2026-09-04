@@ -85,9 +85,13 @@ type PR struct {
 	Open           bool
 	Merged         bool
 	NoChecks       bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
-	ChecksPending  bool
-	ChecksOK       bool
-	ApprovedBy     []string
+	// ChecksUnreadable is the permission the installation token lacks to
+	// read the checks at all ("checks: read" or "actions: read"), set in
+	// place of the raw GraphQL error so the gate can name it (#198).
+	ChecksUnreadable string
+	ChecksPending    bool
+	ChecksOK         bool
+	ApprovedBy       []string
 }
 
 // NoChecksReported classifies gh's "no checks reported" failure mode:
@@ -95,6 +99,32 @@ type PR struct {
 // nonzero, so it surfaces as an error rather than an empty list.
 func NoChecksReported(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "no checks reported")
+}
+
+// MissingChecksPermission classifies the failure an installation token
+// meets on a private repo when its App lacks a permission `gh pr checks`
+// reads with: GitHub answers "Resource not accessible by integration" and
+// names the GraphQL path it refused. Under statusCheckRollup that is
+// checks: read — or actions: read when the path reaches
+// checkSuite.workflowRun, the field gh reads for the workflow column
+// (#198). It returns the missing permission, or "" for every other error:
+// the same message on an unrelated path is not this failure.
+func MissingChecksPermission(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "Resource not accessible by integration") {
+		return ""
+	}
+	i := strings.Index(msg, "statusCheckRollup")
+	if i < 0 {
+		return ""
+	}
+	if strings.Contains(msg[i:], "checkSuite.workflowRun") {
+		return "actions: read"
+	}
+	return "checks: read"
 }
 
 // Tracker is the backend interface, shaped by the workflow verbs. GitHub is
