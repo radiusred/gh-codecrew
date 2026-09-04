@@ -1,21 +1,23 @@
 # CodeCrew, precisely
 
-[codecrew.works](https://codecrew.works) says why you would want a crew, and
-the [repository's README](../README.md) is the short version with the install
-line in it. This page says what CodeCrew is, what exists today, and where
-everything else lives — it is the map.
+[codecrew.works](https://codecrew.works) is the introduction site; the
+[repository's README](../README.md) is the technical entry point, with the
+install line and the routing-table example. This page says what CodeCrew is,
+what exists today, and where everything else lives — it is the map.
 
 ## Read in this order
 
 Two things first, because the pages below can give the wrong impression.
-The verbs are documented so you *can* run them; in practice your coding
-agent runs them and you answer the gates. And the whole of onboarding is
-the four lines under [Start now](../README.md#start-now) — install, `init`,
-start your agent, "Let's build this project!" — the quickstart is the long
-form of what happens next, not a prerequisite.
+The verbs are documented so they *can* be run by hand; in practice the coding
+agent runs them and a human answers the gates. And onboarding is the three
+commands under [Start now](../README.md#start-now) — install the extension,
+`cd` into the repo, `gh codecrew init` — after which an agent dispatched into
+the repo reads [AGENTS.md](../AGENTS.md) and its role contract and does the
+rest; the quickstart is the long form of what happens next, not a
+prerequisite.
 
-1. [Why you'd want a crew](https://codecrew.works) — the home page: the
-   problem, how it works in four beats, and what the protocol has done.
+1. [codecrew.works](https://codecrew.works) — the introduction site: what
+   the problem is, how the protocol works, and what it has delivered.
 2. **This page** — the three parts, what is shipped, the refusal codes.
 3. [Your first milestone](first-milestone.md) — the quickstart: one human,
    one agent, a milestone from opening to audited close.
