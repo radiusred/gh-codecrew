@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -148,6 +151,72 @@ func TestMilestoneTitleAgreesWithTheNumber(t *testing.T) {
 		}
 		if err != nil || got != c.want {
 			t.Errorf("%q n=%d = %q, %v; want %q", c.title, c.n, got, err, c.want)
+		}
+	}
+}
+
+// newFake is the slice of the tracker milestone new reads, plus a record
+// of every issue it creates. The embedded nil Tracker makes any other call
+// a panic: the verb is an API call and nothing else.
+type newFake struct {
+	tracker.Tracker
+	titles  []string
+	created []string
+}
+
+func (f *newFake) AllMilestoneTitles(string) ([]string, error) { return f.titles, nil }
+func (f *newFake) CreateIssue(repo, title, _ string, _ []string) (tracker.IssueRef, error) {
+	f.created = append(f.created, title)
+	return tracker.IssueRef{Repo: repo, Number: 207}, nil
+}
+
+// milestoneNewCtx is a hub whose pointer directory holds a ROADMAP.md, so
+// a verb that still wrote the file would be caught.
+func milestoneNewCtx(t *testing.T, f *newFake) (*ctx, string) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ROADMAP.md")
+	if err := os.WriteFile(path, []byte(roadmapScaffold), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self", Dir: dir}
+	return &ctx{cfg: cfg, roles: cfg, current: "o/hub", hub: "o/hub", t: f}, path
+}
+
+// The row has no PR to ride in when a milestone's tasks all live in spokes
+// (#197, hit three times in the field), so milestone new no longer edits
+// ROADMAP.md or tells any seat to commit a row: the doc-synthesizer adds it
+// as Done in the record PR (M10-R1).
+func TestMilestoneNewLeavesTheRoadmapAlone(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		f := &newFake{titles: []string{"M1: One", "M2: Two"}}
+		c, path := milestoneNewCtx(t, f)
+		var out bytes.Buffer
+		if err := runMilestoneNew(c, &out, "Bookkeeping", "Close the gaps.", []string{"the row belongs to the record PR"}, dryRun); err != nil {
+			t.Fatalf("dryRun=%v: %v", dryRun, err)
+		}
+		got := out.String()
+		if strings.Contains(strings.ToLower(got), "roadmap") {
+			t.Errorf("dryRun=%v: milestone new still talks about the roadmap:\n%s", dryRun, got)
+		}
+		if !strings.Contains(got, "M3: Bookkeeping") || !strings.Contains(got, "requirements counted: M3-R1 (1)") {
+			t.Errorf("dryRun=%v: number, title or requirement IDs missing:\n%s", dryRun, got)
+		}
+		after, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(after) != roadmapScaffold {
+			t.Errorf("dryRun=%v: ROADMAP.md was edited:\n%s", dryRun, after)
+		}
+		if dryRun {
+			if len(f.created) != 0 || !strings.Contains(got, "dry run: nothing written") {
+				t.Errorf("dry run created %v:\n%s", f.created, got)
+			}
+			continue
+		}
+		if fmt.Sprint(f.created) != "[M3: Bookkeeping]" || !strings.Contains(got, "created milestone M3: Bookkeeping (o/hub#207)") {
+			t.Errorf("live run created %v:\n%s", f.created, got)
 		}
 	}
 }
