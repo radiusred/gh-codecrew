@@ -53,6 +53,11 @@ read every seat's credentials through its own 401
   literally: a closed duplicate made "M3" become M4, and a requirement
   naming `docs/milestones/3-*.md` cost a human gate at that close. Say
   "this milestone's record"; the `M<n>-R<i>` IDs carry the number.
+  Milestones can be opened back to back: after creating, the verb checks
+  its number against the listing again and renumbers a collision itself,
+  so read its output — a `renumbered:` line means the number the issue
+  carries is not the one first printed, and `refused[MILESTONE_NUMBER_TAKEN]`
+  names the two issues and the hand fix (#195).
 - **Every task opens with a goal and its requirement IDs; none starts
   without a plan.** `gh codecrew task new --milestone <n>`; the seat writes
   the plan and runs `task start`. A seat dispatched with no task issue

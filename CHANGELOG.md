@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### milestone new never reuses a milestone number
+- The number is derived from the max over two listings — the label-filtered
+  milestone listing and the hub's newest issues regardless of label — and
+  verified after the issue is created: both listings are read again and,
+  when another issue already carries the `M<n>:` prefix, the new issue is
+  renumbered to the next free number, title and every `M<n>-R<k>` ID, with
+  a `renumbered:` line saying so (bounded to three rounds). A repair that
+  fails, or a number still taken after that, is `refused[MILESTONE_NUMBER_TAKEN]`
+  naming both issues and the hand fix. Three calls seconds apart came back
+  as M2 in the field because the label-filtered listing lagged the issue
+  the first call had just created. The tracker seam gains `MilestoneIssues`
+  (replacing `AllMilestoneTitles`), `RecentIssues` and `EditIssue`; SPEC's
+  CLI table, the refusal-code list and the coordinator contract say
+  milestones can be opened back to back. Adopts #195. (#209)
 ### Gates on milestone issues show on the board
 - `status` reads the milestone issue's own labels: a `cc:needs-decision`
   raised there — a question about a requirement that no task carries — is
