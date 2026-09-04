@@ -6,6 +6,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The README shows the hub's routing table
+- The README's "Four seats, always staffed" beat now carries this repo's own
+  `roles:` table from `.codecrew.yml`, with a gloss: each row is a seat, the
+  identity that holds it, and the harness and model it is dispatched under;
+  `~` is a human. GitHub cannot transclude, so the block is a copy — a test
+  in the root package fails the build if it is not the file's roles section
+  verbatim. Hub half of codecrew-www#18. (#213)
+
 ### task finish names the missing permission
 - `task finish` refuses `NO_CHECKS_PERMISSION` — naming the App, the PR and
   the permission the installation token lacks — when GitHub answers the
