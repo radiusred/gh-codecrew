@@ -16,9 +16,11 @@ files: the dependencies are `gh` 2.50.0 or later, a GitHub repo, and CI on its
 pull requests.
 
 [codecrew.works](https://codecrew.works) is the marketing and introduction
-site, and carries the [blog](https://codecrew.works/blog/). This README is the
-developer landing page; the reference documentation is in this repository and
-is linked at source below.
+site, and carries the [blog](https://codecrew.works/blog/). This page is the
+technical entry point: it is written for whoever wants more detail than the
+site gives — someone running a coding harness, or the agent reading on their
+behalf — and every reference it links is at source in this repository rather
+than on the site.
 
 ## The routing table
 
@@ -75,9 +77,10 @@ gh codecrew init         # writes and commits .codecrew.yml, roles/, AGENTS.md, 
 ```
 
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
-are run by your coding agent rather than by you: `AGENTS.md` tells an agent
-dispatched into the repo where the hub and the contracts are, and
-`gh codecrew roles show <role>` prints the contract it works to.
+are run by the coding agent rather than by the person driving it:
+[AGENTS.md](AGENTS.md) tells an agent dispatched into the repo where the hub
+and the contracts are, and `gh codecrew roles show <role>` prints the contract
+it works to, local extensions included.
 
 ```sh
 gh codecrew milestone new --title "Walking skeleton" \
@@ -89,9 +92,9 @@ gh codecrew task start 3     # refuses NO_PLAN until the task body carries a pla
 
 `gh codecrew help` lists the rest; `gh codecrew status` reports the open
 milestone, the inferred task states and any raised gate. A human is needed at
-three points: a gate raised for a decision (`cc:needs-decision`), a PR that
-needs the reviewer seat's approval, and the QA verdicts a milestone cannot
-close without.
+three points, whatever harness is driving: a gate raised for a decision
+(`cc:needs-decision`), a PR that needs the reviewer seat's approval, and the QA
+verdicts a milestone cannot close without.
 
 Two requirements the CLI checks. `gh` must be 2.50.0 or later — `task finish`
 reads `gh pr checks --json`, and an older `gh` refuses `GH_TOO_OLD` before any
@@ -102,7 +105,9 @@ carries a ten-line one.
 
 ## Read next
 
-Reference documentation, at source in this repository:
+Reference documentation, at source in this repository — an agent dispatched
+into a CodeCrew repo starts at [AGENTS.md](AGENTS.md) and its role contract
+under [roles/](roles/):
 
 - [docs/introduction.md](docs/introduction.md) — what CodeCrew is, precisely:
   the three parts, what is shipped, and all thirty-one refusal codes by the
