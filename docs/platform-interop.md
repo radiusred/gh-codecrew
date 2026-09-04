@@ -171,8 +171,8 @@ whatever does ([SPEC §5](../SPEC.md)).
 ```yaml
 roles:
   implementer:     { harness: claude-code, model: claude-fable-5, identity: my-org-coder }
-  reviewer:        { harness: codex, identity: my-org-reviewer }
-  qa:              { harness: codex, identity: my-org-qa }
+  reviewer:        { harness: codex, model: gpt-5.6-sol, identity: my-org-reviewer }
+  qa:              { harness: codex, model: gpt-5.6-sol, identity: my-org-qa }
   doc-synthesizer: { harness: claude-code, identity: my-org-docs }
   coordinator:     { identity: my-org-coordinator }
 ```

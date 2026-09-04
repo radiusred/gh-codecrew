@@ -6,6 +6,21 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Dispatch guidance covers network reach, and the codex seats pin their model
+- `docs/identities.md`'s "Dispatching a role session" gains a **Reachability**
+  bullet: the dispatched session must reach `api.github.com`, which every
+  credential step assumes; a sandboxed harness may deny network by default and
+  the seat then does real work and can post none of it (#202, the reviewer pass
+  on codecrew-www#7). Codex CLI is the worked example — `--sandbox
+  workspace-write` denies network unless `-c sandbox_workspace_write.network_access=true`
+  is passed — and the bullet says how a codex seat's model and reasoning effort
+  are set at dispatch (`-m`, `-c model_reasoning_effort=<level>`), both verified
+  against codex-cli 0.152.1. The hub's `.codecrew.yml` pins
+  `model: gpt-5.6-sol` on the `reviewer` and `qa` rows as it already did for
+  the implementer, and the routing-table examples in SPEC §5 and
+  `docs/platform-interop.md` do the same; the config test asserts a `model` on
+  a codex row loads. Docs, config and a test fixture only. (#212)
+
 ### The ROADMAP row belongs to the doc-synthesizer at both ends
 - `milestone new` creates the tracking issue and nothing else: the local
   append to `ROADMAP.md`, the "rides in this milestone's first PR" line and
