@@ -41,6 +41,28 @@ func TestNextMilestoneNumber(t *testing.T) {
 	}
 }
 
+func TestMilestoneNumberHolder(t *testing.T) {
+	self := IssueRef{Repo: "o/hub", Number: 7}
+	milestones := []TitledIssue{{Ref: IssueRef{Repo: "o/hub", Number: 1}, Title: "M1: One"}}
+	recent := []TitledIssue{
+		{Ref: IssueRef{Repo: "o/hub", Number: 9}, Title: "M3 rules the roost"}, // no colon: not a milestone title
+		{Ref: self, Title: "M3: Ours"},
+		{Ref: IssueRef{Repo: "o/hub", Number: 6}, Title: "M3: Theirs"},
+	}
+	if got := MilestoneNumberHolder(3, self, milestones, recent); got == nil || got.Ref.Number != 6 {
+		t.Errorf("holder of M3 = %v, want o/hub#6 (self and the colonless title skipped)", got)
+	}
+	if got := MilestoneNumberHolder(2, self, milestones, recent); got != nil {
+		t.Errorf("holder of M2 = %v, want none", got)
+	}
+	if got := Titles(milestones, recent); len(got) != 4 || got[0] != "M1: One" || got[3] != "M3: Theirs" {
+		t.Errorf("Titles = %v", got)
+	}
+	if got := NextMilestoneNumber(Titles(milestones, recent)); got != 4 {
+		t.Errorf("next over both listings = %d, want 4", got)
+	}
+}
+
 func TestPlanPresent(t *testing.T) {
 	planless := "## Goal\nX\n\n## Plan\n" + PlanPlaceholder + "\n\n## Ask-the-human points\nNone."
 	if PlanPresent(planless) {
