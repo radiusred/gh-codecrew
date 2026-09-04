@@ -172,9 +172,9 @@ protocol working as intended.
 
 ### The images that came, and went
 
-The most expensive sequence in the milestone, and the one a reader three
-months from now is most likely to be puzzled by, because the page carries
-almost none of it.
+Six Decisions across four changes, and the shipped page carries almost none
+of what they describe. Recorded here because the stylesheet no longer shows
+that any of it happened.
 
 Change 10 wired the operator's four screen-grabs in as dimmed backgrounds
 behind the How-it-works steps. Its
@@ -462,11 +462,11 @@ Three PRs, four review submissions by the reviewer role holder
   verified that the force-push changed only commit metadata by resolving both
   commits to the same tree object and diffing them to empty, then approved.
 
-Every round that requested changes named a defect that was then fixed, which
-is the eighth milestone in a row that can say so — and this one is the first
-where the defect was in the verification narrative rather than in the
-software. The reviewer read a claim about tests, ran the experiment the claim
-described, and got a different number.
+The one round that requested changes named a defect that was then fixed. The
+defect was in the record rather than in the software: the reviewer read a
+claim about test behaviour, ran the experiment the claim described, got a
+different number, and required the PR body, the commit message and the task
+record to be corrected. No code changed.
 
 ## QA: one round, four satisfied
 
@@ -493,12 +493,17 @@ and reached the same answer independently; the verdict is what settles it.
 
 ## Requirement outcomes
 
-| Requirement | Delivered by | Outcome |
-|-------------|--------------|---------|
-| M8-R1 — the home page's own template: header retained; left nav, "on this page" panel and prev/next footer nav absent; site footer retained | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3); repaired by [#9](https://github.com/radiusred/codecrew-www/issues/9) / PR [#10](https://github.com/radiusred/codecrew-www/pull/10) | Done; **satisfied**, first round — the mobile drawer explicitly held not to regress it |
-| M8-R2 — the page reads as a product page: hero, how it works, why, proof, closing install, full-bleed sections | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3); [#4](https://github.com/radiusred/codecrew-www/issues/4) / PR [#5](https://github.com/radiusred/codecrew-www/pull/5) | Done; **satisfied**, first round — verdicted against the deployed page |
-| M8-R3 — blog and every other page unaffected | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3) | Done; **satisfied**, first round — proved by byte-identical built output in both code reviews |
-| M8-R4 — both colour schemes render correctly, the build stays warning-free, tests prove template selection and hide rules | all three tasks | Done; **satisfied**, first round |
+The status column is the verdict as the qa role holder wrote it in the
+[single QA comment](https://github.com/radiusred/gh-codecrew/issues/196#issuecomment-5534140553)
+of 2026-09-04, verbatim and unqualified; everything else the milestone knows
+about a requirement is in the two columns beside it.
+
+| Requirement | Delivered by | QA status | Notes |
+|-------------|--------------|-----------|-------|
+| M8-R1 — the home page's own template: header retained; left nav, "on this page" panel and prev/next footer nav absent; site footer retained | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3); repaired by [#9](https://github.com/radiusred/codecrew-www/issues/9) / PR [#10](https://github.com/radiusred/codecrew-www/pull/10) | `satisfied` | Task closed; one QA round. The verdict states that the mobile drawer does not regress it |
+| M8-R2 — the page reads as a product page: hero, how it works, why, proof, closing install, full-bleed sections | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3); [#4](https://github.com/radiusred/codecrew-www/issues/4) / PR [#5](https://github.com/radiusred/codecrew-www/pull/5) | `satisfied` | Tasks closed; one QA round, verdicted against the deployed page |
+| M8-R3 — blog and every other page unaffected | [#2](https://github.com/radiusred/codecrew-www/issues/2) / PR [#3](https://github.com/radiusred/codecrew-www/pull/3) | `satisfied` | Task closed; one QA round. Both code reviews also compared built output byte for byte |
+| M8-R4 — both colour schemes render correctly, the build stays warning-free, tests prove template selection and hide rules | all three tasks | `satisfied` | Tasks closed; one QA round |
 
 No requirement was added, amended or dropped after the milestone opened.
 Captures filed by the milestone and left open by choice:
@@ -524,14 +529,11 @@ Captures filed by the milestone and left open by choice:
   finished with twenty-two, seventeen added by coordinator note while its PR
   was open. Thirteen produced a `**Deviation:**` comment naming the note it
   came from; changes 10 and 20 produced Decisions but no Deviation; change 22
-  produced neither. The mechanism held under a load nothing in the protocol
-  anticipated — the issue is a 61-comment design conversation — but the
-  gathering verb sees `**Decision:**` and `**Deviation:**` headings, and three
-  plan departures are outside them. An alternative reading of the same record
-  is that #4 should have been five tasks; it was not, and the cost is one
-  issue nobody will read end to end against the benefit of a design
-  conversation that sits in one place with the PR answering it. Both halves
-  are on the record; this document does not adjudicate it.
+  produced neither. The issue carries 61 comments. The gathering verb reads
+  `**Decision:**` and `**Deviation:**` headings, so thirteen of the sixteen
+  plan departures are inside what it collects and three are outside. Whether
+  the work should have been split across more than one task is not raised
+  anywhere in the record.
 - **The Gates section was left as the scaffold's placeholder.** #196 declared
   no gate beyond CI, and the operator's approval — the thing that actually
   gated the merge of PR #5 — arrived as a sentence at the end of a coordinator
@@ -556,18 +558,19 @@ Captures filed by the milestone and left open by choice:
   seat was given one, and it opened its comment by stating that nothing had
   been committed and the copy was the operator's to accept or reject. The
   operator then answered seven open questions in one comment and a coordinator
-  note turned the answers into a change. Nothing about this is in the protocol
-  — it worked because the seat marked the boundary between proposing and
-  recording, and because the answers went on the issue rather than into a
-  chat.
-- **Two captures, both still open, both about things nobody is looking at.**
+  note turned the answers into a change. No protocol verb, role contract or
+  gate covers this route; what the record shows is that the proposal, the
+  answers and the instruction all went on the task issue, where the Deviation
+  that adopted them could cite each one.
+- **Two captures filed by the milestone, both still open.**
   [#197](https://github.com/radiusred/gh-codecrew/issues/197) is above.
   [#199](https://github.com/radiusred/gh-codecrew/issues/199) observes that
   this repository's ten crew badge PNGs are referenced by nothing in it: their
   only consumers are the five App avatar settings pages and
   `codecrew-www`'s own committed copies of the five transparent variants. M8
-  made the second of those two, so the milestone that created the duplicate
-  also filed the capture about it.
+  committed the second of those two ([change 9](https://github.com/radiusred/codecrew-www/issues/4#issuecomment-5518771641)),
+  so the milestone that created the duplicate is also the one that filed the
+  capture naming it.
 - **M9's work landed in the same spoke while M8 was still running.** The suite
   moved 8 → 24 → 49 → 53 across the milestone, and the jump from 24 to 49
   happened between M8's second and third tasks because the docs section
@@ -576,3 +579,28 @@ Captures filed by the milestone and left open by choice:
   "the later-added Docs section". Two open milestones sharing one spoke is not
   a shape the protocol forbids, and nothing collided; it is worth noting only
   because M8's test counts cannot be read as M8's own without it.
+
+## What the record does not contain
+
+Gathered here rather than left implicit, because each one is a gap in the
+trail rather than a gap in the work.
+
+- **Three plan departures with no `**Deviation:**` heading** — changes 10, 20
+  and 22, itemised in [Deviations](#deviations) above. Change 22 has neither
+  Decision nor Deviation; its only trace is commit
+  [`ef2188ba`](https://github.com/radiusred/codecrew-www/pull/5/commits/ef2188ba)
+  and the PR description.
+- **No gate was declared or raised.** #196's Gates section is the scaffold's
+  placeholder text, unedited, so the operator's approval of the page has no
+  `**Gate raised:**` / `**Gate resolved:**` pair behind it.
+- **When and how `codecrew.works` was acquired is not on the record.** A draft
+  of this document said the domain was bought on 2026-09-02. Nothing in #196,
+  the three task issues, their PRs or the captures states a purchase date or
+  registrar, so the claim was removed rather than carried, and the goal
+  section now says only that the domain served a placeholder page — which
+  [#196](https://github.com/radiusred/gh-codecrew/issues/196) and
+  [#2](https://github.com/radiusred/codecrew-www/issues/2) do both state. If
+  the date matters later, it is an operator fact to be recorded somewhere,
+  not one this milestone's trail can supply.
+- **The test counts are not M8's alone**, for the reason the last observation
+  above gives.
