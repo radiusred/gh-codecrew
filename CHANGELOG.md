@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M8 record
+- `docs/milestones/8-a-product-home-page-for-codecrew-works.md` — the
+  milestone document for "A product home page for codecrew.works": the
+  per-page template and the copy that stayed Markdown, the measured
+  42-character rule, the images wired in and taken out again, the CSS-only
+  popovers and the three defects only a render found, the drawer repair and
+  why `hidden` was the mechanism, and the twenty-two changes one task issue
+  absorbed. The ROADMAP row is Done and the README's milestone count is
+  refreshed with it. Docs only. (#203)
+
 ### The M7 record
 - `docs/milestones/7-the-coordinator-seat-and-platform-interop.md` — the
   milestone document for "The coordinator seat and platform interop": the
