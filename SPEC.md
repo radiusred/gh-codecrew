@@ -317,8 +317,8 @@ hub: self                # spokes: owner/repo
 # Advisory role routing, read by whoever dispatches agents.
 roles:
   implementer: { harness: claude-code, model: claude-fable-5, identity: my-org-coder }
-  reviewer:    { harness: codex, identity: my-org-reviewer }
-  qa:          { harness: codex, identity: my-org-qa }
+  reviewer:    { harness: codex, model: gpt-5.6-sol, identity: my-org-reviewer }
+  qa:          { harness: codex, model: gpt-5.6-sol, identity: my-org-qa }
   doc-synthesizer: { harness: claude-code, identity: my-org-docs }
   coordinator: { identity: ~ }   # the seat that dispatches the other four; ~ = the operator
 ```
