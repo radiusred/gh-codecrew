@@ -6,15 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-### The README is the developer landing page
-- `README.md` goes from 226 lines to 128, dry and technical: what CodeCrew is
-  and what it depends on in a paragraph, one line near the top naming
+### The README is the technical entry point
+- `README.md` goes from 226 lines to 133, dry and technical, written for
+  whoever wants more detail than the site gives — someone running a coding
+  harness, or the agent reading on their behalf: what CodeCrew is and what it
+  depends on in a paragraph, one line near the top naming
   [codecrew.works](https://codecrew.works) as the marketing and introduction
-  site and this page as the developer landing page, the routing-table example
+  site and this page as the technical entry point, the routing-table example
   with its gloss, the install line and the first verbs with the refusal codes
   they raise, and a Read next that is a plain list of the reference
   documentation **at source in this repository** — `docs/*.md`, `SPEC.md`,
-  `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, `CHANGELOG.md`. "Why you'd
+  `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, `CHANGELOG.md`, and
+  `AGENTS.md` with `roles/` for an agent dispatched into the repo. "Why you'd
   want a crew", the four beats, the ladder and "The receipts" are gone: the
   home page (M8) and the docs section (M9) carry that argument, and the README
   no longer makes it. Headings: the routing-table section is renamed, so its
