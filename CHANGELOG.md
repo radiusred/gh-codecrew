@@ -6,6 +6,21 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### task finish names the missing permission
+- `task finish` refuses `NO_CHECKS_PERMISSION` — naming the App, the PR and
+  the permission the installation token lacks — when GitHub answers the
+  status check rollup with `Resource not accessible by integration`, instead
+  of dying on the raw GraphQL error before the gate list; `--dry-run` prints
+  it as the CI checks gate's line. A private repo needs `checks: read` for
+  the rollup and `actions: read` for the workflow run behind each check
+  suite, and the refusal names whichever is missing; an unrelated failure
+  still surfaces raw. `identity new`'s permission table grants
+  `actions: read` to the four seats that read checks, and docs/identities.md
+  says how an App minted before the table carried either permission gains
+  it — on the App's settings page, then accepted on the installation, neither
+  through the API. Adopts #198. (#211)
+
+
 ### milestone new never reuses a milestone number
 - The number is derived from the max over two listings — the label-filtered
   milestone listing and the hub's newest issues regardless of label — and

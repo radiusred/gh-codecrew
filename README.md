@@ -113,7 +113,7 @@ when the routed reviewer has not approved, `refused[VERDICT_MISSING]` when
 a milestone tries to close without a verdict on every requirement,
 `refused[EVIDENCE_UNREACHABLE]` when a link the record cites no longer
 resolves. An agent acts on the code; a human reads the detail. Those are
-four of thirty — the [introduction](docs/introduction.md#refusal-codes)
+four of thirty-one — the [introduction](docs/introduction.md#refusal-codes)
 catalogues them all, by the verb that raises each.
 
 ## Where it goes from here
