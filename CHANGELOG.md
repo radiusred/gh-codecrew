@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The README's routing table is an example, not a mirror
+- The block under "Four seats, always staffed" stays, and its gloss now says
+  what it is: this hub's table *as it stands today*, showing what a routing
+  table can do — a different harness and model per seat, a human on the
+  coordinator row — with the note that another project's will look different.
+  `routing_table_test.go`, which failed the build unless the block matched
+  `.codecrew.yml` byte for byte, is deleted; the README documents what is
+  possible, not what this repo happens to run. Amends M10-R6 (#207) and
+  supersedes the second decision recorded on #213. (#229)
+
 ### The codex seats are pinned to gpt-5.5
 - `.codecrew.yml` pins `model: gpt-5.5` on the `reviewer` and `qa` rows,
   the model the two codex-harnessed seats run under since the operator's

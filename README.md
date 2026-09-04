@@ -90,11 +90,13 @@ to Apps, so whoever coordinates — you, or your platform — starts the
 reviewer session when a PR opens, and the implementer stands down after
 opening it.
 
-Here is this repository's own table, from `.codecrew.yml`. Each row is a
-seat: the identity that holds it, and the harness and model it is
-dispatched under. There are five rows because the coordinator — the seat
-that dispatches the other four — is routed too, and `~` means a human
-holds it, the operator who coordinates this hub by hand.
+Here is a worked example: the `roles:` section of this repository's own
+`.codecrew.yml`, as it stands today. Each row is a seat — the identity that
+holds it, and the harness and model it is dispatched under, which can differ
+from row to row. There are five rows because the coordinator, the seat that
+dispatches the other four, is routed too; `~` means a human holds it, here
+the operator who coordinates this hub by hand. Your table will look
+different, and every seat pointing at `~` is a complete one.
 
 ```yaml
 roles:
