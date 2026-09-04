@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Gates on milestone issues show on the board
+- `status` reads the milestone issue's own labels: a `cc:needs-decision`
+  raised there — a question about a requirement that no task carries — is
+  marked on the milestone's line and listed under `gates raised:` beside
+  the task gates as `<ref> — <title> (milestone)`, where it was hidden
+  before (#200). `checkpoint` keeps accepting a milestone ref, and its
+  comment and receipt now say that `status` lists the gate rather than
+  that `task finish` refuses; a task keeps the task wording. The
+  coordinator contract says a requirement-level gate goes on the milestone
+  issue, and SPEC's `status` and `checkpoint` rows and §8 say the same.
+  `status` and `checkpoint` move onto the shared context so a fake tracker
+  can drive them, with tests for both. (#210)
 ### Dispatch guidance covers network reach, and the codex seats pin their model
 - `docs/identities.md`'s "Dispatching a role session" gains a **Reachability**
   bullet: the dispatched session must reach `api.github.com`, which every
