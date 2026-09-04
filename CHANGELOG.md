@@ -6,20 +6,25 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-### The README is cut down and points at codecrew.works
-- `README.md` goes from 226 lines to a landing page: what CodeCrew is in a
-  paragraph, the routing-table example, the install line and the first verbs,
-  and prominent links to the home page, `/docs/` and `/blog/` at
-  codecrew.works plus `SPEC.md`. "Why you'd want a crew", the four beats,
-  the ladder and "The receipts" are gone — the home page (M8) and the docs
-  section (M9) carry them, and two slightly different versions of the same
-  argument were being maintained. The routing-table section is renamed
-  "The routing table", so its anchor moves from
-  `#2-four-seats-always-staffed` to `#the-routing-table`; the YAML block is
-  unchanged. `docs/introduction.md` gains a one-paragraph gloss on what the
-  routing table is, with links to the README's example and the home page's,
-  and its `README.md#the-receipts` link now points at the home page's
-  receipts section. Docs only. Under M11-R1 and M11-R2. (#235)
+### The README is the developer landing page
+- `README.md` goes from 226 lines to 128, dry and technical: what CodeCrew is
+  and what it depends on in a paragraph, one line near the top naming
+  [codecrew.works](https://codecrew.works) as the marketing and introduction
+  site and this page as the developer landing page, the routing-table example
+  with its gloss, the install line and the first verbs with the refusal codes
+  they raise, and a Read next that is a plain list of the reference
+  documentation **at source in this repository** — `docs/*.md`, `SPEC.md`,
+  `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md`, `CHANGELOG.md`. "Why you'd
+  want a crew", the four beats, the ladder and "The receipts" are gone: the
+  home page (M8) and the docs section (M9) carry that argument, and the README
+  no longer makes it. Headings: the routing-table section is renamed, so its
+  anchor moves from `#2-four-seats-always-staffed` to `#the-routing-table`;
+  `#start-now` and `#read-next` are unchanged; the YAML block is byte-for-byte
+  what it was. `docs/introduction.md` gains a one-paragraph gloss on what the
+  routing table is, with links to the README's example and the home page's, and
+  its `README.md#the-receipts` link now points at the home page's receipts
+  section. Docs only. Under M11-R1 (amended by the operator on #233,
+  2026-09-04) and M11-R2. (#235)
 
 ### The commit lint is the org's shared action
 - `.github/workflows/commitlint.yml`'s `commitlint` job calls
