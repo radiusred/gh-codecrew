@@ -90,6 +90,33 @@ to Apps, so whoever coordinates — you, or your platform — starts the
 reviewer session when a PR opens, and the implementer stands down after
 opening it.
 
+Here is this repository's own table, from `.codecrew.yml`. Each row is a
+seat: the identity that holds it, and the harness and model it is
+dispatched under. There are five rows because the coordinator — the seat
+that dispatches the other four — is routed too, and `~` means a human
+holds it, the operator who coordinates this hub by hand.
+
+```yaml
+roles:
+  implementer:
+    harness: claude-code
+    model: claude-fable-5
+    identity: radiusred-cody
+  reviewer:
+    harness: codex
+    model: gpt-5.6-sol
+    identity: radiusred-checky
+  qa:
+    harness: codex
+    model: gpt-5.6-sol
+    identity: radiusred-testy
+  doc-synthesizer:
+    harness: claude-code
+    identity: radiusred-wordy
+  coordinator:
+    identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)
+```
+
 ### 3. A milestone, from open to record
 
 <img src="assets/svg/milestone-lifecycle.svg" alt="milestone new, then task new with a plan, task start, PR and review, task finish, qa verdicts, milestone close, and the synthesized document in docs/milestones." width="720">
