@@ -289,9 +289,12 @@ however it is triggered:
   succeeded before the seat starts reading, not when it comes to post.
   The same harness takes its model and reasoning effort as dispatch flags
   too: `-m <model>` (or `-c model=…`) carries the routing table's `model:`,
-  and `-c model_reasoning_effort=<level>` sets the effort — which the
-  table does not carry and nothing else sets, so a seat dispatched without
-  it runs at the model's own default (`low` for `gpt-5.6-sol`); the levels
+  and `-c model_reasoning_effort=<level>` sets the effort, which the
+  table does not carry. Precedence is the CLI's: `-c` at dispatch
+  overrides a `model_reasoning_effort` set in the loaded
+  `~/.codex/config.toml` or profile, which overrides the model's own
+  default — so the default (`low` for `gpt-5.6-sol`) applies only when
+  neither the dispatch nor the seat's Codex config sets one. The levels
   are `low`, `medium`, `high`, `xhigh`, `max` and `ultra`. Both keys were
   verified against codex-cli 0.152.1 with `--strict-config`, which refuses
   an unrecognised `-c` key
