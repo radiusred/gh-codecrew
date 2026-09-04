@@ -2,35 +2,33 @@
   <img src="assets/codecrew-logo.webp" alt="CodeCrew" width="320">
 </p>
 
-<p align="center"><strong>Agent-driven software delivery, with the receipts kept in GitHub.</strong></p>
+CodeCrew is a protocol for agent-driven software delivery and a `gh` extension
+that enforces it. Project state lives in GitHub and nowhere else: a milestone
+is an issue, a task is an issue with a plan in its body, decisions and
+deviations are comments in a fixed shape, and the work of a task is a branch
+and a PR. The gates — CI green, an approving review from whoever holds the
+reviewer seat, a QA verdict on every requirement, a human sign-off wherever one
+was raised — are checked by the CLI, which exits non-zero with
+`refused[CODE]: detail` when one is unmet. At milestone close the
+doc-synthesizer seat compiles the recorded comments into
+`docs/milestones/<n>-<slug>.md`. There is no server, no database and no state
+files: the dependencies are `gh` 2.50.0 or later, a GitHub repo, and CI on its
+pull requests.
 
-CodeCrew is a small protocol for running coding agents on real work and
-keeping an audit trail worth reading: **the record is the work.** Milestones
-are GitHub issues. Tasks are issues with a plan in them. Decisions and
-deviations are comments written at the moment they happen, in a fixed shape a
-machine can find later. The gates — CI green, an independent approval, a human
-sign-off wherever one was asked for — are enforced by a CLI that *refuses*
-rather than reminds, and at milestone close one role compiles the comments
-into a document explaining why the system is the way it is. There is no
-server, no dashboard, no new place to look: it is `gh`, issues, PRs, and five
-short role contracts any agent harness can read.
-
-> **The full story is at [codecrew.works](https://codecrew.works)** — how it
-> works and what it has done on the [home page](https://codecrew.works), the
-> guides and the per-milestone records under
-> [codecrew.works/docs](https://codecrew.works/docs/), and the writing at
-> [codecrew.works/blog](https://codecrew.works/blog/). The protocol itself is
-> [SPEC.md](SPEC.md), here in this repo.
+[codecrew.works](https://codecrew.works) is the marketing and introduction
+site, and carries the [blog](https://codecrew.works/blog/). This README is the
+developer landing page; the reference documentation is in this repository and
+is linked at source below.
 
 ## The routing table
 
 <img src="assets/svg/four-seats.svg" alt="The four seats — implementer, reviewer, qa, doc-synthesizer — each a contract file, each held by exactly one of: you, a colleague by username, a GitHub team, or an App identity." width="720">
 
-Implementer, reviewer, qa, doc-synthesizer, and the coordinator that
-dispatches them. Each is a contract — a short markdown file — not an account,
-and each is held by you (`~`), a colleague by username, a GitHub team, or a
-GitHub App identity minted for the job. Who holds which seat is one table in
-`.codecrew.yml`.
+Four seats — implementer, reviewer, qa, doc-synthesizer — and a coordinator
+that dispatches them. Each is a contract file under [roles/](roles/), not an
+account, and each is held by one of four kinds of principal: you (`~`), a
+username, a GitHub team (`owner/team-slug`), or a GitHub App identity. Who
+holds which seat is the `roles:` table in the hub's `.codecrew.yml`.
 
 Here is a worked example: the `roles:` section of this repository's own
 `.codecrew.yml`, as it stands today. Each row is a seat — the identity that
@@ -61,61 +59,70 @@ roles:
     identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)
 ```
 
-Solo is not a degraded mode; it is this table with every seat pointing at you.
-When a project outgrows that, `identity new <role>` mints a dedicated App
-through GitHub's manifest flow and reroutes the seat. The protocol does not
-change — only the table does.
+Solo is a routing configuration, not a reduced protocol: `gh codecrew init`
+writes the table with every seat routed to `~`, and the same gates apply.
+`gh codecrew identity new <role>` mints a dedicated App for a seat through
+GitHub's manifest flow and rewrites its row; nothing else changes
+([docs/identities.md](docs/identities.md)). The field reference is
+[SPEC.md](SPEC.md) §5.
 
 ## Start now
-
-Four lines, then one sentence to your agent:
 
 ```sh
 gh extension install radiusred/gh-codecrew
 cd my-project            # any repo on GitHub, brand new or years old
 gh codecrew init         # writes and commits .codecrew.yml, roles/, AGENTS.md, CLAUDE.md, ROADMAP.md
-claude                   # or codex, or whichever coding agent you run
 ```
 
-> Let's build this project!
-
-That is the whole onboarding. **You do not run the verbs. Your agent does.**
-It opens a milestone and hangs tasks off it —
+`init` scaffolds the project with every seat routed to `~`. After it, the verbs
+are run by your coding agent rather than by you: `AGENTS.md` tells an agent
+dispatched into the repo where the hub and the contracts are, and
+`gh codecrew roles show <role>` prints the contract it works to.
 
 ```sh
 gh codecrew milestone new --title "Walking skeleton" \
   --goal "A deployed hello-world proving the delivery pipeline end to end." \
   --requirement "visiting the app's URL returns a greeting"
 gh codecrew task new --milestone 1 --title "Serve the greeting" --requirements M1-R1
+gh codecrew task start 3     # refuses NO_PLAN until the task body carries a plan
 ```
 
-— then plans, works and merges under gates that refuse rather than remind.
-You are needed at three moments: when a gate asks you a question, when a PR
-wants your review, and when a milestone wants your verdict.
+`gh codecrew help` lists the rest; `gh codecrew status` reports the open
+milestone, the inferred task states and any raised gate. A human is needed at
+three points: a gate raised for a decision (`cc:needs-decision`), a PR that
+needs the reviewer seat's approval, and the QA verdicts a milestone cannot
+close without.
 
-Two prerequisites worth knowing before the first PR. The repo needs
-pull-request CI of some kind, because `task finish` refuses a PR that reports
-no checks at all (absence never satisfies a gate); ten lines of workflow do,
-and the [quickstart](docs/first-milestone.md#5-finish-the-task) shows them.
-And `gh` must be 2.50.0 or later — `gh --version` says. From there, the
-[quickstart](https://codecrew.works/docs/first-milestone/) walks one milestone
-end to end: open it, plan a task, do the work, verdict it, close it, and read
-the document the close produced.
+Two requirements the CLI checks. `gh` must be 2.50.0 or later — `task finish`
+reads `gh pr checks --json`, and an older `gh` refuses `GH_TOO_OLD` before any
+verb runs. And the repo needs pull-request CI: `task finish` refuses `NO_CHECKS`
+on a PR that reports no checks at all, with no override. `init` does not write a
+workflow; [docs/first-milestone.md](docs/first-milestone.md#5-finish-the-task)
+carries a ten-line one.
 
 ## Read next
 
-- [codecrew.works](https://codecrew.works) — what CodeCrew is, how it works,
-  and [what it has done](https://codecrew.works/#codecrew-works)
-- [SPEC.md](SPEC.md) — the protocol itself: topology, state model,
-  configuration, verbs, roles, gates
-- [docs/](docs/) — the guides, rendered at
-  [codecrew.works/docs](https://codecrew.works/docs/); the per-milestone
-  records are in [docs/milestones/](docs/milestones/), one per milestone
-  delivered by the protocol it documents
-- [ROADMAP.md](ROADMAP.md) says what each finished milestone was for
-  (`gh codecrew status` names the open one), and
-  [CHANGELOG.md](CHANGELOG.md) what each release shipped
-- [CONTRIBUTING.md](CONTRIBUTING.md) — the contribution process, which is the
-  protocol
+Reference documentation, at source in this repository:
+
+- [docs/introduction.md](docs/introduction.md) — what CodeCrew is, precisely:
+  the three parts, what is shipped, and all thirty-one refusal codes by the
+  verb that raises each
+- [docs/first-milestone.md](docs/first-milestone.md) — one milestone end to
+  end, solo: open it, plan a task, do the work, verdict it, close it
+- [docs/identities.md](docs/identities.md) — routing seats to humans, teams
+  and GitHub App identities, and dispatching a role session
+- [docs/platform-interop.md](docs/platform-interop.md) — hosting the crew on
+  an orchestration platform: the coordinator seat, wake paths, onboarding
+- [docs/extensions.md](docs/extensions.md) — extending a role contract in
+  `roles/<role>.local.md` without forking it
+- [docs/founding-decisions.md](docs/founding-decisions.md) — the trade-offs
+  the design was chosen against
+- [docs/milestones/](docs/milestones/) — one record per delivered milestone,
+  synthesized from the decisions recorded while it was built
+- [SPEC.md](SPEC.md) — the protocol: topology, state model, configuration,
+  verbs, roles, gates
+- [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md)
+- [ROADMAP.md](ROADMAP.md) — the finished milestones; [CHANGELOG.md](CHANGELOG.md)
+  — what each release shipped
 
 Licensed under [Apache 2.0](LICENSE).
