@@ -174,8 +174,9 @@ Things we have not done yet, in the interest of not overselling: any
 backend other than GitHub, or GitHub Enterprise Server; a per-platform
 onboarding script, so the interop page's checklist is still run by hand
 ([#54](https://github.com/radiusred/gh-codecrew/issues/54)). The
-[roadmap](ROADMAP.md) says what each milestone was for and which is open,
-and [CHANGELOG.md](CHANGELOG.md) what each release shipped.
+[roadmap](ROADMAP.md) says what each finished milestone was for
+(`gh codecrew status` names the open one), and
+[CHANGELOG.md](CHANGELOG.md) what each release shipped.
 
 ## Read next
 

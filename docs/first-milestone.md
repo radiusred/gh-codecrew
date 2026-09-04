@@ -93,8 +93,9 @@ gh codecrew milestone new --title "Walking skeleton" \
   --requirement "visiting the app's URL returns a greeting"
 ```
 
-This creates the milestone tracking issue — the canonical milestone object —
-and adds a row to `ROADMAP.md` (commit it with your next PR). Each
+This creates the milestone tracking issue — the canonical milestone object
+— and nothing else; `ROADMAP.md` gets its row when the milestone is
+finished (step 7). Each
 `--requirement` (repeat it for more) lands under the issue's
 **Requirements** section with a bold ID the tooling checks "done" against
 — numbered by the CLI, `M1-R1`, `M1-R2`, … in the order you gave them, and
@@ -223,8 +224,12 @@ One refusal left: `refused[DOC_MISSING]` — and above it, the CLI prints
 every `**Decision:**` and `**Deviation:**` comment recorded during the
 milestone. That's the raw material. Write `docs/milestones/1-<slug>.md` from
 it — the "why" record: what was decided, what was traded off, what deviated
-from plan — flip the ROADMAP row to Done, and merge it like any other change
-(a PR, `--operator-confirm` if you like the discipline).
+from plan — add the milestone's row to `ROADMAP.md`, already Done and
+linking the document
+(`| M1 | Walking skeleton | [#<issue>](…) | [Done](docs/milestones/1-<slug>.md) |`),
+and merge it like any other change (a PR, `--operator-confirm` if you like
+the discipline). The roadmap lists finished milestones; `gh codecrew status`
+reports the open one.
 
 ## 8. Close
 

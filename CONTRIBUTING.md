@@ -6,7 +6,8 @@ the contribution process.
 - **Ideas and bugs** — open an issue. Leave it unlabelled: that is a backlog
   capture, not protocol traffic, until it is adopted into a milestone.
 - **Work** — every change is a task under the open milestone
-  ([ROADMAP.md](ROADMAP.md) names it): a task issue with a plan written
+  (`gh codecrew status` names it; [ROADMAP.md](ROADMAP.md) lists the
+  finished ones): a task issue with a plan written
   before the first commit, atomic conventional commits referencing the task
   (`(#123)`), a PR that closes it, and a review from the reviewer seat — an
   App identity here, whose review arrives by dispatch, not by request. The

@@ -164,9 +164,15 @@ hub.
 
 ### Roadmap
 
-`ROADMAP.md`, committed in the hub. A short ordered list of milestones with a
-one-line goal each and links to their tracking issues. It is the only
-forward-looking document the framework maintains.
+`ROADMAP.md`, committed in the hub. A short ordered list of the milestones
+delivered so far, with a one-line goal each and links to their tracking
+issues and milestone documents. Each row is added, already Done, by the
+milestone's document PR (the doc-synthesizer's, §7): nothing writes a row
+while a milestone is open — `milestone new` creates the tracking issue and
+nothing else — so the roadmap lists finished milestones and `codecrew status`
+reports the open one. The alternative, a row committed at open time, had no
+PR to ride in when a milestone's tasks all lived in spokes
+([#197](https://github.com/radiusred/gh-codecrew/issues/197)).
 
 ### Milestone
 
@@ -426,7 +432,7 @@ hub).
 |------|--------------|
 | `codecrew status` | Where the project is: open milestones, task states, raised gates; notes contract drift and a repo that does not delete branches on merge. |
 | `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release) each with a blank `roles/<role>.local.md` extension beside it (a comment saying what the file is for, pointing at §7 and the upstream examples page; comments-only composes to nothing), and an AGENTS.md entry point; spoke mode writes the two-line pointer. Then it commits exactly the files it wrote — a pathspec commit, so the operator's own staged and unstaged work is untouched — on the current branch, or on `codecrew-bootstrap` cut from the default branch when that branch requires pull requests (asked through `gh`; assumed when it cannot be asked), never pushing; it refuses a subdirectory (the pointer belongs at the root) and leaves a detached HEAD uncommitted with the command to run: the scaffold is the last commit before the protocol starts, and where a ruleset requires it, the scaffold PR is the one merge the operator does by hand, recorded as the pre-milestone gate (§8; #172). Idempotent — existing files are kept and reported, and a rerun that writes nothing commits nothing. Scaffolded contracts carry a provenance stamp naming the release that wrote them. |
-| `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template (`--dry-run` prints the number it would assign, the title, the requirement IDs and the ROADMAP row, and creates nothing — so requirement prose can be written knowing the number); each `--requirement` (repeatable) becomes a bold-ID line under `## Requirements`, numbered M<n>-R1, R2, … in the order given — the section the close gate reads — and the IDs counted are printed; text that brings its own ID is refused. The CLI derives n: a title carrying an `M<k>` prefix that disagrees is refused, one that agrees is stripped. Updates ROADMAP.md. |
+| `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template (`--dry-run` prints the number it would assign, the title and the requirement IDs, and creates nothing — so requirement prose can be written knowing the number); each `--requirement` (repeatable) becomes a bold-ID line under `## Requirements`, numbered M<n>-R1, R2, … in the order given — the section the close gate reads — and the IDs counted are printed; text that brings its own ID is refused. The CLI derives n: a title carrying an `M<k>` prefix that disagrees is refused, one that agrees is stripped. Touches no file: the milestone's ROADMAP.md row is added, Done, by its document PR (§4). |
 | `codecrew task new --milestone <id> --repo <spoke>` | Creates a task issue in the spoke from the template; attaches it to the milestone as a sub-issue. |
 | `codecrew task start <ref>` | Verifies a plan is present, posts the `**Started by** @<login>.` record (and assigns the caller where GitHub allows — humans; App identities are not assignable) (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. |

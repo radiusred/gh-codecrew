@@ -114,12 +114,17 @@ contents: write, never pull requests: write. That set is
 [finding 16](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5445972756)'s,
 and it is deliberately not enough to merge, review or push: everything the
 seat does is an issue, a comment or a label, and a 403 on anything else is
-the contract enforced rather than a misconfiguration. The consequence is real
-and worth planning for — the coordinator cannot commit the ROADMAP row
-`milestone new` writes locally, so the implementer carries it in the
-milestone's first PR
-([finding 29](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5451814672);
-the contracts now say so, [#174](https://github.com/radiusred/gh-codecrew/pull/174)).
+the contract enforced rather than a misconfiguration. The consequence was
+real — the coordinator could not commit the ROADMAP row `milestone new` then
+wrote locally
+([finding 29](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5451814672)),
+so the implementer carried it in the milestone's first PR
+([#174](https://github.com/radiusred/gh-codecrew/pull/174)) — until a
+milestone whose tasks all lived in spokes had no such PR either
+([#197](https://github.com/radiusred/gh-codecrew/issues/197)). Now nothing
+writes a row at open time: `milestone new` creates the issue and nothing
+else, and the doc-synthesizer adds the row, already Done, in the record PR.
+The coordinator's read-only contents permission costs it nothing.
 
 **Why it is its own agent, and not the platform's CEO.** On a platform with a
 lead agent, the obvious move is to hand that agent the coordination job. The
