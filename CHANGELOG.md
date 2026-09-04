@@ -6,6 +6,13 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Removed
+- The ten crew badge PNGs, `assets/codecrew-{code,coord,docs,review,test}.png`
+  and their `-t` variants: nothing in the repo referenced them, the App
+  avatars are set by hand and the shipped copies live in codecrew-www's
+  `docs/assets/images/crew/`. The logo, the mark, the social preview and
+  `assets/svg/` stay. (#214)
+
 ### The M9 record
 - `docs/milestones/9-the-docs-at-codecrew-works.md` — the milestone document
   for "The docs at codecrew.works": the build-time sync that gave the hub's
