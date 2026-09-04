@@ -97,6 +97,22 @@ func (GitHub) IssueBody(ref IssueRef) (string, error) {
 	return issue.Body, err
 }
 
+func (GitHub) IssueLabels(ref IssueRef) ([]string, error) {
+	var issue struct {
+		Labels []struct {
+			Name string `json:"name"`
+		} `json:"labels"`
+	}
+	if err := gh.JSON(&issue, "api", fmt.Sprintf("repos/%s/issues/%d", ref.Repo, ref.Number)); err != nil {
+		return nil, err
+	}
+	labels := make([]string, 0, len(issue.Labels))
+	for _, l := range issue.Labels {
+		labels = append(labels, l.Name)
+	}
+	return labels, nil
+}
+
 func (GitHub) CreateIssue(repo, title, body string, labels []string) (IssueRef, error) {
 	args := []string{"api", "-X", "POST", fmt.Sprintf("repos/%s/issues", repo),
 		"-f", "title=" + title, "-f", "body=" + body}

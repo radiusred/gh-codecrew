@@ -102,6 +102,11 @@ type Tracker interface {
 	Task(ref IssueRef) (Task, error)
 	// IssueBody fetches an issue's body text.
 	IssueBody(ref IssueRef) (string, error)
+	// IssueLabels fetches the labels on an issue or a pull request — the
+	// REST issues endpoint serves both, where Task's GraphQL issue query
+	// answers NOT_FOUND for a PR; a gate may be recorded on the scaffold
+	// PR (roles/coordinator.md), so checkpoint reads labels this way.
+	IssueLabels(ref IssueRef) ([]string, error)
 	// CreateIssue opens an issue and returns its ref.
 	CreateIssue(repo, title, body string, labels []string) (IssueRef, error)
 	// AddSubIssue attaches child to parent as a GitHub sub-issue; the parent
@@ -175,17 +180,21 @@ func InferState(t Task) State {
 	}
 }
 
-func hasLabel(t Task, name string) bool {
-	for _, l := range t.Labels {
+func hasLabel(t Task, name string) bool { return ContainsLabel(t.Labels, name) }
+
+// HasLabel reports whether the task carries the label.
+func HasLabel(t Task, name string) bool { return hasLabel(t, name) }
+
+// ContainsLabel reports whether name is among labels, case-insensitively,
+// as GitHub compares label names.
+func ContainsLabel(labels []string, name string) bool {
+	for _, l := range labels {
 		if strings.EqualFold(l, name) {
 			return true
 		}
 	}
 	return false
 }
-
-// HasLabel reports whether the task carries the label.
-func HasLabel(t Task, name string) bool { return hasLabel(t, name) }
 
 var refPattern = regexp.MustCompile(`^(?:([\w.-]+/[\w.-]+))?#?(\d+)$`)
 

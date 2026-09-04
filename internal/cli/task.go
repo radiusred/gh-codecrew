@@ -159,16 +159,20 @@ func checkpoint(w io.Writer, args []string) error {
 }
 
 // raiseGate posts the **Gate raised:** comment and applies the label. The
-// ref may be a task or a milestone issue: a question about a requirement
-// has no task to carry it, so it is raised on the milestone issue, where
-// nothing mechanical blocks on the label — status lists the gate instead
-// (#200). The comment and the receipt say which of the two holds.
+// ref may be a task, a milestone issue or a pull request: a question about
+// a requirement has no task to carry it, so it is raised on the milestone
+// issue, where nothing mechanical blocks on the label — status lists the
+// gate instead (#200); before the first milestone the gate is recorded on
+// the scaffold PR (roles/coordinator.md). The labels come from the REST
+// issues endpoint, which serves PRs — Task's GraphQL issue query does not
+// (checky's finding on PR #218). The comment and the receipt say which of
+// the two wordings holds; a PR gets the task's.
 func raiseGate(w io.Writer, c *ctx, ref tracker.IssueRef, question string) error {
-	issue, err := c.t.Task(ref)
+	labels, err := c.t.IssueLabels(ref)
 	if err != nil {
 		return err
 	}
-	onMilestone := tracker.HasLabel(issue, tracker.LabelMilestone)
+	onMilestone := tracker.ContainsLabel(labels, tracker.LabelMilestone)
 	msg := "**Gate raised:** " + question + "\n\n" +
 		"Resolve by replying with a comment starting `**Gate resolved:**` — the decision, " +
 		"and the trade-off if one was weighed — then removing the `cc:needs-decision` label. " +
