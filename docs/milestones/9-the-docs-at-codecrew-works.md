@@ -26,25 +26,27 @@ the milestone filed ([codecrew-www#8](https://github.com/radiusred/codecrew-www/
 section at <https://codecrew.works/docs/> and the deploy that first published
 it strict,
 [Actions run 33862409652](https://github.com/radiusred/codecrew-www/actions/runs/33862409652).
-The M7 and M8 documents supplied the house form — M8 read from PR
-[#204](https://github.com/radiusred/gh-codecrew/pull/204)'s branch, since it
-had not yet reached `main` when this was written.
+The M7 and M8 documents supplied the house form — M8 first from PR
+[#204](https://github.com/radiusred/gh-codecrew/pull/204)'s branch and then, once
+it merged, from
+[85b0630](https://github.com/radiusred/gh-codecrew/commit/85b0630), the commit
+that answered its own review round.
 
 The gather from `gh codecrew milestone close 9` is again not part of the raw
-material, for the reason each of the last four documents has recorded: the
+material, for the reason
+[M8's document](8-a-product-home-page-for-codecrew-works.md) also records: the
 live close refuses `DOC_MISSING` until this file is on `main`, and `--dry-run`
 stops earlier still, at `OPEN_TASKS`, naming
 [#205](https://github.com/radiusred/gh-codecrew/issues/205) — the task that
-writes it. Five milestones now. Every record below was read from its issue
-directly.
+writes it. Every record below was read from its issue directly.
 
-**This is M9's first PR in the hub**, as M8's document PR was M8's. Every task
-in the milestone lived in the spoke, so the ROADMAP row went in as an operator
+**This is M9's first PR in the hub**, as
+[M8's document PR](8-a-product-home-page-for-codecrew-works.md) was M8's.
+Every task in the milestone lived in the spoke, so the ROADMAP row went in as an operator
 commit straight to `main`
 ([5fb0add](https://github.com/radiusred/gh-codecrew/commit/5fb0add)) — the
-third occurrence of the shape capture
-[#197](https://github.com/radiusred/gh-codecrew/issues/197) describes, and the
-observations at the end return to it.
+shape capture [#197](https://github.com/radiusred/gh-codecrew/issues/197)
+describes, and the observations at the end return to it.
 
 ## Goal and outcome
 
@@ -207,9 +209,11 @@ that was otherwise entirely on-site. Its recorded trade-off was that one page
 on the site would have no upstream source — "prose the hub never reviewed",
 kept to three lines and a list of links for that reason.
 
-Five hours after the section went live the operator
+Five hours and fifteen minutes after the section went live, at 23:03:25Z on
+2026-09-03 (#201's edit history; 00:03 on 2026-09-04 in Europe/London, the
+date the amendment gives itself), the operator
 [amended both clauses](https://github.com/radiusred/gh-codecrew/issues/201)
-on #201 — dated 2026-09-04, attributed, and quoting both originals: **codecrew.works is
+on #201 — attributed, and quoting both originals: **codecrew.works is
 the marketing site; the per-milestone records are an internal engineering
 artefact and do not belong in a product's documentation section.**
 `docs/milestones/` is excluded from the sync, and links into it resolve to
@@ -223,7 +227,8 @@ record ordering key, the nested nav section, and the milestones filter in the
 nav's extra-page computation — all of which existed only to serve the records,
 and all of which went with them in PR #12. The Docs tab went flat. The
 generated-index Decision is the one decision in this milestone that was made,
-shipped, and reversed inside it, under six hours apart.
+shipped, and reversed inside it — recorded at 17:33:16Z and gone with the
+merge of PR #12 at 23:14:33Z the same evening.
 
 The amendment also settles a question the trade-off had raised and could not
 answer from inside the spoke: whether a marketing site should carry an
@@ -253,7 +258,7 @@ outbound link, and `github.com/…/blob/main/<dir>` is a 301 to `tree/main/<dir>
 Shipping a redirect on the page's most-clicked external link is avoidable, so
 [`github_url` learned the distinction](https://github.com/radiusred/codecrew-www/issues/11#issuecomment-5533278484).
 
-The interesting half is how it decides. The tempting test — "no file extension,
+How it decides matters. The tempting test — "no file extension,
 therefore a directory" — is wrong, and the upstream proves it: `LICENSE` has no
 extension and is a file. So the code asks the checkout, `(source_dir() /
 repo_path).is_dir()`, which is exact and free because the checkout is already
@@ -272,7 +277,7 @@ distinction and accept the redirect, which is what the code did before #12.
 
 ### The deploy builds strict, and a broken upstream blocks it
 
-The milestone's last Decision, and the one with the sharpest cost.
+The milestone's last Decision, and the one with the largest recorded cost.
 [`site.yml`'s build becomes `zensical build --clean --strict`](https://github.com/radiusred/codecrew-www/issues/15#issuecomment-5538939035),
 unconditionally — on pushes to `main`, on the daily 00:05 UTC schedule, and on
 demand.
@@ -316,9 +321,10 @@ could not submit the review. No token was exposed.
 It reviewed anyway, from disk: it read the diff and both repositories, ran the
 suite (42 passed), reached **request changes** on three findings, and wrote its
 verdict to a file. The findings were relayed by the coordination layer and
-recorded **verbatim** in the Deviation, which states plainly that "the protocol
-expects that conversation on the PR. It did not happen there" and that the
-re-dispatched review, not the comment, is the gate. The three findings — a
+quoted in the Deviation — the first two in full, the third truncated after its
+opening sentence with `[...]` and one following example — which states plainly
+that "the protocol expects that conversation on the PR. It did not happen
+there" and that the re-dispatched review, not the comment, is the gate. The three findings — a
 build without the upstream checkout that did not fail as the docstring and
 README claimed, nav labels escaping only the double quote, and a link escaping
 above the repository root being silently republished with different semantics
@@ -348,8 +354,10 @@ documentation, filed by a spoke, and still open.
 
 **#201's Gates section was left as the scaffold's placeholder** — the template
 line "_What "done" means beyond CI: e2e suites, manual UAT, sign-offs._",
-unedited. M8's record says the same of #196; M7's declared seven gate
-conditions. No `**Gate raised:**` or `**Gate resolved:**` comment exists
+unedited. [M8's record](8-a-product-home-page-for-codecrew-works.md#the-gates)
+says the same of #196;
+[M7's](7-the-coordinator-seat-and-platform-interop.md#the-gates) declared seven
+gate conditions. No `**Gate raised:**` or `**Gate resolved:**` comment exists
 anywhere in this milestone. The reviewer of PR #12 confirmed the
 other half of the same mechanism from the outside: "No unresolved
 `cc:needs-decision` label is present."
@@ -364,10 +372,10 @@ a gate on a task: it altered what "done" meant rather than blocking a decision
 a seat could not make, and #201 records it as an amendment with no
 `cc:needs-decision` label raised.
 
-Two of #6's four shaping calls also functioned as pre-milestone gates without
-being recorded as any: the Ask-the-human section says all four "were put to the
-operator before the milestone was opened and are settled". That they were
-settled is on the record; what was decided, for three of the four, is not.
+Four shaping calls were also settled with the operator before the milestone
+opened, per #6's Ask-the-human section, and none went through a gate; what
+survives of them is in
+[What the record does not contain](#what-the-record-does-not-contain).
 
 ## The review rounds
 
@@ -398,7 +406,7 @@ which the protocol did not see.
   fragment stripped before the directory check — which **dismissed the standing
   approval** under the repository's stale-review rule. The
   [second round](https://github.com/radiusred/codecrew-www/pull/12#pullrequestreview-5107669902)
-  is the more interesting one: rather than re-reading the diff, the reviewer
+  did not re-read the diff: the reviewer
   loosened `is_excluded` to a plain `startswith` in a disposable copy to check
   the new fixture was discriminating rather than cosmetic, watched it fail, and
   approved. Everything it did not fix went into capture #13.
@@ -413,8 +421,9 @@ which the protocol did not see.
 
 The one round that requested changes named a defect that was then fixed, and
 the defect was in the record rather than in the software: a description that
-had stopped describing its own head. M8's record states the same of its own
-single change request. In both, the correction was to the narrative and no code
+had stopped describing its own head.
+[M8's record](8-a-product-home-page-for-codecrew-works.md#the-review-rounds)
+states the same of its own single change request. In both, the correction was to the narrative and no code
 changed.
 
 ## QA: two rounds, one refusal, and the task it produced
@@ -427,8 +436,8 @@ site**, not the source, in both rounds.
 satisfied**. R1 and R3 were assessed against the amended clauses, with the
 amendment record itself audited first and found "adequate: dated,
 operator-attributed, reasoned, and quotes both originals" — QA checking the
-paperwork of a requirement change before verdicting against it. The probes
-worth reading: a fresh sync from the real hub copying exactly the ten intended
+paperwork of a requirement change before verdicting against it. The probes: a
+fresh sync from the real hub copying exactly the ten intended
 files and the strict build emitting exactly their ten pages; `/docs/milestones/`
 and a record URL both fetched **live** and returning 404, so the exclusion was
 proved as an absence from the internet rather than an absence from a nav block;
@@ -437,8 +446,7 @@ and every rewrite-generated GitHub target followed to a 200; and the hero's
 `href="docs/"` read from the deployed home page rather than the Markdown, "so
 the button and destination are demonstrably present in the same deployment".
 
-The R5 refusal is precise, and it is about a gap between a requirement's words
-and a workflow's:
+The R5 refusal names a gap between the requirement's words and the workflow's:
 
 > Both workflows do check out the hub, and sync precedes main/build; the
 > mapping, rewrite, exact nav, button target, built-target, and exclusion tests
@@ -458,15 +466,15 @@ recorded at codecrew-www#14, the fix home."
 **The fix task.** #14 was adopted as
 [#15](https://github.com/radiusred/codecrew-www/issues/15) with a plan, one
 Decision, and its own tests, and PR #16 closed both. Two earlier records
-describe the same shape: M4 remedied M4-R2 and M4-R3 with
-[#63](https://github.com/radiusred/gh-codecrew/issues/63) / PR #64 inside M4,
-and M5 remedied M5-R1 with
-[#104](https://github.com/radiusred/gh-codecrew/issues/104) / PR #105 inside
-M5, both before superseding verdicts; the M1–M3 and M6–M8 records describe
-none. What is not in those two: the fix here lived in a spoke, and the remedy
-adopted a capture the qa seat had filed itself, before the verdict that cited
-it. The verdict and the backlog item were written by the same seat, in that
-order, and the implementer's task was to adopt one and satisfy the other.
+describe the same loop: [M4](4-solo-flight.md) remedied M4-R2 and M4-R3 with
+[#63](https://github.com/radiusred/gh-codecrew/issues/63) / PR #64, and
+[M5](5-crew-expansion.md) remedied M5-R1 with
+[#104](https://github.com/radiusred/gh-codecrew/issues/104) / PR #105, both
+before superseding verdicts. What is different here is recorded rather than
+counted: the fix lived in a spoke, and the remedy adopted a capture the qa
+seat had filed itself. Both were written by that seat, and the capture came
+first — #14 opened at 00:37:28Z, its reproduction on merged `main` posted at
+01:03:33Z, and the verdict citing it at 01:04:09Z.
 
 **[Second round](https://github.com/radiusred/gh-codecrew/issues/201#issuecomment-5539054178)**,
 10:19:23Z, on fresh merged `main` `218c8a1`: **M9-R5 satisfied**, superseding.
@@ -516,86 +524,46 @@ as task #15 and closed inside the milestone;
 
 ## Protocol-discipline observations
 
-- **The ROADMAP row was an operator commit for the third time.** M9's tasks
-  were all in the spoke, so there was no hub PR for the row to ride, and the
-  operator pushed it to `main` directly
+Five things the milestone showed about the protocol itself, none of them a
+restatement of the sections above.
+
+- **A spoke-only milestone still has no way to put its ROADMAP row in a PR.**
+  M9's tasks were all in the spoke, so there was no hub PR for the row to ride
+  and the operator pushed it to `main` directly
   ([5fb0add](https://github.com/radiusred/gh-codecrew/commit/5fb0add)) under
   the org ruleset's admin bypass, as for M8
-  ([ae09d01](https://github.com/radiusred/gh-codecrew/commit/ae09d01)) and
-  `radiusred/ops` (facc2ec).
+  ([ae09d01](https://github.com/radiusred/gh-codecrew/commit/ae09d01)).
   [#197](https://github.com/radiusred/gh-codecrew/issues/197) has carried four
-  candidate shapes since 2026-09-02 and has not been adopted, so the shape it
-  describes has now recurred once per spoke-only milestone since it was filed.
-  One of its options — the doc-synthesizer owning both ends of the row — would
-  have made this document's PR the only place the row was ever touched; as it
-  is, this PR flips a row the operator wrote, for the second milestone running.
-- **Three of the milestone's four shaping calls have no recorded rationale.**
-  #6's Ask-the-human section names four decisions "put to the operator before
-  the milestone was opened and are settled": a new milestone rather than a task
-  on M8, `/docs/` with its own tab, syncing SPEC/CONTRIBUTING/SECURITY
-  alongside `docs/`, and the introduction as the section index. Only the last
-  produced a `**Decision:**` comment. The first can be reconstructed from #196
-  and the operator's M8 answer 5, which is why this document could write it
-  down; the middle two exist only as requirement text. *Inferred, not recorded:*
-  that the tab and the three root files were chosen for the reasons M9-R1 and
-  M9-R3 state, because no comment anywhere gives another. Settling a question
-  before the milestone opens is not the same as recording the answer, and the
-  Ask-the-human section is where that difference becomes invisible.
-- **A verdict refused, and the milestone absorbed it without reopening
-  anything.** M9-R5's `not satisfied` produced a new task in the spoke rather
-  than a reopened #6, and QA re-verdicted nine hours later against a real
-  deployment. The loop worked exactly as M4's and M5's did; what is new is that
-  the evidence for the refusal was already a filed capture, written by the same
-  seat during a session that crashed before it could post a verdict. The
-  capture pre-dated the verdict by half an hour, carried the reproduction and
-  two candidate shapes, and the verdict cited it as "the fix home"; the task
-  that followed adopted it by number.
-- **A decision was shipped and reversed inside the milestone, and both halves
-  are on the record.** The generated `milestones/index.md` was a considered
-  Decision with a named trade-off on 2026-09-03, and was deleted on 2026-09-04
-  by an amendment that made its problem disappear. Nothing in the protocol
-  handles supersession of a Decision by a requirement change; what made it
-  legible here is that the amendment quotes the original clauses and PR #12's
-  description enumerates what it removed and why. A reader gathering
-  `**Decision:**` comments alone would find the index decision and no
-  indication it no longer holds.
-- **The one change request was against a claim, not code.** The PR
-  description had drifted from its own head after the fix commit — behaviour
-  inverted, test counts stale — and the reviewer reproduced the description's
-  claim to prove it false before blocking on it, calling the description "the
-  durable implementation narrative". No code changed for that finding. M8's
-  record reports the same of its single change request.
-- **A seat did real work the protocol could not see.** The codex-dispatched
-  reviewer formed a sound verdict on three genuine defects and could not post
-  any of it, because a sandbox denied network access before the App could mint.
-  From the hub's side that is indistinguishable from a reviewer that was never
-  dispatched. It was recovered by relay and recorded verbatim as a Deviation,
-  and the implementer then corrected its own Deviation when its explanation
-  turned out to be wrong — the gap was in a note nobody read, not a gap nobody
-  had found. Both the failure and the correction are on the issue;
+  candidate shapes since 2026-09-02 and has not been adopted. One of them —
+  the doc-synthesizer owning both ends of the row — would have made this
+  document's PR the only place the row was ever touched; as it is, this PR
+  flips a row the operator wrote.
+- **Nothing in the protocol marks a Decision as superseded.** The generated
+  `milestones/index.md` was a recorded Decision with a named trade-off, and a
+  requirement amendment made its problem disappear a few hours later. The
+  gathering verb reads `**Decision:**` headings; that one still reads as
+  standing, and only the amendment's quoted originals and PR #12's description
+  say otherwise.
+- **A seat that cannot reach GitHub is indistinguishable from a seat that was
+  never dispatched.** The reviewer's unpostable pass reached a sound verdict
+  the hub could not see, and only a relay put it on the record.
   [#202](https://github.com/radiusred/gh-codecrew/issues/202) asks this
-  repository's own `docs/identities.md` to close the doc gap, and is still open.
-- **The Gates section was the scaffold placeholder again.** #201 declared no
-  gate beyond CI, and the operator's amendment — the largest intervention in
-  the milestone — arrived as an edit to the milestone body rather than through
-  any gate mechanism. Two human interventions shaped the milestone — the
-  amendment and the four pre-milestone shaping calls — and neither has a
-  `**Gate raised:**` / `**Gate resolved:**` pair behind it. M8's record reports
-  the same placeholder on #196.
-- **The README and the introduction needed no change for this close, and that
-  is a finding.** The doc-synthesizer's refresh obligation exists so a
-  milestone boundary cannot leave a stale claim standing. The check here: does
-  either file send a reader to GitHub for a page that now has a rendered home
-  at codecrew.works/docs/? Neither does — both link repository-relative paths,
-  which are correct *in* the repository and are precisely what `sync_docs.py`
-  rewrites on the way to the site. So the pages that describe the docs were
-  made web-readable without a word of them changing, which is what M9-R2 asked
-  the rewriter to do. Only the milestone count moved.
+  repository's own `docs/identities.md` to say that a dispatched session must
+  be able to reach `api.github.com`, and confirming the mint before the seat
+  starts work; it is still open.
+- **The refresh obligation found nothing to fix, and the check is the point.**
+  The doc-synthesizer must keep the README and `docs/introduction.md` true at
+  every milestone boundary. Here: does either send a reader to GitHub for a
+  page that now renders at codecrew.works/docs/? Neither does — both link
+  repository-relative paths, correct in the repository and exactly what
+  `sync_docs.py` rewrites for the site. So the pages that describe the docs
+  became web-readable with no edit, which is what M9-R2 asked the rewriter to
+  do, and only the milestone count moved.
 - **The docs site does not carry this document, by design.** M9 published ten
-  of the hub's Markdown pages to codecrew.works and deliberately excluded one
-  kind of page from them. The milestone whose subject was publishing the
-  documentation is the one that decided the engineering record stays on
-  GitHub; this record is the first written after that amendment.
+  of the hub's Markdown pages to codecrew.works and excluded one kind of page
+  from them. The milestone whose subject was publishing the documentation is
+  the one that decided the engineering record stays on GitHub; this record is
+  the first written after that amendment.
 
 ## What the record does not contain
 
@@ -629,16 +597,11 @@ trail rather than a gap in the work.
   section gives the reasoning — a marketing site is not the place for an
   engineering artefact — but not the occasion: whether the operator reached it
   from seeing the records live at codecrew.works after PR #7 deployed, or had
-  intended it before. The two events are five hours apart and nothing connects
-  them in writing.
-- **The relayed review exists in the record only as three quoted findings.**
-  The unpostable reviewer wrote its verdict to a file; the Deviation on #6
-  quotes the three blocking findings verbatim and summarises the rest. The
-  file itself is not in either repository, so the fix-verification detail and
-  the residual-gap list of that pass survive only through the second, posted
-  review.
-- **The amendment is dated 2026-09-04 while the task citing it opened at
-  23:03Z on 2026-09-03.** #11 was created and merged before midnight UTC and
-  states that the amendment happened; the amendment's own date is a day later.
-  Nothing in the trail states which clock either is on, so the ordering below
-  a few hours cannot be read off the record.
+  intended it before. PR #7 merged at 17:48:26Z and the amendment edit landed
+  at 23:03:25Z; nothing in writing connects them.
+- **The relayed review survives only as an excerpt.** The unpostable reviewer
+  wrote its verdict to a file; the Deviation on #6 quotes findings 1 and 2 in
+  full and cuts finding 3 after its opening sentence with `[...]` and one
+  example. The file itself is not in either repository, so the rest of
+  finding 3, the fix-verification detail and that pass's residual-gap list
+  survive only through the second, posted review.
