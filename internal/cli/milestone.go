@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -96,7 +94,7 @@ func milestoneNew(w io.Writer, args []string) error {
 	goal := fs.String("goal", "_To be written._", "one-paragraph goal")
 	var reqs multiFlag
 	fs.Var(&reqs, "requirement", "a requirement's text; repeatable, numbered M<n>-R1, R2, … in order")
-	dryRun := fs.Bool("dry-run", false, "print the number, title, requirement IDs and ROADMAP row the milestone would get; create nothing")
+	dryRun := fs.Bool("dry-run", false, "print the number, title and requirement IDs the milestone would get; create nothing")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -107,26 +105,34 @@ func milestoneNew(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
+	return runMilestoneNew(c, w, *title, *goal, reqs, *dryRun)
+}
+
+// runMilestoneNew numbers, titles and creates the tracking issue. It is an
+// API call and nothing else: the verb no longer touches the hub's
+// ROADMAP.md — that row is the doc-synthesizer's, added as Done by the
+// record PR (roles/doc-synthesizer.md), because a milestone whose tasks
+// all live in spokes has no hub PR for an Open row to ride in (#197).
+func runMilestoneNew(c *ctx, w io.Writer, title, goal string, reqs []string, dryRun bool) error {
 	titles, err := c.t.AllMilestoneTitles(c.hub)
 	if err != nil {
 		return err
 	}
 	n := tracker.NextMilestoneNumber(titles)
-	fullTitle, err := milestoneTitle(*title, n)
+	fullTitle, err := milestoneTitle(title, n)
 	if err != nil {
 		return err
 	}
-	body, err := milestoneBody(*goal, n, reqs)
+	body, err := milestoneBody(goal, n, reqs)
 	if err != nil {
 		return err
 	}
-	if *dryRun {
+	if dryRun {
 		// The number is the point: it is assigned after the requirements
 		// are written, and a closed duplicate still counts toward it — so
 		// prose can be written knowing it instead of guessing (M7-R5).
 		fmt.Fprintf(w, "would create milestone M%d in %s: %s\n", n, c.hub, fullTitle)
 		fmt.Fprintln(w, requirementsNote(tracker.RequirementIDs(body)))
-		fmt.Fprintf(w, "would add to ROADMAP.md: | M%d | %s | #<issue> | Open |\n", n, strings.TrimPrefix(fullTitle, fmt.Sprintf("M%d: ", n)))
 		fmt.Fprintln(w, "dry run: nothing written")
 		return nil
 	}
@@ -136,37 +142,7 @@ func milestoneNew(w io.Writer, args []string) error {
 	}
 	fmt.Fprintf(w, "created milestone %s (%s)\n", fullTitle, ref)
 	fmt.Fprintln(w, requirementsNote(tracker.RequirementIDs(body)))
-
-	row := fmt.Sprintf("| M%d | %s | [#%d](https://github.com/%s/issues/%d) | Open |",
-		n, strings.TrimPrefix(fullTitle, fmt.Sprintf("M%d: ", n)), ref.Number, ref.Repo, ref.Number)
-	if c.current == c.hub {
-		if appendRoadmapRow(filepath.Join(c.cfg.Dir, "ROADMAP.md"), row) == nil {
-			fmt.Fprintln(w, "ROADMAP.md updated locally — it rides in this milestone's first PR (the implementer's)")
-			return nil
-		}
-	}
-	fmt.Fprintf(w, "add to the hub's ROADMAP.md:\n%s\n", row)
 	return nil
-}
-
-// appendRoadmapRow adds the row after the roadmap table's last row.
-func appendRoadmapRow(path, row string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(data), "\n")
-	last := -1
-	for i, l := range lines {
-		if strings.HasPrefix(strings.TrimSpace(l), "|") {
-			last = i
-		}
-	}
-	if last < 0 {
-		return fmt.Errorf("no table in %s", path)
-	}
-	lines = append(lines[:last+1], append([]string{row}, lines[last+1:]...)...)
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
 // closeGates, in the order milestone close checks them.
