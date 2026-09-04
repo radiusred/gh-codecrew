@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The codex seats are pinned to gpt-5.5
+- `.codecrew.yml` pins `model: gpt-5.5` on the `reviewer` and `qa` rows,
+  the model the two codex-harnessed seats run under since the operator's
+  Decision on #207 (2026-09-04) moved them off `gpt-5.6-sol` for cost; the
+  README's mirrored block, and the routing-table examples in SPEC §5 and
+  docs/platform-interop.md, say the same. The dispatch guidance's
+  reasoning-effort note now gives gpt-5.5's own default (`medium`) and the
+  levels it accepts (`low`, `medium`, `high`, `xhigh`), read from the
+  Codex CLI's model catalog. Under M10-R5. (#226)
+
 ### The README shows the hub's routing table
 - The README's "Four seats, always staffed" beat now carries this repo's own
   `roles:` table from `.codecrew.yml`, with a gloss: each row is a seat, the
