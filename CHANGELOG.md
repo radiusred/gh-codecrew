@@ -6,6 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The commit lint is the org's shared action
+- `.github/workflows/commitlint.yml`'s `commitlint` job calls
+  `radiusred/.github/.github/actions/commitlint@main` — the composite action
+  radiusred/.github publishes, carrying the organisation's commitlint config
+  and its pinned `wagoid/commitlint-github-action` — after an
+  `actions/checkout@v4` with `fetch-depth: 0`, the thin caller its
+  CONTRIBUTING.md documents; the workflow grants `pull-requests: read`
+  alongside `contents: read` as that caller does. The job id and its name,
+  `Lint commit messages`, are unchanged, so the check context the org ruleset
+  `require-lint` requires still matches; the `test` job is untouched.
+  `commitlint.config.mjs` is deleted — the config lives inside the action.
+  Under M11-R3 (#233); adopts #225 (hub half). (#236)
+
 ### The M10 record
 - `docs/milestones/10-protocol-bookkeeping-from-the-field.md` — the milestone
   document for "Protocol bookkeeping from the field": the seven backlog captures
