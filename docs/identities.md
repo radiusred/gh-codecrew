@@ -309,11 +309,12 @@ however it is triggered:
   table does not carry. Precedence is the CLI's: `-c` at dispatch
   overrides a `model_reasoning_effort` set in the loaded
   `~/.codex/config.toml` or profile, which overrides the model's own
-  default — so the default (`low` for `gpt-5.6-sol`) applies only when
+  default — so the default (`medium` for `gpt-5.5`) applies only when
   neither the dispatch nor the seat's Codex config sets one. The levels
-  are `low`, `medium`, `high`, `xhigh`, `max` and `ultra`. Both keys were
-  verified against codex-cli 0.152.1 with `--strict-config`, which refuses
-  an unrecognised `-c` key
+  are the model's own: `low`, `medium`, `high` and `xhigh` for `gpt-5.5`
+  (`gpt-5.6-sol` adds `max` and `ultra`), read from the CLI's model
+  catalog. Both keys were verified against codex-cli 0.152.1 with
+  `--strict-config`, which refuses an unrecognised `-c` key
   ([#212](https://github.com/radiusred/gh-codecrew/issues/212)). A
   session asked to run a test suite also needs a writable cache directory
   for its package manager (`UV_CACHE_DIR`, for one), or the suite cannot
