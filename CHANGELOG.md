@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M9 record
+- `docs/milestones/9-the-docs-at-codecrew-works.md` — the milestone document
+  for "The docs at codecrew.works": the build-time sync that gave the hub's
+  documentation a web home, the introduction becoming the section index rather
+  than a second README, the operator's amendment that took the milestone
+  records off the marketing site and the Decision it reversed, the reviewer
+  pass a sandbox stopped from posting, and the qa `not satisfied` verdict that
+  produced a fix task and a strict deploy. The ROADMAP row is Done and the
+  README's milestone count is refreshed with it. Docs only. (#205)
+
 ### The M8 record
 - `docs/milestones/8-a-product-home-page-for-codecrew-works.md` — the
   milestone document for "A product home page for codecrew.works": the
