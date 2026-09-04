@@ -155,18 +155,41 @@ func checkpoint(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	msg := "**Gate raised:** " + *question + "\n\n" +
+	return raiseGate(w, c, ref, *question)
+}
+
+// raiseGate posts the **Gate raised:** comment and applies the label. The
+// ref may be a task or a milestone issue: a question about a requirement
+// has no task to carry it, so it is raised on the milestone issue, where
+// nothing mechanical blocks on the label — status lists the gate instead
+// (#200). The comment and the receipt say which of the two holds.
+func raiseGate(w io.Writer, c *ctx, ref tracker.IssueRef, question string) error {
+	issue, err := c.t.Task(ref)
+	if err != nil {
+		return err
+	}
+	onMilestone := tracker.HasLabel(issue, tracker.LabelMilestone)
+	msg := "**Gate raised:** " + question + "\n\n" +
 		"Resolve by replying with a comment starting `**Gate resolved:**` — the decision, " +
 		"and the trade-off if one was weighed — then removing the `cc:needs-decision` label. " +
-		"The resolution is gathered into the milestone record; `task finish` refuses while " +
-		"the label is present or the gate lacks a resolution comment."
+		"The resolution is gathered into the milestone record; "
+	if onMilestone {
+		msg += "a question about a requirement has no task to carry it, so it is raised here, " +
+			"and `status` lists this gate beside the tasks' gates while the label is present."
+	} else {
+		msg += "`task finish` refuses while the label is present or the gate lacks a resolution comment."
+	}
 	if err := c.t.Comment(ref, msg); err != nil {
 		return err
 	}
 	if err := c.t.AddLabel(ref, tracker.LabelNeedsDecision); err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "gate raised on %s — blocked until a human removes %s\n", ref, tracker.LabelNeedsDecision)
+	if onMilestone {
+		fmt.Fprintf(w, "gate raised on %s (milestone issue) — status lists it beside the tasks' gates until a human removes %s\n", ref, tracker.LabelNeedsDecision)
+	} else {
+		fmt.Fprintf(w, "gate raised on %s — blocked until a human removes %s\n", ref, tracker.LabelNeedsDecision)
+	}
 	return nil
 }
 

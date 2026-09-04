@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/radiusred/gh-codecrew/internal/config"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // mergeGate implements the #73 Decisions: GitHub counts approvals only
@@ -90,6 +94,60 @@ func TestSameSeat(t *testing.T) {
 	} {
 		if got := sameSeat(c.owner, c.viewer, roleFor); got != c.want {
 			t.Errorf("sameSeat(%q, %q) = %v, want %v", c.owner, c.viewer, got, c.want)
+		}
+	}
+}
+
+// gateFake is the slice of the tracker checkpoint touches: it reads the
+// target's labels and records the comment and label it writes.
+type gateFake struct {
+	tracker.Tracker
+	labels   []string
+	comments []string
+	added    []string
+}
+
+func (f *gateFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	return tracker.Task{Ref: ref, Labels: f.labels}, nil
+}
+func (f *gateFake) Comment(_ tracker.IssueRef, body string) error {
+	f.comments = append(f.comments, body)
+	return nil
+}
+func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
+	f.added = append(f.added, label)
+	return nil
+}
+
+// checkpoint accepts a milestone ref — a question about a requirement has
+// no task to carry it — and says so: nothing mechanical blocks on that
+// label, status lists the gate instead. A task keeps the task finish
+// wording (#200).
+func TestRaiseGateWordingByTarget(t *testing.T) {
+	for _, tc := range []struct {
+		name, label, comment, receipt, absent string
+	}{
+		{"task", "cc:task", "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
+		{"milestone", tracker.LabelMilestone, "`status` lists this gate beside the tasks' gates", "gate raised on o/r#6 (milestone issue) — status lists it beside the tasks' gates until a human removes cc:needs-decision\n", "`task finish` refuses"},
+	} {
+		f := &gateFake{labels: []string{tc.label}}
+		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
+		c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
+		var out bytes.Buffer
+		if err := raiseGate(&out, c, tracker.IssueRef{Repo: "o/r", Number: 6}, "which way?"); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if out.String() != tc.receipt {
+			t.Errorf("%s: receipt = %q, want %q", tc.name, out.String(), tc.receipt)
+		}
+		if len(f.comments) != 1 || !strings.HasPrefix(f.comments[0], "**Gate raised:** which way?\n\n") {
+			t.Fatalf("%s: comments = %q", tc.name, f.comments)
+		}
+		if !strings.Contains(f.comments[0], tc.comment) || strings.Contains(f.comments[0], tc.absent) {
+			t.Errorf("%s: comment must say %q and not %q:\n%s", tc.name, tc.comment, tc.absent, f.comments[0])
+		}
+		if len(f.added) != 1 || f.added[0] != tracker.LabelNeedsDecision {
+			t.Errorf("%s: labels added = %q", tc.name, f.added)
 		}
 	}
 }
