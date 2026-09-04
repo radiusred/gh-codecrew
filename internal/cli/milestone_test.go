@@ -220,3 +220,44 @@ func TestMilestoneNewLeavesTheRoadmapAlone(t *testing.T) {
 		}
 	}
 }
+
+// The top-level help is a surface the runMilestoneNew test never reaches:
+// it kept advertising "the number and row it would get" after the verb
+// stopped printing a row (checky on PR #216). The dry-run line under
+// `milestone new` must say what the verb prints and never name a row.
+func TestUsageDescribesMilestoneNewDryRunWithoutARow(t *testing.T) {
+	var block []string
+	in := false
+	for _, line := range strings.Split(usage, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  milestone new "):
+			in = true
+		case in && !strings.HasPrefix(line, "           "):
+			in = false
+		}
+		if in {
+			block = append(block, line)
+		}
+	}
+	if len(block) == 0 {
+		t.Fatal("usage has no `milestone new` block")
+	}
+	text := strings.Join(block, "\n")
+	var dry string
+	for _, line := range block {
+		if strings.Contains(line, "--dry-run") {
+			dry = line
+		}
+	}
+	if dry == "" {
+		t.Fatalf("no --dry-run line under milestone new:\n%s", text)
+	}
+	for _, want := range []string{"number", "title", "requirement IDs", "create nothing"} {
+		if !strings.Contains(dry, want) {
+			t.Errorf("--dry-run line lacks %q: %s", want, dry)
+		}
+	}
+	if lower := strings.ToLower(text); strings.Contains(lower, "row") || strings.Contains(lower, "roadmap") {
+		t.Errorf("milestone new help still speaks of a row:\n%s", text)
+	}
+}

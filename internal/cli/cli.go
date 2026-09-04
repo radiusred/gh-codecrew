@@ -15,7 +15,7 @@ verbs:
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
            [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)
-           [--dry-run]                       (print the number and row it would get; create nothing)
+           [--dry-run]                       (print the number, title and requirement IDs it would get; create nothing)
   milestone close <milestone number>         close a milestone (gates: tasks closed, doc merged)
            [--dry-run]                       (print every gate and the sweep; write nothing)
   milestone evidence <milestone number>      verify every cited link in the milestone's record resolves (M2 → 2)
