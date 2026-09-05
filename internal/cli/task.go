@@ -233,9 +233,9 @@ func checkpoint(w io.Writer, args []string) error {
 // raiseGate posts the **Gate raised:** comment and applies the label. The
 // ref may be a task, a milestone issue or a pull request: a question about
 // a requirement has no task to carry it, so it is raised on the milestone
-// issue, where nothing mechanical blocks on the label — status lists the
-// gate instead (#200); before the first milestone the gate is recorded on
-// the scaffold PR (roles/coordinator.md). The labels come from the REST
+// issue, where status lists the gate and milestone close refuses on it
+// (#200, #219); before the first milestone the gate is recorded on the
+// scaffold PR (roles/coordinator.md). The labels come from the REST
 // issues endpoint, which serves PRs — Task's GraphQL issue query does not
 // (checky's finding on PR #218). The comment and the receipt say which of
 // the two wordings holds; a PR gets the task's.
@@ -250,8 +250,8 @@ func raiseGate(w io.Writer, c *ctx, ref tracker.IssueRef, question string) error
 		"and the trade-off if one was weighed — then removing the `cc:needs-decision` label. " +
 		"The resolution is gathered into the milestone record; "
 	if onMilestone {
-		msg += "a question about a requirement has no task to carry it, so it is raised here, " +
-			"and `status` lists this gate beside the tasks' gates while the label is present."
+		msg += "a question about a requirement has no task to carry it, so it is raised here; " +
+			"`status` lists this gate beside the tasks' gates and `milestone close` refuses while the label is present."
 	} else {
 		msg += "`task finish` refuses while the label is present or the gate lacks a resolution comment."
 	}
@@ -262,7 +262,7 @@ func raiseGate(w io.Writer, c *ctx, ref tracker.IssueRef, question string) error
 		return err
 	}
 	if onMilestone {
-		fmt.Fprintf(w, "gate raised on %s (milestone issue) — status lists it beside the tasks' gates until a human removes %s\n", ref, tracker.LabelNeedsDecision)
+		fmt.Fprintf(w, "gate raised on %s (milestone issue) — status lists it and milestone close refuses until a human removes %s\n", ref, tracker.LabelNeedsDecision)
 	} else {
 		fmt.Fprintf(w, "gate raised on %s — blocked until a human removes %s\n", ref, tracker.LabelNeedsDecision)
 	}

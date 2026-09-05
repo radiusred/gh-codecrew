@@ -225,7 +225,7 @@ func numberTaken(n int, ref tracker.IssueRef, other tracker.TitledIssue, format 
 }
 
 // closeGates, in the order milestone close checks them.
-var closeGates = []string{"milestone open", "tasks closed", "requirements declared", "QA verdicts", "milestone document"}
+var closeGates = []string{"milestone open", "no gate raised", "tasks closed", "requirements declared", "QA verdicts", "milestone document"}
 
 func milestoneClose(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("milestone close", flag.ContinueOnError)
@@ -287,7 +287,25 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 		return p.stop(closeGates), nil, nil
 	}
 
-	// Gate 1: every task closed.
+	// Gate 1: no human gate raised on the milestone issue itself. A
+	// requirement-level question is raised there (#200) and once closed
+	// under it unseen (#219); it outranks the bookkeeping gates, so it is
+	// answered first. The labels come from the REST issues endpoint —
+	// OpenMilestones carries none — as task finish's "no gate raised" gate
+	// reads the task's (M12-R3).
+	labels, err := c.t.IssueLabels(milestone.Ref)
+	if err != nil {
+		return nil, nil, err
+	}
+	e = nil
+	if tracker.ContainsLabel(labels, tracker.LabelNeedsDecision) {
+		e = refuse("MILESTONE_GATED", "%s has %s raised on the milestone issue — a human resolves it with a **Gate resolved:** comment and removes the label", milestone.Ref, tracker.LabelNeedsDecision)
+	}
+	if !p.gate("no gate raised", e) {
+		return p.stop(closeGates), nil, nil
+	}
+
+	// Gate 2: every task closed.
 	var open []string
 	for _, ref := range milestone.Tasks {
 		task, err := c.t.Task(ref)
@@ -306,7 +324,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 		return p.stop(closeGates), nil, nil
 	}
 
-	// Gate 2: the milestone declares requirements where the parser reads
+	// Gate 3: the milestone declares requirements where the parser reads
 	// them. A close that would verify zero requirements is not a close —
 	// numberguess M1 closed over an unsatisfied verdict this way (#144).
 	body, err := c.t.IssueBody(milestone.Ref)
@@ -318,7 +336,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 		return p.stop(closeGates), nil, nil
 	}
 
-	// Gate 3: every requirement carries a satisfied QA verdict (a later
+	// Gate 4: every requirement carries a satisfied QA verdict (a later
 	// verdict supersedes an earlier one; only the qa role's holder counts —
 	// its routed identity, or the human operator when the role is unrouted).
 	comments, err := c.t.Comments(milestone.Ref)
@@ -369,7 +387,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 		return nil, nil, err
 	}
 
-	// Gate 4: the synthesized milestone document is merged.
+	// Gate 5: the synthesized milestone document is merged.
 	hasDoc, err := c.t.HasMilestoneDoc(c.hub, n)
 	if err != nil {
 		return nil, nil, err
@@ -474,7 +492,7 @@ func writeRecords(w io.Writer, records []tracker.Record) {
 	}
 }
 
-// requireRequirements is milestone close's second gate: a body whose
+// requireRequirements is milestone close's third gate: a body whose
 // "## Requirements" section yields no bold IDs has nothing to verdict, so
 // the close refuses instead of passing vacuously. IDs written anywhere
 // else in the body are not requirements (the parser is section-scoped so

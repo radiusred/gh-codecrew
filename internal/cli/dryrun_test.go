@@ -238,6 +238,7 @@ func TestPlanPrintStates(t *testing.T) {
 type closeFake struct {
 	tracker.Tracker
 	milestone tracker.Milestone
+	labels    []string // on the milestone issue itself
 	tasks     map[int]tracker.Task
 	body      string
 	comments  map[int][]tracker.Comment
@@ -249,7 +250,13 @@ func (f *closeFake) OpenMilestones(string) ([]tracker.Milestone, error) {
 	return []tracker.Milestone{f.milestone}, nil
 }
 func (f *closeFake) Task(ref tracker.IssueRef) (tracker.Task, error) { return f.tasks[ref.Number], nil }
-func (f *closeFake) IssueBody(tracker.IssueRef) (string, error)      { return f.body, nil }
+func (f *closeFake) IssueLabels(ref tracker.IssueRef) ([]string, error) {
+	if ref != f.milestone.Ref {
+		return nil, errors.New("labels read off the milestone issue")
+	}
+	return f.labels, nil
+}
+func (f *closeFake) IssueBody(tracker.IssueRef) (string, error) { return f.body, nil }
 func (f *closeFake) Comments(ref tracker.IssueRef) ([]tracker.Comment, error) {
 	return f.comments[ref.Number], nil
 }
@@ -312,6 +319,81 @@ func TestPlanCloseUnroutedNoteSurvivesDocMissing(t *testing.T) {
 		t.Fatalf("clean: err %v refusal %v", err, p.refusal)
 	}
 	if err := run(&live); err != nil || strings.Join(f.writes, ";") != "close: Closed by `gh codecrew milestone close 2`: all 1 tasks done, milestone document merged." {
+		t.Errorf("run: err %v writes %v", err, f.writes)
+	}
+}
+
+// A cc:needs-decision on the milestone issue itself — a requirement-level
+// question raised there (#200) — once let the milestone close under it
+// (#219). The close now refuses MILESTONE_GATED before it counts tasks, in
+// the shape of task finish's "no gate raised" gate: the dry run prints the
+// gate line and marks the rest not reached, nothing is written, and the
+// same milestone without the label passes the gate (M12-R3).
+func TestPlanCloseRefusesWhileMilestoneIssueIsGated(t *testing.T) {
+	f := &closeFake{
+		milestone: tracker.Milestone{Ref: tracker.IssueRef{Repo: "o/r", Number: 5}, Title: "M2: Two", Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 6}}},
+		labels:    []string{tracker.LabelMilestone, "CC:Needs-Decision"}, // GitHub compares label names case-insensitively
+		tasks:     map[int]tracker.Task{6: {Closed: false}},              // an open task, so the ordering shows
+		body:      "## Goal\nx\n\n## Requirements\n- **M2-R1** — a thing\n",
+		comments:  map[int][]tracker.Comment{5: {{Author: "davison", Body: "**M2-R1 — satisfied.** ran it"}}},
+		hasDoc:    true,
+	}
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self", Roles: map[string]config.Role{"implementer": {}, "reviewer": {}, "qa": {}, "doc-synthesizer": {}}}
+	c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
+	var live bytes.Buffer
+	p, run, err := planClose(c, 2, false, &live)
+	if err != nil || run != nil {
+		t.Fatalf("err %v run %v", err, run != nil)
+	}
+	var r refusal
+	if !errors.As(p.refusal, &r) || r.Code != "MILESTONE_GATED" {
+		t.Fatalf("refusal = %v", p.refusal)
+	}
+	for _, want := range []string{"o/r#5", tracker.LabelNeedsDecision, "**Gate resolved:**"} {
+		if !strings.Contains(p.refusal.Error(), want) {
+			t.Errorf("detail must say %q: %v", want, p.refusal)
+		}
+	}
+	if live.Len() != 0 {
+		t.Errorf("a gated close printed: %q", live.String())
+	}
+	var dry bytes.Buffer
+	p, _, _ = planClose(c, 2, true, &dry)
+	p.print(&dry)
+	for _, want := range []string{
+		"gate milestone open: ok\ngate no gate raised: refused[MILESTONE_GATED]: o/r#5 has cc:needs-decision raised on the milestone issue",
+		"\ngate tasks closed: not reached\n",
+		"gate milestone document: not reached\ndry run: nothing written — the live verb stops at the first refusal above\n",
+	} {
+		if !strings.Contains(dry.String(), want) {
+			t.Errorf("dry report must contain %q:\n%s", want, dry.String())
+		}
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("planning wrote: %v", f.writes)
+	}
+	// Label gone: the gate passes and the close reaches the tasks, where
+	// the open one is what refuses now.
+	f.labels = []string{tracker.LabelMilestone}
+	p, _, err = planClose(c, 2, true, &dry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !errors.As(p.refusal, &r) || r.Code != "OPEN_TASKS" {
+		t.Errorf("without the label the close must reach the tasks, got %v", p.refusal)
+	}
+	dry.Reset()
+	p.print(&dry)
+	if !strings.Contains(dry.String(), "gate no gate raised: ok\ngate tasks closed: refused[OPEN_TASKS]") {
+		t.Errorf("dry report:\n%s", dry.String())
+	}
+	// And with the task closed too, the plan is clean and run closes.
+	f.tasks[6] = tracker.Task{Closed: true}
+	p, run, err = planClose(c, 2, false, &live)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("clean: err %v refusal %v", err, p.refusal)
+	}
+	if err := run(&live); err != nil || len(f.writes) != 1 || !strings.HasPrefix(f.writes[0], "close: ") {
 		t.Errorf("run: err %v writes %v", err, f.writes)
 	}
 }
