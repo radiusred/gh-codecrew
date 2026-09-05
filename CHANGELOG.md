@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A link is a citation; code is content
+- `milestone evidence` checks the links a record cites — a URL in prose or
+  in a Markdown link — and not every URL in it: a URL inside an inline code
+  span or a fenced code block is content, a probe target that is unreachable
+  by design or a hostname in a verbatim command or error string, and is not
+  scanned. Two NXDOMAIN-by-design hosts quoted as curl targets in a survey
+  comment had refused a complete record on radiusred/ops. An unreachable
+  citation now splits two ways: a github.com link that does not resolve is
+  still `EVIDENCE_UNREACHABLE`; any other host prints a `warning:` line and
+  the verb passes, so a dead external link is visible to the qa seat without
+  blocking it. The SPEC row, the qa and doc-synthesizer contracts and the
+  introduction state the rule — write a probe target in code, write evidence
+  as a link. (M12-R4, #222, #245)
+
 ### task new waits for a milestone the listing has not caught up with
 - `task new --milestone <n>` no longer trusts a single read of the
   open-milestone listing. When the listing lacks `M<n>` it reads the hub's
