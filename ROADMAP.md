@@ -13,6 +13,7 @@
 | M9 | The docs at codecrew.works | [#201](https://github.com/radiusred/gh-codecrew/issues/201) | [Done](docs/milestones/9-the-docs-at-codecrew-works.md) |
 | M10 | Protocol bookkeeping from the field | [#207](https://github.com/radiusred/gh-codecrew/issues/207) | [Done](docs/milestones/10-protocol-bookkeeping-from-the-field.md) |
 | M11 | Housekeeping | [#233](https://github.com/radiusred/gh-codecrew/issues/233) | [Done](docs/milestones/11-housekeeping.md) |
+| M12 | v1.2.0 and the field fixes behind it | [#241](https://github.com/radiusred/gh-codecrew/issues/241) | [Done](docs/milestones/12-v1-2-0-and-the-field-fixes-behind-it.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.

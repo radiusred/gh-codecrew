@@ -6,6 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M12 record
+- `docs/milestones/12-v1-2-0-and-the-field-fixes-behind-it.md` — the
+  milestone document for "v1.2.0 and the field fixes behind it": the changelog
+  flip and the introduction at the boundary, the annotated tag cut by the
+  implementer identity fourteen seconds after the flip merged, the release run
+  and its five assets, and the operator's verification of the installed binary;
+  then the three fixes that merged behind the tag and ride the next release —
+  `task new` reading the newest issues and retrying before `NOT_FOUND`,
+  `milestone close` refusing `MILESTONE_GATED` while the milestone issue
+  carries a gate, and `milestone evidence` checking citations rather than every
+  URL — with the four review rounds on the close help line, the round-one
+  verdict relayed after a machine crash and recorded as the milestone's one
+  Deviation, the three captures adopted and closed and the one filed. The
+  ROADMAP row is added Done, and the boundary refresh of `README.md` and
+  `docs/introduction.md` found no stale claim to fix. Docs only. (#251)
+
 ### milestone close refuses while the milestone issue carries a gate
 - `milestone close` reads the milestone issue's own labels and refuses
   `MILESTONE_GATED` while `cc:needs-decision` is on it — a requirement-level
