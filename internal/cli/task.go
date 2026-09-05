@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
@@ -35,6 +36,10 @@ func taskNew(w io.Writer, args []string) error {
 	if *title == "" || *milestoneArg == "" {
 		return fmt.Errorf("task new: --title and --milestone are required")
 	}
+	n, ok := tracker.MilestoneNumber("M" + strings.TrimPrefix(*milestoneArg, "M") + ":")
+	if !ok {
+		return fmt.Errorf("bad milestone number %q", *milestoneArg)
+	}
 	c, err := load()
 	if err != nil {
 		return err
@@ -43,27 +48,18 @@ func taskNew(w io.Writer, args []string) error {
 	if target == "" {
 		target = c.current
 	}
-	n, ok := tracker.MilestoneNumber("M" + strings.TrimPrefix(*milestoneArg, "M") + ":")
-	if !ok {
-		return fmt.Errorf("bad milestone number %q", *milestoneArg)
-	}
-	milestones, err := c.t.OpenMilestones(c.hub)
+	return runTaskNew(c, w, n, target, *title, *goal, *requirements)
+}
+
+// runTaskNew creates the task issue in target and attaches it to milestone
+// M<n> as a sub-issue.
+func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements string) error {
+	milestone, err := resolveMilestone(c, w, n)
 	if err != nil {
 		return err
 	}
-	var milestone *tracker.Milestone
-	for i := range milestones {
-		if got, ok := tracker.MilestoneNumber(milestones[i].Title); ok && got == n {
-			milestone = &milestones[i]
-			break
-		}
-	}
-	if milestone == nil {
-		return refuse("NOT_FOUND", "no open milestone M%d in %s", n, c.hub)
-	}
-
-	body := fmt.Sprintf(taskTemplate, *goal, *requirements, tracker.PlanPlaceholder)
-	ref, err := c.t.CreateIssue(target, *title, body, []string{"cc:task"})
+	body := fmt.Sprintf(taskTemplate, goal, requirements, tracker.PlanPlaceholder)
+	ref, err := c.t.CreateIssue(target, title, body, []string{"cc:task"})
 	if err != nil {
 		return err
 	}
@@ -72,6 +68,82 @@ func taskNew(w io.Writer, args []string) error {
 	}
 	fmt.Fprintf(w, "created task %s as a sub-issue of %s\n", ref, milestone.Ref)
 	return nil
+}
+
+// milestoneLookupAttempts bounds how many times task new reads the listings
+// for a milestone that is not there yet, and milestoneLookupWait is the
+// pause between reads. Three refusals in a row hit a milestone created
+// seconds earlier before the fourth call found it (#234); a few seconds is
+// the window the listing has been seen to lag by (#195).
+const (
+	milestoneLookupAttempts = 3
+	milestoneLookupWait     = 2 * time.Second
+)
+
+// sleep is a func var so tests record the waits instead of taking them.
+var sleep = time.Sleep
+
+// resolveMilestone finds the open milestone M<n> in the hub. The open
+// milestone listing is label-filtered and eventually consistent: it can lag
+// an issue created seconds ago (#195, #234), so a miss is not yet NOT_FOUND.
+// The unfiltered newest issues are read for an `M<n>:` title — accepted
+// when the issue itself carries cc:milestone and is open — and, failing
+// that, the reads repeat after a short wait, bounded. A milestone found by
+// either route is reported on w, so the record shows the listing lagged.
+func resolveMilestone(c *ctx, w io.Writer, n int) (*tracker.Milestone, error) {
+	for attempt := 1; ; attempt++ {
+		milestones, err := c.t.OpenMilestones(c.hub)
+		if err != nil {
+			return nil, err
+		}
+		for i := range milestones {
+			if got, ok := tracker.MilestoneNumber(milestones[i].Title); ok && got == n {
+				if attempt > 1 {
+					fmt.Fprintf(w, "milestone M%d (%s) appeared in the listing on read %d — the label-filtered listing lags a milestone created seconds ago\n", n, milestones[i].Ref, attempt)
+				}
+				return &milestones[i], nil
+			}
+		}
+		m, err := recentMilestone(c, n)
+		if err != nil {
+			return nil, err
+		}
+		if m != nil {
+			fmt.Fprintf(w, "milestone M%d (%s) is not in the open-milestone listing yet, found among the hub's newest issues — the label-filtered listing lags a milestone created seconds ago\n", n, m.Ref)
+			return m, nil
+		}
+		if attempt == milestoneLookupAttempts {
+			return nil, refuse("NOT_FOUND", "no open milestone M%d in %s after %d reads of the listing %v apart — the listing can lag a milestone created seconds ago, so retry in a moment if milestone new just created it; gh codecrew status lists the open milestones", n, c.hub, attempt, milestoneLookupWait)
+		}
+		sleep(milestoneLookupWait)
+	}
+}
+
+// recentMilestone looks for M<n> among the hub's newest issues regardless
+// of label — the second source milestone new reads for the same reason
+// (#209). A title match is confirmed on the issue itself: it must carry
+// cc:milestone and be open, since the listing is unfiltered and shows
+// closed issues too. Nil when there is no such milestone.
+func recentMilestone(c *ctx, n int) (*tracker.Milestone, error) {
+	recent, err := c.t.RecentIssues(c.hub)
+	if err != nil {
+		return nil, err
+	}
+	for _, is := range recent {
+		got, ok := tracker.MilestoneNumber(is.Title)
+		if !ok || got != n {
+			continue
+		}
+		t, err := c.t.Task(is.Ref)
+		if err != nil {
+			return nil, err
+		}
+		if t.Closed || !tracker.ContainsLabel(t.Labels, tracker.LabelMilestone) {
+			continue
+		}
+		return &tracker.Milestone{Ref: is.Ref, Title: is.Title}, nil
+	}
+	return nil, nil
 }
 
 func taskStart(w io.Writer, args []string) error {
