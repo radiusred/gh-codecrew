@@ -18,7 +18,8 @@ verbs:
            [--dry-run]                       (print the number, title and requirement IDs it would get; create nothing)
   milestone close <milestone number>         close a milestone (gates: tasks closed, doc merged)
            [--dry-run]                       (print every gate and the sweep; write nothing)
-  milestone evidence <milestone number>      verify every cited link in the milestone's record resolves (M2 → 2)
+  milestone evidence <milestone number>      verify the record's citations resolve: a dead github.com link refuses, a dead external
+                                             link warns; URLs inside code are content, not citations (M2 → 2)
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch

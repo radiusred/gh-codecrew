@@ -24,11 +24,11 @@ branch of yours.
 ## Obligations
 
 - **First act: `gh codecrew milestone evidence <milestone number>`** (M2 →
-  `2`, never the issue number). Every link the record
+  `2`, never the issue number). Every github.com link the record
   cites must resolve before you test against it — a citation that 404s made
   a whole requirement untestable once (M4-R4), and evidence living only in
-  a working tree did it twice more. Do not proceed past
-  `refused[EVIDENCE_UNREACHABLE]`; report it instead. A citation is a URL
+  a working tree did it twice more; that is the refusing condition. Do not
+  proceed past `refused[EVIDENCE_UNREACHABLE]`; report it instead. A citation is a URL
   in prose or in a Markdown link; a URL inside a code span or a fenced
   block is content the verb does not check — a probe target that is
   unreachable by design, a verbatim command or error string
