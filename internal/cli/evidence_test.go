@@ -161,6 +161,9 @@ func TestExtractURLsSkipsCode(t *testing.T) {
 		{"unclosed fence runs to the end", "```\nhttps://example.com/a\nhttps://example.com/b", nil},
 		{"unclosed span is literal", "a lone ` before https://example.com/a and after", []string{"https://example.com/a"}},
 		{"span across words does not fuse them", "`x`https://example.com/a`y`", []string{"https://example.com/a"}},
+		{"fenced block inside a list item, with a language tag", "- Baseline probe, NXDOMAIN by design:\n  ```sh\n  $ curl -sI https://hooks.example.test/\n  curl: (6) Could not resolve host\n  ```\n- Tracked in https://github.com/o/r/issues/64", []string{"https://github.com/o/r/issues/64"}},
+		{"fence opening on the list marker's line", "- ```go\n  http.Get(\"https://zoo.example.test/\")\n  ```\n1. ```\n   https://example.com/ordered\n   ```\nthen https://example.com/after", []string{"https://example.com/after"}},
+		{"a bullet that is not a fence", "- https://example.com/bullet and -- https://example.com/dash", []string{"https://example.com/bullet", "https://example.com/dash"}},
 		{"markdown link outside code", "[the run](https://github.com/o/r/actions/runs/7) after `https://example.com/not-cited`", []string{"https://github.com/o/r/actions/runs/7"}},
 	} {
 		got := extractURLs(tc.text)

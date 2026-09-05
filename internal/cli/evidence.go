@@ -70,8 +70,12 @@ func stripCode(text string) string {
 }
 
 // fenceOpener returns the fence run that opens a code block on this line
-// — three or more backticks or tildes at its start — or "" if none.
+// — three or more backticks or tildes at its start, an info string such as
+// a language tag allowed after them — or "" if none. A fence may open on
+// the same line as a list marker (`- ```sh`): the item's content starts
+// after the marker, so the marker is skipped first.
 func fenceOpener(line string) string {
+	line = strings.TrimLeft(skipListMarker(line), " \t")
 	if line == "" || (line[0] != '`' && line[0] != '~') {
 		return ""
 	}
@@ -83,6 +87,28 @@ func fenceOpener(line string) string {
 		return ""
 	}
 	return line[:n]
+}
+
+// skipListMarker drops a leading bullet (-, *, +) or ordered marker (1.,
+// 1)) and the space after it; a line with no marker is returned as is.
+func skipListMarker(line string) string {
+	rest := line
+	if len(rest) > 0 && strings.ContainsRune("-*+", rune(rest[0])) {
+		rest = rest[1:]
+	} else {
+		n := 0
+		for n < len(rest) && rest[n] >= '0' && rest[n] <= '9' {
+			n++
+		}
+		if n == 0 || n > 9 || n >= len(rest) || (rest[n] != '.' && rest[n] != ')') {
+			return line
+		}
+		rest = rest[n+1:]
+	}
+	if rest == "" || (rest[0] != ' ' && rest[0] != '\t') {
+		return line
+	}
+	return rest
 }
 
 // stripSpans replaces every closed inline code span on one line with a
