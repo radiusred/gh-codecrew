@@ -124,9 +124,9 @@ func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
 }
 
 // checkpoint accepts a milestone ref — a question about a requirement has
-// no task to carry it — and says so: nothing mechanical blocks on that
-// label, status lists the gate instead. A task keeps the task finish
-// wording (#200), and so does a pull request — the scaffold PR carries the
+// no task to carry it — and says what holds there: status lists the gate
+// and milestone close refuses on it (#200, #219). A task keeps the task
+// finish wording, and so does a pull request — the scaffold PR carries the
 // pre-milestone gate (roles/coordinator.md) and must stay a valid target
 // (checky's finding on PR #218).
 func TestRaiseGateWordingByTarget(t *testing.T) {
@@ -139,7 +139,7 @@ func TestRaiseGateWordingByTarget(t *testing.T) {
 	}{
 		{"task", []string{"cc:task"}, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
 		{"pull request", nil, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
-		{"milestone", []string{tracker.LabelMilestone}, "`status` lists this gate beside the tasks' gates", "gate raised on o/r#6 (milestone issue) — status lists it beside the tasks' gates until a human removes cc:needs-decision\n", "`task finish` refuses"},
+		{"milestone", []string{tracker.LabelMilestone}, "`status` lists this gate beside the tasks' gates and `milestone close` refuses while the label is present", "gate raised on o/r#6 (milestone issue) — status lists it and milestone close refuses until a human removes cc:needs-decision\n", "`task finish` refuses"},
 	} {
 		f := &gateFake{labels: tc.labels}
 		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
