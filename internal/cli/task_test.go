@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
@@ -158,5 +160,170 @@ func TestRaiseGateWordingByTarget(t *testing.T) {
 		if len(f.added) != 1 || f.added[0] != tracker.LabelNeedsDecision {
 			t.Errorf("%s: labels added = %q", tc.name, f.added)
 		}
+	}
+}
+
+// taskNewFake answers OpenMilestones and RecentIssues from successive
+// listings, the last one repeating — a listing that catches up between
+// reads, or never does.
+type taskNewFake struct {
+	tracker.Tracker
+	open    [][]tracker.Milestone   // successive OpenMilestones answers
+	recent  [][]tracker.TitledIssue // successive RecentIssues answers
+	issues  map[int]tracker.Task    // what Task answers for a hub issue number
+	oCalls  int
+	rCalls  int
+	created []string
+	linked  []string // "<parent> <- <child>" per AddSubIssue
+}
+
+func (f *taskNewFake) OpenMilestones(string) ([]tracker.Milestone, error) {
+	f.oCalls++
+	if len(f.open) == 0 {
+		return nil, nil
+	}
+	k := f.oCalls - 1
+	if k >= len(f.open) {
+		k = len(f.open) - 1
+	}
+	return f.open[k], nil
+}
+func (f *taskNewFake) RecentIssues(string) ([]tracker.TitledIssue, error) {
+	f.rCalls++
+	return nth(f.recent, f.rCalls-1), nil
+}
+func (f *taskNewFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	t, ok := f.issues[ref.Number]
+	if !ok {
+		return tracker.Task{}, errors.New("issue not found")
+	}
+	return t, nil
+}
+func (f *taskNewFake) CreateIssue(repo, title, _ string, _ []string) (tracker.IssueRef, error) {
+	f.created = append(f.created, title)
+	return tracker.IssueRef{Repo: repo, Number: 21}, nil
+}
+func (f *taskNewFake) AddSubIssue(parent, child tracker.IssueRef) error {
+	f.linked = append(f.linked, parent.String()+" <- "+child.String())
+	return nil
+}
+
+func openMilestone(n int, title string) tracker.Milestone {
+	return tracker.Milestone{Ref: tracker.IssueRef{Repo: "o/hub", Number: n}, Title: title}
+}
+
+// recordSleeps swaps the sleeper for one that records the waits it was
+// asked for, so the tests take none of them.
+func recordSleeps(t *testing.T) *[]time.Duration {
+	t.Helper()
+	var waits []time.Duration
+	prev := sleep
+	sleep = func(d time.Duration) { waits = append(waits, d) }
+	t.Cleanup(func() { sleep = prev })
+	return &waits
+}
+
+func taskNewCtx(f *taskNewFake) *ctx {
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
+	return &ctx{cfg: cfg, roles: cfg, current: "o/hub", hub: "o/hub", t: f}
+}
+
+// The listing has the milestone: one read, no wait, no note.
+func TestTaskNewFindsTheMilestoneFirstTime(t *testing.T) {
+	waits := recordSleeps(t)
+	f := &taskNewFake{open: [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}}}
+	var out bytes.Buffer
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+		t.Fatal(err)
+	}
+	if f.oCalls != 1 || f.rCalls != 0 || len(*waits) != 0 {
+		t.Errorf("a fresh listing was read %d times, recent %d, waits %v", f.oCalls, f.rCalls, *waits)
+	}
+	if got := out.String(); got != "created task o/spoke#21 as a sub-issue of o/hub#233\n" {
+		t.Errorf("output:\n%s", got)
+	}
+	if len(f.linked) != 1 || f.linked[0] != "o/hub#233 <- o/spoke#21" {
+		t.Errorf("linked %v", f.linked)
+	}
+}
+
+// The #234 failure: milestone new created M11 seconds ago and neither
+// listing has it on the first read. The verb waits and reads again instead
+// of refusing, and says the listing lagged.
+func TestTaskNewWaitsForAListingThatCatchesUp(t *testing.T) {
+	waits := recordSleeps(t)
+	f := &taskNewFake{
+		open:   [][]tracker.Milestone{{openMilestone(200, "M10: Field fixes")}, {openMilestone(200, "M10: Field fixes")}, {openMilestone(200, "M10: Field fixes"), openMilestone(233, "M11: Housekeeping")}},
+		recent: listing(issue(9, "a plain issue"), issue(200, "M10: Field fixes")),
+	}
+	var out bytes.Buffer
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+		t.Fatal(err)
+	}
+	if f.oCalls != 3 || f.rCalls != 2 {
+		t.Errorf("read the open listing %d times and recent %d, want 3 and 2 (the third open read found it)", f.oCalls, f.rCalls)
+	}
+	if want := []time.Duration{milestoneLookupWait, milestoneLookupWait}; !reflect.DeepEqual(*waits, want) {
+		t.Errorf("waits %v, want %v", *waits, want)
+	}
+	got := out.String()
+	if !strings.Contains(got, "milestone M11 (o/hub#233) appeared in the listing on read 3") || !strings.Contains(got, "created task o/spoke#21 as a sub-issue of o/hub#233") {
+		t.Errorf("output:\n%s", got)
+	}
+}
+
+// The unfiltered newest issues catch the milestone the label-filtered
+// listing has not indexed yet, so no wait is needed — but only an open
+// issue carrying cc:milestone counts: a closed one, or a plain issue whose
+// title happens to start "M11:", is not the milestone.
+func TestTaskNewFallsBackToTheRecentIssues(t *testing.T) {
+	waits := recordSleeps(t)
+	f := &taskNewFake{
+		open:   [][]tracker.Milestone{{openMilestone(200, "M10: Field fixes")}},
+		recent: listing(issue(235, "M11: a plain issue with the prefix"), issue(234, "M11: Housekeeping, closed by mistake"), issue(233, "M11: Housekeeping")),
+		issues: map[int]tracker.Task{
+			235: {Labels: []string{"cc:task"}},
+			234: {Labels: []string{"cc:milestone"}, Closed: true},
+			233: {Labels: []string{"cc:milestone"}},
+		},
+	}
+	var out bytes.Buffer
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+		t.Fatal(err)
+	}
+	if f.oCalls != 1 || f.rCalls != 1 || len(*waits) != 0 {
+		t.Errorf("read the open listing %d times and recent %d with waits %v; want one read each and no wait", f.oCalls, f.rCalls, *waits)
+	}
+	got := out.String()
+	if !strings.Contains(got, "milestone M11 (o/hub#233) is not in the open-milestone listing yet, found among the hub's newest issues") || !strings.Contains(got, "created task o/spoke#21 as a sub-issue of o/hub#233") {
+		t.Errorf("output:\n%s", got)
+	}
+}
+
+// Never found: NOT_FOUND after the bounded reads, with exactly the waits
+// between them, nothing created, and a detail that says the listing may lag.
+func TestTaskNewRefusesNotFoundAfterBoundedRetries(t *testing.T) {
+	waits := recordSleeps(t)
+	f := &taskNewFake{
+		open:   [][]tracker.Milestone{{openMilestone(200, "M10: Field fixes")}},
+		recent: listing(issue(9, "a plain issue"), issue(200, "M10: Field fixes")),
+	}
+	var out bytes.Buffer
+	err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1")
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "NOT_FOUND" {
+		t.Fatalf("err = %v, want refused[NOT_FOUND]", err)
+	}
+	if !strings.Contains(r.Detail, "no open milestone M11 in o/hub after 3 reads") || !strings.Contains(r.Detail, "lag a milestone created seconds ago") {
+		t.Errorf("detail: %s", r.Detail)
+	}
+	if f.oCalls != milestoneLookupAttempts || f.rCalls != milestoneLookupAttempts {
+		t.Errorf("read the open listing %d times and recent %d, want %d each", f.oCalls, f.rCalls, milestoneLookupAttempts)
+	}
+	if want := []time.Duration{milestoneLookupWait, milestoneLookupWait}; !reflect.DeepEqual(*waits, want) {
+		t.Errorf("waits %v, want %v", *waits, want)
+	}
+	if len(f.created) != 0 || len(f.linked) != 0 || out.Len() != 0 {
+		t.Errorf("a refusal created %v, linked %v, printed %q", f.created, f.linked, out.String())
 	}
 }
