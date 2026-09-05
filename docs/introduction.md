@@ -147,7 +147,9 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 
 **`task new`**
 
-- `NOT_FOUND` — no open milestone with that number in the hub.
+- `NOT_FOUND` — no open milestone with that number in the hub, after the
+  verb has also read the hub's newest issues and retried for a few seconds:
+  the listing can lag a milestone created seconds earlier.
 
 **`task start`**
 

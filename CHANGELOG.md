@@ -6,7 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### task new waits for a milestone the listing has not caught up with
+- `task new --milestone <n>` no longer trusts a single read of the
+  open-milestone listing. When the listing lacks `M<n>` it reads the hub's
+  newest issues regardless of label and accepts an open `M<n>:` issue carrying
+  `cc:milestone` there; failing that it waits two seconds and reads both
+  again, three reads in all, before `refused[NOT_FOUND]` — whose detail now
+  says the listing can lag a milestone created seconds ago. A milestone found
+  by either fallback is noted in the output. Three `task new` calls straight
+  after `milestone new` were refused in the field and the fourth, seconds
+  later, succeeded: the label-filtered listing lags a just-created issue, the
+  same window #209 closed for `milestone new`'s own number check. The
+  coordinator contract says a `task new` right after `milestone new` may take
+  a moment and retries itself; SPEC's `task new` row and the introduction's
+  refusal list describe the resolution. Adopts #234. (#243)
 
 ## [1.2.0] — 2026-09-05
 

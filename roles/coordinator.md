@@ -57,7 +57,12 @@ read every seat's credentials through its own 401
   its number against the listing again and renumbers a collision itself,
   so read its output — a `renumbered:` line means the number the issue
   carries is not the one first printed, and `refused[MILESTONE_NUMBER_TAKEN]`
-  names the two issues and the hand fix (#195).
+  names the two issues and the hand fix (#195). A `task new` run straight
+  after `milestone new` may take a moment: the listing it resolves the
+  number through can lag the issue just created, so the verb reads the
+  hub's newest issues as well and retries itself for a few seconds before
+  `refused[NOT_FOUND]` — a note in its output says when the listing lagged.
+  Do not script a pause or a retry loop around it (#234).
 - **Every task opens with a goal and its requirement IDs; none starts
   without a plan.** `gh codecrew task new --milestone <n>`; the seat writes
   the plan and runs `task start`. A seat dispatched with no task issue
