@@ -121,8 +121,10 @@ read every seat's credentials through its own 401
   met as written — has no task to carry it: raise it on the milestone
   issue (`gh codecrew checkpoint <hub>#<milestone issue> --question "…"`).
   `status` lists that gate beside the tasks' gates, marked `(milestone)`,
-  and on the milestone's own line; nothing mechanical blocks on it, so the
-  board is where it is seen (#200). Before the first milestone exists the
+  and on the milestone's own line (#200), and `milestone close` refuses
+  (`refused[MILESTONE_GATED]`) while the label is present (#219) — resolve
+  it on the record, never strip the label to get past the gate. Before the
+  first milestone exists the
   record has no issue to gate on: record the gate on the scaffold PR
   itself, in the same `**Gate raised:**` / `**Gate resolved:**` form (#164,
   finding 52).

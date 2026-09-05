@@ -6,6 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### milestone close refuses while the milestone issue carries a gate
+- `milestone close` reads the milestone issue's own labels and refuses
+  `MILESTONE_GATED` while `cc:needs-decision` is on it — a requirement-level
+  question raised there by `checkpoint` (#200) could until now stay open
+  while the milestone closed under it (#219). The gate is the close's
+  second, after "milestone open" and before "tasks closed", named "no gate
+  raised" as `task finish`'s is; `--dry-run` prints the gate line and marks
+  the rest not reached. `checkpoint`'s milestone-issue comment and receipt
+  say the close refuses, beside `status` listing the gate. SPEC's
+  `milestone close` row and §8, the introduction's refusal-code list
+  (thirty-one → thirty-two, with the README's count) and the coordinator
+  contract follow. (#244)
+
 ### A link is a citation; code is content
 - `milestone evidence` checks the links a record cites — a URL in prose or
   in a Markdown link — and not every URL in it: a URL inside an inline code
