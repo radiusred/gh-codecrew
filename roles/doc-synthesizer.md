@@ -30,6 +30,15 @@ a 401 means mint again; commit as the App's bot user), using
   never recorded, say so explicitly ("undocumented decision, inferred from…")
   rather than papering over the gap; the gap itself is feedback on protocol
   discipline.
+- **A link is a citation; code is content.** `gh codecrew milestone
+  evidence` checks every URL a record cites — in prose or in a Markdown
+  link — and refuses when a github.com citation does not resolve. A URL
+  that is not evidence — a probe target that is unreachable by design, a
+  hostname in a verbatim command or error string — goes inside a code span
+  or a fenced block, where the verb does not read it; the record keeps the
+  hostname, and nobody edits a comment to hide it from the scanner
+  ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Quote
+  such URLs the same way in the milestone document.
 - **Requirement outcomes:** a short table of requirement IDs with their final
   status, drawn from QA verdicts and task closure.
 - **Add the ROADMAP row.** The document PR appends the milestone's row to

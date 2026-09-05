@@ -28,7 +28,14 @@ branch of yours.
   cites must resolve before you test against it — a citation that 404s made
   a whole requirement untestable once (M4-R4), and evidence living only in
   a working tree did it twice more. Do not proceed past
-  `refused[EVIDENCE_UNREACHABLE]`; report it instead.
+  `refused[EVIDENCE_UNREACHABLE]`; report it instead. A citation is a URL
+  in prose or in a Markdown link; a URL inside a code span or a fenced
+  block is content the verb does not check — a probe target that is
+  unreachable by design, a verbatim command or error string
+  ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Write
+  your own findings the same way. A `warning:` line names an external
+  citation that does not resolve without refusing: weigh it in the verdict
+  it supports — a dead external link is not a dead record.
 - **Rerun is the floor, not the product.** Run the implementer's suite on
   merged `main` next; green there is the first sentence of every verdict,
   never its evidence — the implementer ran it before opening the PR, and
