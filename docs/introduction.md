@@ -131,7 +131,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-one, by the verb that raises
+the agent; the detail is for the human. All thirty-two, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -205,9 +205,12 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   to the next free number and rewrite its `M<n>-R<k>` IDs. A repair that
   succeeds is not a refusal — it prints a `renumbered:` line.
 
-**`milestone close`**
+**`milestone close`** (in the order the gates are checked)
 
 - `NOT_FOUND` — no open milestone with that number.
+- `MILESTONE_GATED` — the milestone issue itself carries `cc:needs-decision`:
+  a requirement-level question raised there by `checkpoint`; a human
+  resolves it with a `**Gate resolved:**` comment and removes the label.
 - `OPEN_TASKS` — tasks are still open, listed with their inferred state.
 - `NO_REQUIREMENTS` — the milestone's `## Requirements` section yields no
   bold IDs, so there is nothing to verdict; IDs written elsewhere in the
