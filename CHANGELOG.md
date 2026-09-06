@@ -6,6 +6,25 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `task finish` tidies the clone it ran in
+- **The local task branch goes with the remote one.** `task finish` merged
+  the PR and deleted the head branch on GitHub, and left the operator
+  standing on a local branch whose upstream had just vanished — eighteen of
+  them after one milestone close, all safely merged, none deletable with
+  `git branch -d` because a rebase-merge rewrites the commits (#192). The
+  verb now finishes the job in the clone it runs in: it fetches with
+  `--prune`, switches off the task branch to the default branch,
+  fast-forwards that branch to the merge, and deletes the local task
+  branch, printing every step. The force-delete is allowed on two grounds
+  only — the branch sits at the commit GitHub merged, or it is contained in
+  the fetched default branch — so a branch with an unpushed commit is named
+  and kept, and a local default branch that has diverged is named and left
+  alone. Outside a repository, in a clone of another repo, or with no local
+  branch of that name, nothing happens and nothing is printed; `--dry-run`
+  names the local steps beside the remote gates without fetching or moving
+  a ref. The CLI can only tidy the clone it runs in — a multi-clone setup
+  still sweeps the others (#271).
+
 ### The M13 record
 - `docs/milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md`
   — the milestone document for "Protocol 2.0: the .codecrew/ layout and what
