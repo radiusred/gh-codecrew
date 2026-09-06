@@ -15,14 +15,30 @@ import (
 type finishFake struct {
 	tracker.Tracker
 	task     tracker.Task
+	body     string               // the task issue body — its ## Adopts section is what finish reads
+	issues   map[int]tracker.Task // adopted captures, by number; anything else answers f.task
+	mergeSHA string
 	comments []tracker.Comment
 	viewer   string
 	prs      []int
 	pr       tracker.PR
 	writes   []string
+	closed   []string // the closing comment of every CloseIssue, in order
 }
 
-func (f *finishFake) Task(tracker.IssueRef) (tracker.Task, error)          { return f.task, nil }
+func (f *finishFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	if issue, ok := f.issues[ref.Number]; ok {
+		return issue, nil
+	}
+	return f.task, nil
+}
+func (f *finishFake) IssueBody(tracker.IssueRef) (string, error) { return f.body, nil }
+func (f *finishFake) MergeCommit(string, int) (string, error)    { return f.mergeSHA, nil }
+func (f *finishFake) CloseIssue(ref tracker.IssueRef, c string) error {
+	f.writes = append(f.writes, "close "+ref.String())
+	f.closed = append(f.closed, c)
+	return nil
+}
 func (f *finishFake) Comments(tracker.IssueRef) ([]tracker.Comment, error) { return f.comments, nil }
 func (f *finishFake) Viewer() (string, error)                              { return f.viewer, nil }
 func (f *finishFake) ClosingPRs(tracker.IssueRef, bool) ([]int, error)     { return f.prs, nil }
@@ -531,5 +547,76 @@ func TestHumanSeatHolderIsNotCrew(t *testing.T) {
 	p, _, _ = planFinish(finishCtx(f, soloReview), f.task.Ref, true, false)
 	if !errors.As(p.refusal, &r) || r.Code != "SELF_CONFIRM" {
 		t.Errorf("app:-typed holder's confirmation = %v, want SELF_CONFIRM", p.refusal)
+	}
+}
+
+// The captures a task adopted are closed by the merge that delivers them,
+// so no PR body has to remember a Closes line (#193). The dry run lists
+// each one beside the branch cleanup and writes nothing; the live run
+// closes the open capture with a comment naming the task, the PR and the
+// commit the merge left, and reports the already-closed one as a note
+// rather than failing after a merge that has happened.
+func TestPlanFinishClosesTheAdoptedCaptures(t *testing.T) {
+	f := cleanFinish()
+	f.body = "## Goal\ng\n\n## Adopts\n- #193 — the capture this task adopts\n- #194 — one closed since\n\n## Plan\np\n"
+	f.issues = map[int]tracker.Task{194: {Closed: true}}
+	f.mergeSHA = "d1ff00d"
+	c := finishCtx(f, crewRoles)
+
+	p, run, err := planFinish(c, f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	p.print(&buf)
+	for _, want := range []string{"would close o/r#193 (adopted)", "would skip o/r#194: already closed (adopted)", "would delete head task/7-x"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("report lacks %q:\n%s", want, buf.String())
+		}
+	}
+	if len(f.writes) != 0 {
+		t.Fatalf("planning wrote: %v", f.writes)
+	}
+
+	buf.Reset()
+	if err := run(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(f.writes, ","); got != "merge,close o/r#193,delete task/7-x" {
+		t.Errorf("run wrote %v", f.writes)
+	}
+	if len(f.closed) != 1 || f.closed[0] != tracker.AdoptionClose(f.task.Ref, tracker.IssueRef{Repo: "o/r", Number: 9}, "d1ff00d") {
+		t.Fatalf("closing comment %q", f.closed)
+	}
+	for _, want := range []string{"o/r#7", "o/r#9", "d1ff00d"} {
+		if !strings.Contains(f.closed[0], want) {
+			t.Errorf("closing comment does not name %s: %s", want, f.closed[0])
+		}
+	}
+	for _, want := range []string{"closed o/r#193 (adopted by o/r#7)\n", "note: o/r#194 was already closed (adopted by o/r#7)\n"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, buf.String())
+		}
+	}
+}
+
+// A task that adopts nothing reads its body, finds no section, and does
+// nothing further: no close, and no merge-commit read either.
+func TestPlanFinishWithoutAdoptionsClosesNothing(t *testing.T) {
+	f := cleanFinish()
+	f.body = "## Goal\ng\n\n## Plan\np\n"
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	if err := run(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(f.writes, ",") != "merge,delete task/7-x" {
+		t.Errorf("run wrote %v", f.writes)
+	}
+	if strings.Contains(buf.String(), "adopted") {
+		t.Errorf("output mentions adoption:\n%s", buf.String())
 	}
 }

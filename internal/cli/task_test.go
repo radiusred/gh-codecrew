@@ -176,7 +176,9 @@ type taskNewFake struct {
 	oCalls  int
 	rCalls  int
 	created []string
+	body    string   // the body of the issue CreateIssue was last given
 	linked  []string // "<parent> <- <child>" per AddSubIssue
+	posted  []string // "<ref>: <body>" per Comment
 }
 
 func (f *taskNewFake) OpenMilestones(string) ([]tracker.Milestone, error) {
@@ -201,9 +203,14 @@ func (f *taskNewFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
 	}
 	return t, nil
 }
-func (f *taskNewFake) CreateIssue(repo, title, _ string, _ []string) (tracker.IssueRef, error) {
+func (f *taskNewFake) CreateIssue(repo, title, body string, _ []string) (tracker.IssueRef, error) {
 	f.created = append(f.created, title)
+	f.body = body
 	return tracker.IssueRef{Repo: repo, Number: 21}, nil
+}
+func (f *taskNewFake) Comment(ref tracker.IssueRef, body string) error {
+	f.posted = append(f.posted, ref.String()+": "+body)
+	return nil
 }
 func (f *taskNewFake) AddSubIssue(parent, child tracker.IssueRef) error {
 	f.linked = append(f.linked, parent.String()+" <- "+child.String())
@@ -235,7 +242,7 @@ func TestTaskNewFindsTheMilestoneFirstTime(t *testing.T) {
 	waits := recordSleeps(t)
 	f := &taskNewFake{open: [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}}}
 	var out bytes.Buffer
-	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", nil); err != nil {
 		t.Fatal(err)
 	}
 	if f.oCalls != 1 || f.rCalls != 0 || len(*waits) != 0 {
@@ -259,7 +266,7 @@ func TestTaskNewWaitsForAListingThatCatchesUp(t *testing.T) {
 		recent: listing(issue(9, "a plain issue"), issue(200, "M10: Field fixes")),
 	}
 	var out bytes.Buffer
-	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", nil); err != nil {
 		t.Fatal(err)
 	}
 	if f.oCalls != 3 || f.rCalls != 2 {
@@ -290,7 +297,7 @@ func TestTaskNewFallsBackToTheRecentIssues(t *testing.T) {
 		},
 	}
 	var out bytes.Buffer
-	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1"); err != nil {
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", nil); err != nil {
 		t.Fatal(err)
 	}
 	if f.oCalls != 1 || f.rCalls != 1 || len(*waits) != 0 {
@@ -311,7 +318,7 @@ func TestTaskNewRefusesNotFoundAfterBoundedRetries(t *testing.T) {
 		recent: listing(issue(9, "a plain issue"), issue(200, "M10: Field fixes")),
 	}
 	var out bytes.Buffer
-	err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1")
+	err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", nil)
 	var r refusal
 	if !errors.As(err, &r) || r.Code != "NOT_FOUND" {
 		t.Fatalf("err = %v, want refused[NOT_FOUND]", err)
@@ -327,5 +334,74 @@ func TestTaskNewRefusesNotFoundAfterBoundedRetries(t *testing.T) {
 	}
 	if len(f.created) != 0 || len(f.linked) != 0 || out.Len() != 0 {
 		t.Errorf("a refusal created %v, linked %v, printed %q", f.created, f.linked, out.String())
+	}
+}
+
+// --adopts is repeatable and comma-separated, resolves a bare number
+// against the task's own repo and a full ref anywhere, collapses a
+// duplicate, and leaves the capture's title in the body for the reader.
+// The section it writes is the section task finish reads back.
+func TestTaskNewAdoptsWritesTheSectionAndRecordsIt(t *testing.T) {
+	f := &taskNewFake{
+		open: [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}},
+		issues: map[int]tracker.Task{
+			193: {Title: "carry an adopted backlog issue"},
+			194: {Title: "the tidy verb"},
+			7:   {Title: "a capture in another repo"},
+		},
+	}
+	var out bytes.Buffer
+	if err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", []string{"193, #194", "o/other#7", "193"}); err != nil {
+		t.Fatal(err)
+	}
+	want := "## Requirements\nM11-R1\n\n## Adopts\n- #193 — carry an adopted backlog issue\n- #194 — the tidy verb\n- o/other#7 — a capture in another repo\n\n## Plan\n"
+	if !strings.Contains(f.body, want) {
+		t.Errorf("body:\n%s\nwant the section:\n%s", f.body, want)
+	}
+	task := tracker.IssueRef{Repo: "o/spoke", Number: 21}
+	refs := tracker.AdoptedRefs(f.body, "o/spoke")
+	if want := []tracker.IssueRef{{Repo: "o/spoke", Number: 193}, {Repo: "o/spoke", Number: 194}, {Repo: "o/other", Number: 7}}; !reflect.DeepEqual(refs, want) {
+		t.Errorf("the section reads back as %v, want %v", refs, want)
+	}
+	var wantPosts []string
+	for _, ref := range refs {
+		wantPosts = append(wantPosts, ref.String()+": "+tracker.AdoptionRecord(task))
+	}
+	if !reflect.DeepEqual(f.posted, wantPosts) {
+		t.Errorf("comments posted:\n%v\nwant:\n%v", f.posted, wantPosts)
+	}
+	for _, line := range []string{"created task o/spoke#21 as a sub-issue of o/hub#233\n", "adopts o/spoke#193 — recorded on the capture\n", "adopts o/other#7 — recorded on the capture\n"} {
+		if !strings.Contains(out.String(), line) {
+			t.Errorf("output lacks %q:\n%s", line, out.String())
+		}
+	}
+}
+
+// A ref that is not an open issue refuses ADOPT_NOT_OPEN — unreadable and
+// closed are the two ways, one code — and refuses before the task is
+// created, so nothing is half-adopted.
+func TestTaskNewRefusesAnAdoptionThatIsNotOpen(t *testing.T) {
+	for _, tc := range []struct {
+		name, ref, detail string
+	}{
+		{"unknown", "404", "could not be read"},
+		{"closed", "193", "is closed"},
+	} {
+		f := &taskNewFake{
+			open:   [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}},
+			issues: map[int]tracker.Task{193: {Title: "already delivered", Closed: true}},
+		}
+		var out bytes.Buffer
+		err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", []string{tc.ref})
+		var r refusal
+		if !errors.As(err, &r) || r.Code != "ADOPT_NOT_OPEN" {
+			t.Fatalf("%s: err = %v, want refused[ADOPT_NOT_OPEN]", tc.name, err)
+		}
+		if !strings.Contains(r.Detail, "o/spoke#"+tc.ref) || !strings.Contains(r.Detail, tc.detail) {
+			t.Errorf("%s: detail = %s", tc.name, r.Detail)
+		}
+		if len(f.created) != 0 || len(f.linked) != 0 || len(f.posted) != 0 || out.Len() != 0 {
+			t.Errorf("%s: a refusal created %v, linked %v, posted %v, printed %q", tc.name, f.created, f.linked, f.posted, out.String())
+		}
 	}
 }
