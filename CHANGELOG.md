@@ -6,6 +6,42 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Protocol 2.0: the .codecrew/ layout
+- **Breaking.** Every CodeCrew-owned operational file moves under
+  `.codecrew/`: the pointer from `.codecrew.yml` to `.codecrew/config.yml`,
+  the role contracts and their local extensions from `roles/` to
+  `.codecrew/roles/`, in hub and spoke alike. The framework had been writing
+  into the root of repositories it does not own, where `roles/` collides with
+  real project layouts (Ansible's, for one). `init` writes the new tree,
+  `config.Load` walks upward for the new pointer — reporting the directory
+  that *contains* `.codecrew/`, so every path is still resolved from the repo
+  root — and drift, `roles diff`, `roles show`, the spoke's hub fetch and the
+  contract provenance stamp all read and name it. The human-facing record
+  does not move: `ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and
+  `CLAUDE.md` stay at the root. The protocol version is `2.0`, and `init`
+  writes it.
+- **A 2.0 binary refuses a 1.x repo; it does not read one.** A root
+  `.codecrew.yml`, or a root `roles/` holding one of the five contracts, with
+  no `.codecrew/config.yml` above it, refuses `refused[LAYOUT_LEGACY]` naming
+  what was found and `gh codecrew migrate` — the one-shot verb that moves a
+  repo forward, arriving in this release. There is no dual-read and no
+  compatibility shim anywhere. `init` reads no pointer, so it is exempt from
+  the protocol check, but it raises the same refusal rather than writing a
+  second layout beside the first.
+- `PROTOCOL_MISMATCH` stops being symmetric: a pointer ahead of the binary
+  asks for an extension upgrade, one behind it is told the repo predates this
+  protocol and is moved with `migrate`. Neither wording asks anyone to edit
+  the version field by hand — it describes the repo rather than choosing for
+  it.
+- This hub's own files moved in the same change, the embedded contracts being
+  built from them. SPEC §3 (paths, and the blessing of the single `hub:`
+  field: a spoke belongs to one hub, and a task created in a spoke by another
+  hub's milestone resolves its hub through its parent milestone, not the
+  pointer — #177), §5, §6, §7 and §10 follow, as do the five contracts,
+  `AGENTS.md`, the README and the docs; the introduction's refusal-code list
+  gains `LAYOUT_LEGACY` (thirty-four → thirty-five, with the README's count).
+  (#255)
+
 ### Typed identities in the routing table
 - A routing row's `identity` now names the kind of GitHub principal that
   holds the seat: `~` (the operator, and any session acting under the
@@ -72,9 +108,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - `status` no longer stops at `no open milestones in <hub>`: that line replaces
   the board and the gates section, and the two advisory checks below it still
   run — the delete-branch-on-merge note and the contract-drift report. Drift is
-  purely local (the hub's `roles/` against the contracts embedded in the
-  binary) and has nothing to do with milestone state, and the quiet period
-  between milestones is exactly when an operator reconciles a fork against a
+  purely local (the hub's `.codecrew/roles/` against the contracts embedded
+  in the binary) and has nothing to do with milestone state, and the quiet
+  period between milestones is exactly when an operator reconciles a fork
+  against a
   new release; a hub in that state had shown no drift line while
   `roles diff` showed the divergence (#253).
 - `milestone evidence <n>` resolves a closed milestone too, reading the hub's

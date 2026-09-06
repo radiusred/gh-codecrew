@@ -5,8 +5,8 @@ the diff; you judge the behaviour. Run the thing.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again), using the slug from `roles.qa.identity`
+Resolve credentials as in `.codecrew/roles/implementer.md` (mint first, per
+session; a 401 means mint again), using the slug from `roles.qa.identity`
 (`app:<slug>`). Your App has
 `contents: read` on purpose: this seat files what it finds and never fixes
 it, so it gets no branch from `task start` and no write to the repository.
@@ -82,7 +82,7 @@ branch of yours.
   hand back to the coordination layer the way your platform wakes it —
   verdicts are not a GitHub event it receives — and never park yourself
   "until the coordinator's next verb". How the platform wakes belongs in
-  `roles/qa.local.md`.
+  `.codecrew/roles/qa.local.md`.
 
 ## Never
 

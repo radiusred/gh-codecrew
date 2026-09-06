@@ -58,12 +58,12 @@ One thing worth knowing up front: `gh` never auto-updates extensions — not
 for patches, not for majors. Updating is always your act:
 `gh extension upgrade codecrew`, then `gh codecrew version` to confirm.
 
-`init` writes your `.codecrew.yml` (the project's pointer file, with a
+`init` writes your `.codecrew/config.yml` (the project's pointer file, with a
 routing table declaring all five roles — `~` means "held by you"), a
-`ROADMAP.md` seed, the five role contracts under `roles/` — each with a
-blank `roles/<role>.local.md` beside it, the place for this project's own
-additions to a contract (the file says what belongs there; it adds
-nothing until you write into it) — and an
+`ROADMAP.md` seed, the five role contracts under `.codecrew/roles/` — each
+with a blank `.codecrew/roles/<role>.local.md` beside it, the place for this
+project's own additions to a contract (the file says what belongs there; it
+adds nothing until you write into it) — and an
 `AGENTS.md` entry point for any agent you later dispatch — plus, from
 v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
 `CLAUDE.md` and never `AGENTS.md` — and commits exactly those files
@@ -211,7 +211,7 @@ requirement, in exactly this form:
 **M1-R1 — satisfied.** Deployed from main, visited the URL, got the greeting.
 ```
 
-The evidence is yours, from your own execution — `roles/qa.md` is the
+The evidence is yours, from your own execution — `.codecrew/roles/qa.md` is the
 contract you just performed.
 
 ## 7. The milestone document
@@ -254,9 +254,11 @@ in the crew, and it's a ladder:
 1. **Split the roles across sessions.** Your agent doing the work and then
    verdicting its own milestone shares one context's blind spots. The cheap
    fix: have your harness launch a sub-agent per role, each briefed with the
-   role's contract from `roles/` (plus any `roles/<role>.local.md` beside
+   role's contract from `.codecrew/roles/` (plus any
+   `.codecrew/roles/<role>.local.md` beside
    it — from the next release, `gh codecrew roles show <role>` prints the
-   two composed) — so a fresh-context QA reading `roles/qa.md` probes what
+   two composed) — so a fresh-context QA reading `.codecrew/roles/qa.md`
+   probes what
    the implementer's context wouldn't. Or cross model families:
    dispatch another LLM through its own CLI for the reviewer or qa seat.
    Same identities, same commands — just different eyes.

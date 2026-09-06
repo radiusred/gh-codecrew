@@ -24,7 +24,7 @@ Prerequisites: a GitHub account, `gh` 2.50.0 or later (`task finish` and
 the close's branch sweep read `gh pr checks --json`, which older `gh`
 lacks; `gh --version`) authenticated (`gh auth login`), the extension
 installed (`gh extension install radiusred/gh-codecrew`), and a
-`.codecrew.yml` in your repo (`hub: self` for a single-repo project).
+`.codecrew/config.yml` in your repo (`hub: self` for a single-repo project).
 
 Everything works, because solo is a routing configuration, not a reduced
 protocol: every role is always staffed, and in pure solo *you* hold each
@@ -33,7 +33,8 @@ tasks, write plans, commit, open PRs, raise and resolve gates. You also
 perform the qa contract yourself: post per-requirement verdicts on the
 milestone issue in the standard `**M1-R1 — satisfied.**` form — the close
 gate counts the qa role holder's verdicts, and unrouted, that is you.
-Declare the routing table in your hub's `.codecrew.yml` at onboarding (all
+Declare the routing table in your hub's `.codecrew/config.yml` at onboarding
+(all
 five roles — the four crew seats and the coordinator that dispatches them —
 `~` for the ones you embody) — `gh codecrew init` scaffolds exactly
 this, along with the roadmap seed and role contracts; an absent table works
@@ -49,7 +50,7 @@ independent principal exists in this project*.
 Two honesty notes:
 
 - The confirmation must come from a **human** identity. An identity carrying
-  `[bot]`, or one routed to a role in `.codecrew.yml`, is refused
+  `[bot]`, or one routed to a role in `.codecrew/config.yml`, is refused
   (`refused[SELF_CONFIRM]`) — agents can never waive review, in any tier.
 - Pure solo means no independent verifier, and the record shows it. That is
   the honest floor, not a failure mode; climb a tier when the review gate
@@ -88,7 +89,8 @@ builds a manifest carrying the role's minimal permission set (the table
 below), serves it as a one-click local URL, and — once you confirm the
 creation on GitHub — stores the returned private key under the
 `~/.config/codecrew/` convention, routes the role in the hub's
-`.codecrew.yml` for you (run it in the hub; `--no-route` skips, and on a
+`.codecrew/config.yml` for you (run it in the hub; `--no-route` skips, and on
+a
 pointer-only spoke it prints the routing line instead), and prints what
 stays manual: installing the App (per-account — see step 4 below) and,
 optionally, giving it the crew logo — the manifest has no avatar field and
@@ -183,7 +185,7 @@ quirk), the manual ritual it automates — one App per role:
    review loop stands. It never pushes, reviews or merges, so `Contents`
    and `Pull requests` stay read, and it reads gate results through the
    verbs, not the checks API. A platform binds this App's credentials to
-   the agent that runs `roles/coordinator.md`
+   the agent that runs `.codecrew/roles/coordinator.md`
    (`identity new coordinator --name <crew-member>` mints it); solo, the
    seat is unrouted and the operator's own `gh` auth is the identity. The
    orchestrator run's coordination layer had no identity at all and read
@@ -200,9 +202,9 @@ quirk), the manual ritual it automates — one App per role:
    installation. The fleet does not cross account boundaries without
    ceremony (found the hard way in M4's QA prep,
    [#41](https://github.com/radiusred/gh-codecrew/issues/41)).
-5. **Route the role** in the hub's `.codecrew.yml`, in the typed form:
-   `roles.<role>.identity: app:<app-slug>`. (`identity new` writes this
-   for you unless you passed `--no-route`.)
+5. **Route the role** in the hub's `.codecrew/config.yml`, in the typed
+   form: `roles.<role>.identity: app:<app-slug>`. (`identity new` writes
+   this for you unless you passed `--no-route`.)
 
 ### Acting as the App
 
@@ -228,7 +230,8 @@ touches `gh`'s config, and refuses with a code when it cannot mint:
 for and how to write the stub by hand), `BAD_CREDENTIALS` (GitHub rejected
 the JWT: key and id disagree, retrying will not help), `NO_INSTALLATION`
 (install the App — step 4), `INSTALLATION_AMBIGUOUS` (several accounts;
-pass the id). It runs from anywhere — no `.codecrew.yml` needed — and the
+pass the id). It runs from anywhere — no `.codecrew/config.yml` needed — and
+the
 `scripts/codecrew-token` the 1.0 contracts pointed at is now a one-line
 wrapper around it. Then:
 
@@ -274,7 +277,8 @@ webhooks and does all dispatching itself. What matters for the dispatch,
 however it is triggered:
 
 - **The contract, composed.** What the session loads is the hub's
-  contract plus the project's local extensions (`roles/<role>.local.md`,
+  contract plus the project's local extensions
+  (`.codecrew/roles/<role>.local.md`,
   hub then spoke — SPEC §7): `gh codecrew roles show <role>` prints exactly
   that, so a dispatch prompt can point at one command instead of a file
   list.
@@ -355,8 +359,8 @@ crash the implementer's tests had missed, refused approval until it was
 fixed, then verified the exact reproduction before approving):
 
 > Act as the CodeCrew reviewer for `<repo>` PR #N. Read AGENTS.md and the
-> hub's roles/reviewer.md first and follow them exactly. You are not the
-> implementer and must not edit code. Inspect the PR diff BEFORE its
+> hub's .codecrew/roles/reviewer.md first and follow them exactly. You are
+> not the implementer and must not edit code. Inspect the PR diff BEFORE its
 > description, then the task and milestone issues. Authenticate as
 > `<app-slug>` (mint a token; never print it — use it only as GH_TOKEN, on
 > the same command line as each gh call). Confirm the identity: the App ID
@@ -478,9 +482,10 @@ stop using the framework:
 - **Record — keep.** Milestone and task issues, their comments, the PRs and
   the merged milestone documents under `docs/milestones/` are the audit
   trail; nothing needs deleting for the framework to be gone.
-- **The pointer, contracts and extensions** — `.codecrew.yml`, `roles/`
-  (the contracts and, from 1.1, the scaffolded `roles/<role>.local.md`
-  extensions beside them — blank unless the project wrote into them),
+- **The pointer, contracts and extensions** — `.codecrew/config.yml`,
+  `.codecrew/roles/` (the contracts and, from 1.1, the scaffolded
+  `.codecrew/roles/<role>.local.md` extensions beside them — blank unless the
+  project wrote into them),
   `AGENTS.md`, `CLAUDE.md` (hub only; it imports `AGENTS.md` for Claude
   Code — keep it if you had one of your own), `ROADMAP.md` in each repo.
   Delete or keep; they are plain files with no hooks.
