@@ -131,7 +131,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-two, by the verb that raises
+the agent; the detail is for the human. All thirty-three, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -144,6 +144,16 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   `task finish` and the close's branch sweep need (`gh pr checks --json`);
   the detail names both versions. A `gh --version` banner the CLI cannot
   parse proceeds with a note.
+
+**any verb that reads a milestone's `## Requirements`**
+
+- `REQUIREMENT_ID_MISMATCH` — an ID declared under `## Requirements` is not
+  the milestone's own: the grammar is `M<milestone>-R<k>` (SPEC §4), so
+  M12-R3 under M13 is refused before any verdict is counted against it. The
+  detail names every offending ID and the milestone read; the fix is a hand
+  edit of the issue body. `milestone close` and `milestone evidence` refuse;
+  `status` prints the same condition as a line and carries on, because it
+  reports the board rather than gating it.
 
 **`task new`**
 
@@ -163,7 +173,10 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `GATED` — a `cc:needs-decision` gate is raised; a human resolves it and
   removes the label.
 - `GATE_UNRECORDED` — a gate was raised and the label removed, but no
-  `**Gate resolved:**` comment records the decision (SPEC §8).
+  `**Gate resolved:**` comment records the decision (SPEC §8). Both labels
+  are read per paragraph, anywhere in a comment; only `**Gate resolved:**`
+  answers, and it answers every gate still open before it, never one raised
+  after it.
 - `NOT_OWNER` — the task was started by another seat (the `**Started by**`
   record `task start` posts on every start, accepted only from the login
   it names; the assignee for tasks that predate it; the same seat is the
@@ -215,9 +228,14 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `NO_REQUIREMENTS` — the milestone's `## Requirements` section yields no
   bold IDs, so there is nothing to verdict; IDs written elsewhere in the
   body do not count (`new`, `status` and `evidence` note this first).
+- `REQUIREMENT_ID_MISMATCH` — the section declares an ID belonging to
+  another milestone (above); the same gate, checked next.
 - `VERDICT_MISSING` — a requirement has no QA verdict from the qa holder.
+  A verdict written inside a code span or a fenced block is content, not a
+  verdict.
 - `VERDICT_UNSATISFIED` — the latest verdict on a requirement is not
-  `satisfied`.
+  `satisfied` — the latest *comment* carrying one for that ID, and the
+  first verdict for the ID inside it.
 - `DOC_MISSING` — `docs/milestones/<n>-*.md` is not on the default branch;
   the gathered records are printed above the refusal for the
   doc-synthesizer, which delivers the document as a task (plan, `task
@@ -228,6 +246,8 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `NOT_FOUND` — no milestone with that number, open or closed. A closed
   milestone resolves and is reported as closed before the report: a record's
   citations are worth checking after the close as before it.
+- `REQUIREMENT_ID_MISMATCH` — the milestone declares a requirement ID that
+  is not its own (above); checked before the walk.
 - `EVIDENCE_UNREACHABLE` — github.com links the milestone's record cites
   do not resolve; repair them before dispatching QA. A URL inside a code
   span or a fenced block is content, not a citation, and is not checked;

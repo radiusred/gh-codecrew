@@ -6,6 +6,37 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The record grammar, tightened
+- Four rules about what recorded text *means*, each a protocol-2.0 break:
+  text already written on GitHub is reclassified, which is why they ride a
+  major.
+- **A gate is read per paragraph.** `**Gate raised:**` counts anywhere in a
+  comment, exactly as `**Decision:**` does. A gate raised as a comment's
+  second paragraph used to be invisible to `task finish`, so
+  `GATE_UNRECORDED` never fired for it.
+- **Only a `**Gate resolved:**` record resolves a gate, and per gate.** A
+  resolution answers every gate raised before it and still open — one
+  comment may still answer several questions — and never one raised after
+  it; a bare `**Decision:**` on any subject no longer clears every gate on
+  the issue, which is what SPEC §8 always said. The `cc:needs-decision`
+  label stays the hard block.
+- **Verdict supersession is per comment.** The latest comment carrying a
+  verdict for a requirement ID wins, and the first verdict for that ID
+  inside it counts, so a QA comment may quote the verdict it supersedes
+  without superseding itself. Code spans and fenced blocks are stripped
+  before the scan, so the record-reading rule is now the citation-reading
+  rule — `stripCode` moved from `internal/cli` to the tracker package as
+  `StripCode`, one implementation serving both.
+- **A requirement ID under `## Requirements` carries its milestone's own
+  number.** `milestone close` and `milestone evidence` refuse the new
+  `refused[REQUIREMENT_ID_MISMATCH]`, naming every offending ID, before a
+  verdict can be counted against a requirement belonging to another
+  milestone; `status` prints the same condition as a line rather than
+  dying, because it reports the board rather than gating it.
+- SPEC §4, §6 and §8, the qa and implementer contracts, and the
+  introduction's refusal-code list (thirty-two → thirty-three, with the
+  README's count) follow. (M13-R6, #260)
+
 ### Two captures from the field: status between milestones, evidence after a close
 - `status` no longer stops at `no open milestones in <hub>`: that line replaces
   the board and the gates section, and the two advisory checks below it still

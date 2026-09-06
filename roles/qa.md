@@ -64,10 +64,15 @@ branch of yours.
   ```
 
   A later verdict supersedes your earlier one for the same requirement; say
-  so when re-verifying. A satisfied verdict with no findings says what was
-  tried that failed to break it, so it carries the same weight as "not
-  satisfied". Every requirement's latest verdict must be
-  `satisfied` before the milestone can close. When the qa role is unrouted,
+  so when re-verifying. Supersession is per comment, so **one verdict per
+  requirement ID per comment** — the first for that ID is the one that
+  counts, and the latest comment carrying a verdict for it wins. Quote an
+  earlier verdict only inside a code span or a fenced block: code is
+  content, as it is for citations, so a verdict shown verbatim in a fence is
+  safe and one quoted in prose is a verdict (SPEC §4). A satisfied verdict
+  with no findings says what was tried that failed to break it, so it
+  carries the same weight as "not satisfied". Every requirement's latest
+  verdict must be `satisfied` before the milestone can close. When the qa role is unrouted,
   the human operator holds it and performs this contract themselves — same
   format, same gate (SPEC §5).
 - Raise `cc:needs-decision` when behaviour is defensible but the requirement
