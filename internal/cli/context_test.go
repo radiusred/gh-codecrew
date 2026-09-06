@@ -166,7 +166,11 @@ func TestLoadConfigRefusesTheLegacyLayout(t *testing.T) {
 			os.WriteFile(filepath.Join(dir, "roles", "qa.md"), []byte("# Role: qa\n"), 0o644)
 		}, "roles/qa.md"},
 	} {
-		dir := t.TempDir()
+		// The layout is judged at the nearest ancestor holding a .git
+		// entry, so the case needs a repository of its own rather than
+		// whatever sits above the machine's temp root (checky's finding on
+		// PR #280).
+		dir := gitRepo(t)
 		c.write(dir)
 		_, err := loadConfig(dir, &bytes.Buffer{})
 		var r refusal
@@ -181,7 +185,7 @@ func TestLoadConfigRefusesTheLegacyLayout(t *testing.T) {
 	}
 	// A project's own roles/ holding none of the five contracts is not the
 	// 1.x layout — it is somebody else's directory, and the walk passes over it.
-	dir := t.TempDir()
+	dir := gitRepo(t)
 	os.MkdirAll(filepath.Join(dir, "roles", "webserver", "tasks"), 0o755)
 	os.WriteFile(filepath.Join(dir, "roles", "webserver", "tasks", "main.yml"), []byte("- name: x\n"), 0o644)
 	_, err := loadConfig(dir, &bytes.Buffer{})
