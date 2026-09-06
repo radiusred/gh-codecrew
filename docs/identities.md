@@ -492,7 +492,9 @@ stop using the framework:
   `ROADMAP.md` in the hub. Delete or keep; they are plain files with no
   hooks.
 - **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
-  created on first use. Remove in the repo's label settings if you like.
+  created by `init` (and `cc:needs-decision` by the first `checkpoint`),
+  or on first use in a repo scaffolded before they were. Remove in the
+  repo's label settings if you like.
 - **Task branches** — two sweeps, because the verbs reach two places. On
   GitHub, `task finish` deletes a merged head and `milestone close` sweeps
   the rest; anything left is listed by `git branch -r`. In a clone,
