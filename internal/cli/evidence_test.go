@@ -275,3 +275,84 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 		}
 	}
 }
+
+// evidenceFake serves the walk from a state=all milestone listing: the
+// titles and the closed set, then empty bodies and comments — no citation,
+// so nothing reaches the network and the test is about resolution alone.
+type evidenceFake struct {
+	tracker.Tracker
+	milestones []tracker.TitledIssue
+	closed     map[int]bool
+}
+
+func (f *evidenceFake) MilestoneIssues(string) ([]tracker.TitledIssue, error) {
+	return f.milestones, nil
+}
+func (f *evidenceFake) OpenMilestones(string) ([]tracker.Milestone, error) {
+	// evidence must not read this listing any more (#250); a test that
+	// regresses to it gets an empty board rather than a silent pass.
+	return nil, nil
+}
+func (f *evidenceFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	return tracker.Task{Ref: ref, Closed: f.closed[ref.Number]}, nil
+}
+func (f *evidenceFake) IssueBody(tracker.IssueRef) (string, error) {
+	return "## Requirements\n- **M11-R1** — a thing\n", nil
+}
+func (f *evidenceFake) SubIssues(tracker.IssueRef) ([]tracker.IssueRef, error) { return nil, nil }
+func (f *evidenceFake) Comments(tracker.IssueRef) ([]tracker.Comment, error)   { return nil, nil }
+
+func evidenceHub() *evidenceFake {
+	return &evidenceFake{
+		milestones: []tracker.TitledIssue{
+			{Ref: tracker.IssueRef{Repo: "o/r", Number: 233}, Title: "M11: Housekeeping"},
+			{Ref: tracker.IssueRef{Repo: "o/r", Number: 254}, Title: "M13: Protocol 2.0"},
+		},
+		closed: map[int]bool{233: true},
+	}
+}
+
+// A closed milestone's record is exactly what link rot happens to, and a
+// maintainer reading an old record was refused NOT_FOUND for it (#250): the
+// verb resolves it from the state=all listing and says it is closed before
+// the citation report.
+func TestMilestoneEvidenceWalksAClosedMilestone(t *testing.T) {
+	var out bytes.Buffer
+	if err := milestoneEvidenceReport(&out, statusCtx(t, evidenceHub()), "11"); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "note: milestone M11 (o/r#233) is closed") {
+		t.Errorf("a closed milestone must be reported as closed:\n%s", got)
+	}
+	if !strings.Contains(got, "requirements counted: M11-R1 (1)") || !strings.Contains(got, "evidence is reachable") {
+		t.Errorf("the walk must run past the note:\n%s", got)
+	}
+	if i, j := strings.Index(got, "is closed"), strings.Index(got, "evidence is reachable"); i > j {
+		t.Errorf("the closed line comes before the citation report:\n%s", got)
+	}
+}
+
+// The note is not free: an open milestone reads exactly as before.
+func TestMilestoneEvidenceSaysNothingForAnOpenMilestone(t *testing.T) {
+	var out bytes.Buffer
+	if err := milestoneEvidenceReport(&out, statusCtx(t, evidenceHub()), "13"); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Contains(got, "closed") {
+		t.Errorf("an open milestone gets no closed line:\n%s", got)
+	}
+}
+
+// Widening the listing must not soften the refusal: a number in neither
+// state is still NOT_FOUND.
+func TestMilestoneEvidenceRefusesAnAbsentMilestone(t *testing.T) {
+	var out bytes.Buffer
+	err := milestoneEvidenceReport(&out, statusCtx(t, evidenceHub()), "99")
+	if err == nil || !strings.Contains(err.Error(), "refused[NOT_FOUND]") {
+		t.Fatalf("err = %v, want refused[NOT_FOUND]", err)
+	}
+	if strings.Contains(err.Error(), "open milestone") {
+		t.Errorf("the detail must not still say open: %v", err)
+	}
+}
