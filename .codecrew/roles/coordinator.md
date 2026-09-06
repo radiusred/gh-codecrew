@@ -74,7 +74,12 @@ read every seat's credentials through its own 401
   can be sent, via `role <name> --login` — and `~` is the operator, which
   on your own row is you. `gh codecrew roles show <role>` prints the
   contract the seat loads. Never choose a seat's model, harness or
-  identity yourself; never brief a seat past its contract.
+  identity yourself; never brief a seat past its contract. Routing fails
+  closed: run from a spoke, both verbs read the hub's table, and a hub that
+  cannot be read refuses `HUB_UNREADABLE` (or `GH_UNREACHABLE` when GitHub
+  is not answering) rather than reporting every seat as `~`. Act on the
+  code — a seat resolved from a table nobody could read is a dispatch to
+  the wrong principal.
 - **Own the review loop in both directions.** PR opened → dispatch the
   reviewer. Changes requested → the implementer, then the reviewer again on
   the new head; never both in parallel. Approved → **the seat that started
