@@ -525,6 +525,11 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	if pr.HeadRef != "" {
 		p.would("delete head %s", pr.HeadRef)
 	}
+	// The clone the verb runs in is the other half of the branch's life:
+	// the remote head goes above, the local one here (M14-R2, #192). The
+	// dry run reads the clone without fetching; run decides again on the
+	// merged state.
+	planClone(c.t, pr, c.current, false).would(p)
 	run := func(w io.Writer) error {
 		for _, m := range posts {
 			if err := c.t.Comment(prRef, m); err != nil {
@@ -543,6 +548,7 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 			fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
 		}
 		deleteHead(w, c.t, pr)
+		planClone(c.t, pr, c.current, true).run(w)
 		return nil
 	}
 	return p, run, nil
