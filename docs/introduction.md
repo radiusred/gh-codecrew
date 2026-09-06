@@ -225,7 +225,9 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 
 **`milestone evidence`**
 
-- `NOT_FOUND` — no open milestone with that number.
+- `NOT_FOUND` — no milestone with that number, open or closed. A closed
+  milestone resolves and is reported as closed before the report: a record's
+  citations are worth checking after the close as before it.
 - `EVIDENCE_UNREACHABLE` — github.com links the milestone's record cites
   do not resolve; repair them before dispatching QA. A URL inside a code
   span or a fenced block is content, not a citation, and is not checked;
