@@ -42,11 +42,11 @@ func TestNoBareCodecrewShorthand(t *testing.T) {
 		"roadmapScaffold":   roadmapScaffold,
 	}
 	for _, role := range []string{"implementer", "reviewer", "qa", "doc-synthesizer"} {
-		data, err := fs.ReadFile(codecrew.Roles, "roles/"+role+".md")
+		data, err := fs.ReadFile(codecrew.Roles, contractPath(role))
 		if err != nil {
 			t.Fatal(err)
 		}
-		texts["roles/"+role+".md"] = string(data)
+		texts[contractPath(role)] = string(data)
 	}
 
 	// init's printed next steps, hub and spoke.
@@ -89,7 +89,7 @@ func TestBareShorthandMatcher(t *testing.T) {
 	if hits := bareShorthand("run `gh codecrew status`, then gh codecrew task start 3"); len(hits) != 0 {
 		t.Errorf("gh-prefixed forms flagged: %v", hits)
 	}
-	if hits := bareShorthand("`codecrew-token slug`, .codecrew.yml, gh-codecrew"); len(hits) != 0 {
+	if hits := bareShorthand("`codecrew-token slug`, .codecrew/config.yml, gh-codecrew"); len(hits) != 0 {
 		t.Errorf("non-verb forms flagged: %v", hits)
 	}
 	if hits := bareShorthand("first act: `codecrew milestone evidence 1`"); len(hits) != 1 {

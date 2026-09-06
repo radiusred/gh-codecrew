@@ -193,7 +193,7 @@ func taskStart(w io.Writer, args []string) error {
 	}
 
 	if role := c.roleFor(viewer); role == "qa" || role == "reviewer" {
-		fmt.Fprintf(w, "role %s does not commit (roles/%s.md); no linked branch created\n", role, role)
+		fmt.Fprintf(w, "role %s does not commit (%s); no linked branch created\n", role, contractPath(role))
 	} else {
 		branch := fmt.Sprintf("task/%d-%s", ref.Number, slug(task.Title))
 		if err := c.t.DevelopBranch(ref, branch); err != nil {
@@ -236,7 +236,7 @@ func checkpoint(w io.Writer, args []string) error {
 // a requirement has no task to carry it, so it is raised on the milestone
 // issue, where status lists the gate and milestone close refuses on it
 // (#200, #219); before the first milestone the gate is recorded on the
-// scaffold PR (roles/coordinator.md). The labels come from the REST
+// scaffold PR (.codecrew/roles/coordinator.md). The labels come from the REST
 // issues endpoint, which serves PRs — Task's GraphQL issue query does not
 // (checky's finding on PR #218). The comment and the receipt say which of
 // the two wordings holds; a PR gets the task's.

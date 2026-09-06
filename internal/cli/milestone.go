@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -111,7 +112,7 @@ func milestoneNew(w io.Writer, args []string) error {
 // runMilestoneNew numbers, titles and creates the tracking issue. It is an
 // API call and nothing else: the verb no longer touches the hub's
 // ROADMAP.md — that row is the doc-synthesizer's, added as Done by the
-// record PR (roles/doc-synthesizer.md), because a milestone whose tasks
+// record PR (.codecrew/roles/doc-synthesizer.md), because a milestone whose tasks
 // all live in spokes has no hub PR for an Open row to ride in (#197).
 //
 // The number is derived twice. Before creating, from the max over two
@@ -364,7 +365,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	e = nil
 	switch {
 	case len(missing) > 0:
-		e = refuse("VERDICT_MISSING", "no QA verdict on %s for: %s — dispatch QA (roles/qa.md)", milestone.Ref, strings.Join(missing, ", "))
+		e = refuse("VERDICT_MISSING", "no QA verdict on %s for: %s — dispatch QA (%s)", milestone.Ref, strings.Join(missing, ", "), contractPath("qa"))
 	case len(unsatisfied) > 0:
 		e = refuse("VERDICT_UNSATISFIED", "latest QA verdict not satisfied for: %s — remedy and re-dispatch QA", strings.Join(unsatisfied, ", "))
 	}
@@ -375,7 +376,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 		// Said here, before the document gate, as it always was — a live
 		// close refused DOC_MISSING still says it (checky's finding on
 		// PR #179); the dry run shows it under the gate.
-		note := "note: qa is unrouted — verdicts counted from the human operator holding the role; declare role routing in the hub's .codecrew.yml at onboarding (SPEC §5)"
+		note := "note: qa is unrouted — verdicts counted from the human operator holding the role; declare role routing in the hub's " + config.Pointer + " at onboarding (SPEC §5)"
 		if dryRun {
 			p.note(note)
 		} else {

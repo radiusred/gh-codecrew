@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/radiusred/gh-codecrew/internal/config"
 )
 
 // The crew's container carried Debian's gh 2.46: task finish died inside
@@ -60,7 +62,10 @@ func TestEveryPointerReadingVerbMeetsTheFloor(t *testing.T) {
 	ghVersion = func() (string, error) { return "2.46.0", nil }
 
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, filepath.FromSlash(config.Pointer))), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)), []byte("codecrew: \""+protocolVersion+"\"\nhub: self\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	wd, _ := os.Getwd()

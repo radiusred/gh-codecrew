@@ -127,7 +127,7 @@ func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
 // no task to carry it — and says what holds there: status lists the gate
 // and milestone close refuses on it (#200, #219). A task keeps the task
 // finish wording, and so does a pull request — the scaffold PR carries the
-// pre-milestone gate (roles/coordinator.md) and must stay a valid target
+// pre-milestone gate (.codecrew/roles/coordinator.md) and must stay a valid target
 // (checky's finding on PR #218).
 func TestRaiseGateWordingByTarget(t *testing.T) {
 	for _, tc := range []struct {

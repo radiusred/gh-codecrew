@@ -109,10 +109,10 @@ func TestStatusMilestoneWithoutGate(t *testing.T) {
 // line replaces the board, not the two advisory checks under it (#253).
 func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {
 	c := statusCtx(t, &statusFake{keepBranches: true})
-	if err := os.MkdirAll(filepath.Join(c.cfg.Dir, "roles"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(c.cfg.Dir, filepath.FromSlash(config.RolesDir)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(c.cfg.Dir, "roles", "coordinator.md"), []byte("a fork of the contract\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(c.cfg.Dir, rolesPath("coordinator.md")), []byte("a fork of the contract\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
@@ -123,7 +123,7 @@ func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {
 	for _, want := range []string{
 		"no open milestones in o/r\n",
 		"note: o/r does not delete branches on merge",
-		"contract drift: roles/coordinator.md differs from the embedded",
+		"contract drift: " + contractPath("coordinator") + " differs from the embedded",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("status output lacks %q:\n%s", want, got)

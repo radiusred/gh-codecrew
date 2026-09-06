@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	codecrew "github.com/radiusred/gh-codecrew"
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -24,12 +25,12 @@ const stampPrefix = "<!-- scaffolded by codecrew "
 // later three-way judgment (the base is fetchable from the upstream repo at
 // the stamped version).
 func contractStamp(name string) string {
-	return fmt.Sprintf("%s%s; upstream: radiusred/gh-codecrew roles/%s -->\n\n", stampPrefix, version, name)
+	return fmt.Sprintf("%s%s; upstream: radiusred/gh-codecrew %s/%s -->\n\n", stampPrefix, version, config.RolesDir, name)
 }
 
 // stripStamp removes the provenance stamp (and its trailing blank line) so
 // comparisons see the contract alone. Content without a stamp — the hub's
-// own roles/, or a hand-created file — passes through unchanged.
+// own .codecrew/roles/, or a hand-created file — passes through unchanged.
 func stripStamp(content string) string {
 	if !strings.HasPrefix(content, stampPrefix) {
 		return content
@@ -40,12 +41,12 @@ func stripStamp(content string) string {
 	return content
 }
 
-// contractDrift compares each local roles/ contract (stamp-stripped)
+// contractDrift compares each local .codecrew/roles/ contract (stamp-stripped)
 // against the copy embedded in this binary, returning the names that
 // differ. Local files with no embedded counterpart, and embedded contracts
 // with no local file (a pointer-only spoke), are not drift.
 func contractDrift(dir string, contracts fs.FS) ([]string, error) {
-	entries, err := fs.ReadDir(contracts, "roles")
+	entries, err := fs.ReadDir(contracts, config.RolesDir)
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +55,11 @@ func contractDrift(dir string, contracts fs.FS) ([]string, error) {
 		if strings.HasSuffix(e.Name(), localSuffix) {
 			continue // an extension is never a contract, whatever the embed holds
 		}
-		local, err := os.ReadFile(filepath.Join(dir, "roles", e.Name()))
+		local, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.RolesDir), e.Name()))
 		if err != nil {
 			continue // no local copy — nothing to drift
 		}
-		embedded, err := fs.ReadFile(contracts, "roles/"+e.Name())
+		embedded, err := fs.ReadFile(contracts, config.RolesDir+"/"+e.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -117,35 +118,44 @@ func unifiedDiff(a, b string) string {
 // are local (this project's fork), "+" lines are the embedded contract at
 // the installed release.
 func rolesDiff(w io.Writer, dir string, contracts fs.FS, role string) error {
-	embedded, err := fs.ReadFile(contracts, "roles/"+role+".md")
+	embedded, err := fs.ReadFile(contracts, contractPath(role))
 	if err != nil {
 		return fmt.Errorf("no embedded contract for role %q", role)
 	}
-	local, err := os.ReadFile(filepath.Join(dir, "roles", role+".md"))
+	local, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(contractPath(role))))
 	if err != nil {
-		return fmt.Errorf("no local roles/%s.md — run from the hub (spokes hold no contracts)", role)
+		return fmt.Errorf("no local %s — run from the hub (spokes hold no contracts)", contractPath(role))
 	}
 	stripped := stripStamp(string(local))
 	if stripped == string(embedded) {
-		fmt.Fprintf(w, "roles/%s.md matches the embedded %s contract\n", role, version)
+		fmt.Fprintf(w, "%s matches the embedded %s contract\n", contractPath(role), version)
 		return nil
 	}
-	fmt.Fprintf(w, "roles/%s.md (local, -) vs embedded %s contract (+):\n", role, version)
+	fmt.Fprintf(w, "%s (local, -) vs embedded %s contract (+):\n", contractPath(role), version)
 	fmt.Fprint(w, unifiedDiff(stripped, string(embedded)))
 	fmt.Fprintf(w, "\ncontracts are this project's fork — reconcile through a task and PR, never a blind overwrite\n")
 	return nil
 }
 
 // localSuffix names a project's append-only extension to a role contract:
-// roles/<role>.local.md, loaded after the contract itself (SPEC §7). It has
-// no embedded counterpart, so contractDrift never sees it — extensions are
-// not drift, and reconciling the contract never has to re-merge them.
+// .codecrew/roles/<role>.local.md, loaded after the contract itself
+// (SPEC §7). It has no embedded counterpart, so contractDrift never sees
+// it — extensions are not drift, and reconciling the contract never has to
+// re-merge them.
 const localSuffix = ".local.md"
+
+// contractPath and extensionPath name a role's two files under the hub's
+// .codecrew/roles/, slash-separated: they are embed paths and tracker paths
+// as often as they are disk paths, so the conversion to the host separator
+// happens at each disk read.
+func contractPath(role string) string { return config.RolesDir + "/" + role + ".md" }
+
+func extensionPath(role string) string { return config.RolesDir + "/" + role + localSuffix }
 
 // localPart is one extension in load order, labelled by where it came
 // from so the composed text says which repo added each part.
 type localPart struct {
-	Source string // e.g. "roles/qa.local.md (hub)"
+	Source string // e.g. ".codecrew/roles/qa.local.md (hub)"
 	Body   string
 }
 
@@ -189,23 +199,24 @@ func withoutHTMLComments(s string) string {
 }
 
 // composedContract assembles what a dispatched session loads for role:
-// the hub's roles/<role>.md (the project's fork of the contract), then the
-// hub's roles/<role>.local.md, then the working repo's roles/<role>.local.md
-// when it is a spoke (spokeDir non-empty). hubRead fetches a hub path —
+// the hub's .codecrew/roles/<role>.md (the project's fork of the contract),
+// then the hub's .codecrew/roles/<role>.local.md, then the working repo's
+// .codecrew/roles/<role>.local.md when it is a spoke (spokeDir non-empty).
+// hubRead fetches a hub path —
 // from disk when the working repo is the hub, through the tracker from a
 // spoke. Missing extensions are skipped; a missing contract is an error.
 func composedContract(role string, hubRead func(string) ([]byte, error), spokeDir string) (string, error) {
-	base, err := hubRead("roles/" + role + ".md")
+	base, err := hubRead(contractPath(role))
 	if errors.Is(err, fs.ErrNotExist) {
-		return "", fmt.Errorf("no roles/%s.md in the hub", role)
+		return "", fmt.Errorf("no %s in the hub", contractPath(role))
 	} else if err != nil {
-		return "", fmt.Errorf("reading roles/%s.md from the hub: %w", role, err)
+		return "", fmt.Errorf("reading %s from the hub: %w", contractPath(role), err)
 	}
 	// An absent extension is the normal case and is skipped; any other
 	// failure surfaces, so a session never runs on a silently partial
 	// contract because a fetch failed.
 	var locals []localPart
-	ext := "roles/" + role + localSuffix
+	ext := extensionPath(role)
 	if data, err := hubRead(ext); err == nil {
 		locals = append(locals, localPart{Source: ext + " (hub)", Body: string(data)})
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -227,7 +238,7 @@ func composedContract(role string, hubRead func(string) ([]byte, error), spokeDi
 // instead of shadow-copied into the repo.
 func rolesShow(w io.Writer, role string, latest bool, contracts fs.FS, hubRead func(string) ([]byte, error), spokeDir string) error {
 	if latest {
-		data, err := fs.ReadFile(contracts, "roles/"+role+".md")
+		data, err := fs.ReadFile(contracts, contractPath(role))
 		if err != nil {
 			return fmt.Errorf("no embedded contract for role %q", role)
 		}
