@@ -64,8 +64,10 @@ func TestHolderReviewed(t *testing.T) {
 
 // The ownership gate holds a task to the seat that started it — the same
 // login, or the same routed seat (a team-held role is any member). An
-// owner who has left resolves to no role and no longer matches; no owner
-// recorded holds nobody (#165, operator's questions on #175).
+// owner who has left resolves to no role and no longer matches; and since
+// 2.0 (M13-R7) no owner recorded matches nobody, because an unstarted
+// task is one to run task start on, not one anyone may finish
+// (#165, operator's questions on #175).
 func TestSameSeat(t *testing.T) {
 	roleFor := func(login string) string {
 		switch strings.ToLower(strings.TrimSuffix(login, "[bot]")) {
@@ -82,7 +84,7 @@ func TestSameSeat(t *testing.T) {
 		owner, viewer string
 		want          bool
 	}{
-		{"", "anyone", true}, // no start record
+		{"", "anyone", false},                                // no start record: the gate refuses, it does not wave through
 		{"radiusred-cody[bot]", "radiusred-cody[bot]", true}, // same login
 		{"radiusred-cody[bot]", "Radiusred-Cody", true},      // suffix and case
 		{"alice", "bob", true},                               // same team-held seat

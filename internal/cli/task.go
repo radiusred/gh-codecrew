@@ -379,17 +379,19 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	if err != nil {
 		return nil, nil, err
 	}
-	var ownerBypass string
-	owner := tracker.StartedBy(task, comments)
+	ownerBypass := false
+	owner := tracker.StartedBy(comments)
 	e = nil
 	if !sameSeat(owner, viewer, c.roleFor) {
 		switch {
+		case !bypass && owner == "":
+			e = refuse("NOT_OWNER", "nothing records a start on %s — the seat that started a task finishes it, and no seat has: run gh codecrew task start %d as the seat doing the work (an assignee is not a start record), or an operator overrides on the record with --bypass (SPEC §8)", ref, ref.Number)
 		case !bypass:
 			e = refuse("NOT_OWNER", "%s was started by @%s, not @%s — the seat that started a task finishes it: dispatch it, hand it over with task start, or an operator overrides on the record with --bypass (SPEC §8)", ref, owner, viewer)
 		case crew(viewer):
 			e = refuse("CREW_BYPASS", "--bypass requires a human operator; @%s is a crew identity", viewer)
 		default:
-			ownerBypass = owner
+			ownerBypass = true
 		}
 	}
 	if !p.gate("owner", e) {
@@ -461,10 +463,16 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 
 	prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
 	var posts []string
-	if ownerBypass != "" {
+	if ownerBypass {
 		// Recorded before any merge path: the override is the fact, whatever
-		// GitHub then does with the merge.
-		posts = append(posts, fmt.Sprintf("**Owner bypass:** %s was started by @%s; finished by @%s with --bypass (SPEC §8 — the seat that started a task finishes it; this is the operator's recorded override).", ref, ownerBypass, viewer))
+		// GitHub then does with the merge. A task nobody started is bypassed
+		// too, and the record says which of the two it was rather than
+		// naming an owner that does not exist.
+		started := fmt.Sprintf("%s was started by @%s", ref, owner)
+		if owner == "" {
+			started = fmt.Sprintf("nothing records a start on %s", ref)
+		}
+		posts = append(posts, fmt.Sprintf("**Owner bypass:** %s; finished by @%s with --bypass (SPEC §8 — the seat that started a task finishes it; this is the operator's recorded override).", started, viewer))
 	}
 	if !approved {
 		// Crew identities can never waive review; a human operator can —
@@ -589,9 +597,19 @@ func holderReviewed(approvedBy []string, holds func(login string) bool) bool {
 // seat finishing its own. An owner who has since left the team resolves
 // to no role and no longer matches: the task is handed over by running
 // task start again (latest record wins) or finished by the operator with
-// --bypass on the record. No owner recorded: nothing to hold anyone to.
+// --bypass on the record.
+//
+// An empty owner is not a pass. Until 2.0 it was — first because
+// StartedBy fell back to the assignee, then because "nothing recorded"
+// read as "nobody to hold anyone to". With the fallback deleted (M13-R7)
+// an unstarted task has no owner at all, and the gate that says who
+// finishes a task cannot be satisfied by a task nobody started: the
+// caller runs task start first. The refusal names that, not an owner.
 func sameSeat(owner, viewer string, roleFor func(string) string) bool {
-	if owner == "" || tracker.SameLogin(owner, viewer) {
+	if owner == "" {
+		return false
+	}
+	if tracker.SameLogin(owner, viewer) {
 		return true
 	}
 	role := roleFor(owner)

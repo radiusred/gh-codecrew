@@ -516,34 +516,46 @@ func TestInferState(t *testing.T) {
 	}
 }
 
-// task start records who started a task as an assignment (humans) or a
-// **Started by** comment (App identities are not assignable); StartedBy
-// reads it back, latest comment first, so task finish can hold the seat
-// that started a task to finishing it (#165).
+// task start posts a **Started by** comment on every start (App
+// identities are not assignable, so the comment is the record, not the
+// assignment); StartedBy reads it back, latest comment first, so task
+// finish can hold the seat that started a task to finishing it (#165).
 func TestStartedBy(t *testing.T) {
 	started := func(login string) Comment { return Comment{Author: login, Body: StartRecord(login)} }
 	cases := []struct {
 		name string
-		task Task
 		cs   []Comment
 		want string
 	}{
-		{"nothing recorded", Task{}, nil, ""},
-		{"assignee", Task{Assignees: []string{"davison"}}, nil, "davison"},
-		{"comment", Task{}, []Comment{{Body: "plan…"}, started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
-		{"comment outranks assignee", Task{Assignees: []string{"davison"}}, []Comment{started("radiusred-cody[bot]")}, "radiusred-cody[bot]"},
-		{"latest comment wins", Task{}, []Comment{started("radiusred-cody[bot]"), started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
-		{"prose mentioning the phrase is not a record", Task{}, []Comment{{Author: "x", Body: "The **Started by** @x comment is how we know."}}, ""},
-		{"a record with trailing prose is not a record", Task{}, []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: "**Started by** @radiusred-checky[bot]. This is an example."}}, "radiusred-cody[bot]"},
-		{"a record naming someone its author is not", Task{}, []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
-		{"author matches with the suffix ignored", Task{}, []Comment{{Author: "radiusred-cody", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
-		{"human restart: latest record wins, not the assignee list", Task{Assignees: []string{"alice", "bob"}}, []Comment{started("alice"), started("bob")}, "bob"},
-		{"legacy: assignee only", Task{Assignees: []string{"alice", "bob"}}, nil, "alice"},
+		{"nothing recorded", nil, ""},
+		{"comment", []Comment{{Body: "plan…"}, started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
+		{"latest comment wins", []Comment{started("radiusred-cody[bot]"), started("radiusred-wordy[bot]")}, "radiusred-wordy[bot]"},
+		{"prose mentioning the phrase is not a record", []Comment{{Author: "x", Body: "The **Started by** @x comment is how we know."}}, ""},
+		{"a record with trailing prose is not a record", []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: "**Started by** @radiusred-checky[bot]. This is an example."}}, "radiusred-cody[bot]"},
+		{"a record naming someone its author is not", []Comment{started("radiusred-cody[bot]"), {Author: "radiusred-checky[bot]", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
+		{"author matches with the suffix ignored", []Comment{{Author: "radiusred-cody", Body: StartRecord("radiusred-cody[bot]")}}, "radiusred-cody[bot]"},
+		{"human restart: latest record wins", []Comment{started("alice"), started("bob")}, "bob"},
 	}
 	for _, c := range cases {
-		if got := StartedBy(c.task, c.cs); got != c.want {
+		if got := StartedBy(c.cs); got != c.want {
 			t.Errorf("%s: StartedBy = %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+// The 1.0 shim: an assigned task with no start record had the first
+// assignee for an owner, "for tasks started before the record existed".
+// Deleted in protocol 2.0 (M13-R7) — assignment is not a start, an
+// assignee never chose to hold the seat, and the record task start posts
+// is the only thing that says a task was started.
+func TestStartedByIgnoresAssignees(t *testing.T) {
+	if got := StartedBy(nil); got != "" {
+		t.Errorf("an unstarted task has owner %q, want none", got)
+	}
+	// A task whose only record is prose is unstarted too: nothing about
+	// who is assigned to it can make it started.
+	if got := StartedBy([]Comment{{Author: "alice", Body: "Assigned to me, picking it up tomorrow."}}); got != "" {
+		t.Errorf("prose gave the task owner %q, want none", got)
 	}
 }
 
