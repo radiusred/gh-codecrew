@@ -26,13 +26,13 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   verdict as an indented block — the shape a paste picks up when nobody
   reaches for backticks — superseded the verdict written below it. It now
   strips a run of lines indented four columns or more (a tab counting to
-  the next multiple of four) that opens after a blank line or at the start
-  of the text and ends at the first non-blank line indented less than four;
-  blank lines inside the run belong to it. One rule, one implementation, so
-  the citation walk stops reading a URL in an indented block as evidence in
-  the same commit. A line that continues a paragraph or a list item is not
-  a block, because the line above it is not blank; indentation is measured
-  from column 0, not from a list item's own content column (#285).
+  the next multiple of four) that ends at the first non-blank line indented
+  less than four; blank lines inside the run belong to it. One rule, one
+  implementation, so the citation walk stops reading a URL in an indented
+  block as evidence in the same commit. A line that continues a paragraph or
+  a list item is not a block, because a paragraph is already open;
+  indentation is measured from column 0, not from a list item's own content
+  column (#285). Where such a block may open is the entry above (#288).
 
 ### The 1.0 shims deleted, and the machine contract written down
 - **Breaking (protocol 2.0).** Three pieces of 1.0 scar tissue are gone,
