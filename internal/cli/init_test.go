@@ -405,19 +405,35 @@ func TestInitPrintsTheLineToAddForAStrandedEntryPoint(t *testing.T) {
 	}
 }
 
-// This hub is a CodeCrew project, so its own root CLAUDE.md is the file
-// init would write here — Claude Code loads CLAUDE.md and never AGENTS.md,
-// and the hub went without one until #299. Read from disk and compared
-// against the constant, the way refusals_test.go reads SPEC.md: neither
-// can move without the other, in either direction, so an edit to the
-// scaffold fails here until the hub follows it.
-func TestTheHubsClaudeFileIsTheScaffold(t *testing.T) {
-	got, err := os.ReadFile(filepath.Join("..", "..", "CLAUDE.md"))
-	if err != nil {
-		t.Fatal(err)
+// This hub is a CodeCrew project, so its own root entry points are the files
+// init would write here: an AGENTS.md pointing at .codecrew/AGENTS.md, and a
+// CLAUDE.md importing AGENTS.md because Claude Code loads CLAUDE.md and never
+// AGENTS.md. The hub went without the second until #299. Each is read from
+// disk and compared against the constant that writes it, the way
+// refusals_test.go reads SPEC.md: neither can move without the other, in
+// either direction, so an edit to a scaffold fails here until the hub follows
+// it. The table is checked against rootEntryPoints both ways, so a third root
+// file cannot arrive unguarded.
+func TestTheHubsRootEntryPointsAreTheScaffolds(t *testing.T) {
+	scaffolds := map[string]string{
+		"AGENTS.md": agentsPointerScaffold,
+		"CLAUDE.md": claudeScaffold,
 	}
-	if string(got) != claudeScaffold {
-		t.Errorf("the hub's CLAUDE.md has drifted from claudeScaffold:\n got %q\nwant %q", got, claudeScaffold)
+	if len(scaffolds) != len(rootEntryPoints) {
+		t.Fatalf("rootEntryPoints is %v, and every one of them needs a row in this table", rootEntryPoints)
+	}
+	for _, name := range rootEntryPoints {
+		want, ok := scaffolds[name]
+		if !ok {
+			t.Fatalf("%s is a root entry point with no row in this table", name)
+		}
+		got, err := os.ReadFile(filepath.Join("..", "..", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != want {
+			t.Errorf("the hub's %s has drifted from its scaffold:\n got %q\nwant %q", name, got, want)
+		}
 	}
 }
 
