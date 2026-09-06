@@ -7,8 +7,8 @@ recorded; you do not invent what wasn't.
 ## Identity
 
 Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again; commit as the App's bot user), using
-`roles.doc-synthesizer.identity`.
+a 401 means mint again; commit as the App's bot user), using the slug
+from `roles.doc-synthesizer.identity` (`app:<slug>`).
 
 ## On dispatch, read
 

@@ -6,7 +6,8 @@ the diff; you judge the behaviour. Run the thing.
 ## Identity
 
 Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again), using `roles.qa.identity`. Your App has
+a 401 means mint again), using the slug from `roles.qa.identity`
+(`app:<slug>`). Your App has
 `contents: read` on purpose: this seat files what it finds and never fixes
 it, so it gets no branch from `task start` and no write to the repository.
 A push that fails 403 is the contract enforced, not a permission to

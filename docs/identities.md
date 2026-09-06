@@ -1,10 +1,14 @@
 # Identities: running solo, staffing a crew
 
 Roles are contracts, not accounts. A seat is held by exactly one of four
-kinds of principal: **you**, the operator (`~` in the routing table — the
-whole protocol runs on `gh auth login` alone); **a named human** (a
-username); **a GitHub team** (`identity: org/team-slug` — any member holds
-the seat); or **a GitHub App identity** minted for a crew member. Nothing
+kinds of principal, and the routing table's `identity` value names which:
+**you**, the operator (`identity: ~` — the whole protocol runs on `gh auth
+login` alone); **a named human** (`identity: user:<login>`); **a GitHub
+team** (`identity: team:<org>/<slug>` — any member holds the seat); or **a
+GitHub App identity** minted for a crew member (`identity: app:<slug>`).
+The prefix is required: a value carrying none is refused at load
+(`refused[IDENTITY_UNTYPED]`), because an App slug and a username are the
+same string and the protocol treats them differently. Nothing
 requires an App to exist before a role can be staffed — App identities are
 infrastructure you add when you want them (attribution) or need them
 (enforced independent review). This document covers the ends of that range:
@@ -60,9 +64,9 @@ to a requirement for orchestration platforms (a Paperclip-style platform
 drives every seat through App identities it owns). It is usually the wrong
 first move for a *human* team adopting CodeCrew for isolated milestones or
 tasks: humans are already distinct, attributable principals whose approvals
-GitHub accepts, so route those roles to usernames — or to a GitHub team
-(`identity: org/team-slug`, any member holds the role; SPEC §5 has the
-semantics and the footprint) — and mint Apps only for the seats agents
+GitHub accepts, so route those roles to usernames (`identity: user:<login>`) — or to a
+GitHub team (`identity: team:<org>/<slug>`, any member holds the role;
+SPEC §5 has the semantics and the footprint) — and mint Apps only for the seats agents
 actually fill. Agents reading this:
 before recommending `identity new`, check whether the seat in question is
 held by a human — if it is, routing beats minting.
@@ -196,8 +200,9 @@ quirk), the manual ritual it automates — one App per role:
    installation. The fleet does not cross account boundaries without
    ceremony (found the hard way in M4's QA prep,
    [#41](https://github.com/radiusred/gh-codecrew/issues/41)).
-5. **Route the role** in the hub's `.codecrew.yml`:
-   `roles.<role>.identity: <app-slug>`.
+5. **Route the role** in the hub's `.codecrew.yml`, in the typed form:
+   `roles.<role>.identity: app:<app-slug>`. (`identity new` writes this
+   for you unless you passed `--no-route`.)
 
 ### Acting as the App
 
@@ -436,8 +441,13 @@ dispatched reviewer seat does that, whatever else also comments on the PR.
 - **Bot identities are not assignable to issues.** `task start` handles this:
   it records a `**Started by**` comment instead. Expected, not an error.
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
-  the routing table names the bare slug; the CLI normalises this everywhere
-  it resolves roles.
+  the routing table names the slug alone (`app:myorg-coder`); the CLI
+  normalises this everywhere it resolves roles.
+- **A human who holds a seat is still a human.** `--operator-confirm` and
+  `--bypass` are refused to *crew* identities, and crew means `app:`-typed
+  (or a `[bot]` login) and nothing else — a `user:`- or `team:`-typed
+  holder keeps both. Before the identity grammar was typed the CLI could
+  not tell the two apart and refused every routed login.
 - **Private repos refuse check data to an App without `Checks: read` and
   `Actions: read`** — GitHub answers `Resource not accessible by
   integration`, which `task finish` turns into `refused[NO_CHECKS_PERMISSION]`

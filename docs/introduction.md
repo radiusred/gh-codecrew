@@ -75,9 +75,10 @@ yet here: any backend other than GitHub, and GitHub Enterprise Server —
 github.com only.
 
 **Who holds a seat.** Every role is always staffed, by exactly one of four
-kinds of principal: the operator themselves (`~` in the routing table), a
-named human (a username), a GitHub team (`identity: org/team-slug` — any
-member holds the role), or a GitHub App identity. Solo is a routing
+kinds of principal, named by the routing table's type prefix: the operator
+themselves (`identity: ~`), a named human (`user:<login>`), a GitHub team
+(`team:<org>/<slug>` — any member holds the role), or a GitHub App identity
+(`app:<slug>`). Solo is a routing
 configuration, not a degraded tier: the qa holder's verdicts are the ones
 that count at close, and the reviewer holder's approving review is the one
 `task finish` requires. A solo operator therefore needs nothing but `gh auth
@@ -89,8 +90,9 @@ GitHub's own required-review rules, which makes fully agent-gated merges
 possible ([identities.md](identities.md)).
 
 **The routing table.** Who holds which seat is one `roles:` table in the hub's
-`.codecrew.yml`: a row per seat, naming the identity that holds it and the
-harness and model it is dispatched under, with `~` where a human holds it. Two
+`.codecrew.yml`: a row per seat, naming the typed identity that holds it
+and the harness and model it is dispatched under, with `~` where the
+operator holds it. Two
 worked examples are one click away — this repository's own table, as it stands
 today, in the [README](../README.md#the-routing-table), and an annotated
 generic one on [the home page](https://codecrew.works/#the-crew). SPEC §5 is
@@ -121,7 +123,7 @@ gh extension install radiusred/gh-codecrew   # precompiled, all platforms
 gh codecrew version        # confirm what you installed (gh never auto-updates extensions)
 gh codecrew init           # scaffold a new project (see first-milestone.md)
 gh codecrew status         # open milestones, inferred task states, raised gates, notes
-gh codecrew role reviewer  # who holds a role: an App, a username, or ~ (you)
+gh codecrew role reviewer  # who holds a role: app:<slug>, user:<login>, team:<org>/<slug>, or ~ (you)
 gh codecrew help           # the full verb list
 
 # or build from source (single static binary; requires gh on PATH):
@@ -131,7 +133,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-three, by the verb that raises
+the agent; the detail is for the human. All thirty-four, by the verb that raises
 them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -140,6 +142,9 @@ them (the source is the catalogue of record — `refuse("CODE"` in
 - `PROTOCOL_MISMATCH` — the pointer's protocol major differs from the one
   this binary implements (SPEC §5); `"0.1"` and a missing field proceed
   with a note.
+- `IDENTITY_UNTYPED` — a routing row's `identity` carries no type prefix,
+  so it names no kind of principal; the detail names the row and the four
+  forms (`~`, `app:<slug>`, `user:<login>`, `team:<org>/<slug>`).
 - `GH_TOO_OLD` — the installed `gh` is older than 2.50.0, the floor
   `task finish` and the close's branch sweep need (`gh pr checks --json`);
   the detail names both versions. A `gh --version` banner the CLI cannot
@@ -204,8 +209,9 @@ them (the source is the catalogue of record — `refuse("CODE"` in
   own required-review rule is still unmet (an App's approval without write
   access); a non-author human approves on the reviewer's recommendation,
   the App gets write access, or `--bypass` where the ruleset allows it.
-- `SELF_CONFIRM` — `--operator-confirm` was given by a crew identity; only a
-  human operator can waive review.
+- `SELF_CONFIRM` — `--operator-confirm` was given by a crew identity (a
+  `[bot]` login or an `app:`-typed seat holder); only a human operator can
+  waive review, and a `user:`- or `team:`-typed holder is one.
 - `CREW_BYPASS` — `--bypass` was given by a crew identity; a bypass is an
   operator's act.
 

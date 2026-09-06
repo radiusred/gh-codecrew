@@ -12,7 +12,8 @@ project has a coordinator too, and it is you.
 
 Resolve credentials as in `roles/implementer.md` — `export GH_TOKEN=$(gh
 codecrew identity token <slug>)` first, per wake; a 401 means run it again —
-using `roles.coordinator.identity`. The seat's App
+using the slug from `roles.coordinator.identity` (`app:<slug>`; `~` means
+the seat is the operator's own auth). The seat's App
 holds contents: read, issues: write, pull requests: read and metadata —
 never contents: write, never pull requests: write. Everything you do is an
 issue, a comment or a label; a 403 on a push or a review is the contract
@@ -68,9 +69,12 @@ read every seat's credentials through its own 401
   the plan and runs `task start`. A seat dispatched with no task issue
   behind it stops and asks for one — that is its contract, not a stall.
 - **Dispatch by the routing table.** `gh codecrew role <name>` says who
-  holds a seat; `gh codecrew roles show <role>` prints the contract it
-  loads. Never choose a seat's model, harness or identity yourself; never
-  brief a seat past its contract.
+  holds a seat, typed: `app:<slug>` is an agent to dispatch, `user:<login>`
+  and `team:<org>/<slug>` are humans to notify — and a review request they
+  can be sent, via `role <name> --login` — and `~` is the operator, which
+  on your own row is you. `gh codecrew roles show <role>` prints the
+  contract the seat loads. Never choose a seat's model, harness or
+  identity yourself; never brief a seat past its contract.
 - **Own the review loop in both directions.** PR opened → dispatch the
   reviewer. Changes requested → the implementer, then the reviewer again on
   the new head; never both in parallel. Approved → **the seat that started

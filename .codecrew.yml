@@ -2,26 +2,28 @@ codecrew: "1.0"
 hub: self
 
 # Advisory role routing, read by whoever dispatches agents (see SPEC.md §5).
-# `identity` names the GitHub App the role acts as; its private key lives
-# outside the repo at ~/.config/codecrew/<slug>.*.private-key.pem and tokens
-# are minted with `gh codecrew identity token <slug>`. `model` is the model
-# the seat is dispatched under — pass it to the harness (codex: `-m`), never
-# inherit the harness's default (#212).
+# `identity` is typed: `app:<slug>` a GitHub App, `user:<login>` a named
+# human, `team:<org>/<slug>` any member of the team, `~` the operator. Each
+# App's private key lives outside the repo at
+# ~/.config/codecrew/<slug>.*.private-key.pem and tokens are minted with
+# `gh codecrew identity token <slug>`. `model` is the model the seat is
+# dispatched under — pass it to the harness (codex: `-m`), never inherit
+# the harness's default (#212).
 roles:
   implementer:
     harness: claude-code
     model: claude-fable-5
-    identity: radiusred-cody
+    identity: app:radiusred-cody
   reviewer:
     harness: codex
     model: gpt-5.5
-    identity: radiusred-checky
+    identity: app:radiusred-checky
   qa:
     harness: codex
     model: gpt-5.5
-    identity: radiusred-testy
+    identity: app:radiusred-testy
   doc-synthesizer:
     harness: claude-code
-    identity: radiusred-wordy
+    identity: app:radiusred-wordy
   coordinator:
     identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)

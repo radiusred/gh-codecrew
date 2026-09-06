@@ -170,11 +170,11 @@ whatever does ([SPEC §5](../SPEC.md)).
 
 ```yaml
 roles:
-  implementer:     { harness: claude-code, model: claude-fable-5, identity: my-org-coder }
-  reviewer:        { harness: codex, model: gpt-5.5, identity: my-org-reviewer }
-  qa:              { harness: codex, model: gpt-5.5, identity: my-org-qa }
-  doc-synthesizer: { harness: claude-code, identity: my-org-docs }
-  coordinator:     { identity: my-org-coordinator }
+  implementer:     { harness: claude-code, model: claude-fable-5, identity: app:my-org-coder }
+  reviewer:        { harness: codex, model: gpt-5.5, identity: app:my-org-reviewer }
+  qa:              { harness: codex, model: gpt-5.5, identity: app:my-org-qa }
+  doc-synthesizer: { harness: claude-code, identity: app:my-org-docs }
+  coordinator:     { identity: app:my-org-coordinator }
 ```
 
 One platform agent per row. The platform's job is to make each of its agents

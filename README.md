@@ -28,8 +28,9 @@ than on the site.
 
 Four seats — implementer, reviewer, qa, doc-synthesizer — and a coordinator
 that dispatches them. Each is a contract file under [roles/](roles/), not an
-account, and each is held by one of four kinds of principal: you (`~`), a
-username, a GitHub team (`owner/team-slug`), or a GitHub App identity. Who
+account, and each is held by one of four kinds of principal, named by the
+identity's type prefix: you (`~`), a named human (`user:<login>`), a GitHub
+team (`team:<org>/<slug>`), or a GitHub App identity (`app:<slug>`). Who
 holds which seat is the `roles:` table in the hub's `.codecrew.yml`.
 
 Here is a worked example: the `roles:` section of this repository's own
@@ -45,18 +46,18 @@ roles:
   implementer:
     harness: claude-code
     model: claude-fable-5
-    identity: radiusred-cody
+    identity: app:radiusred-cody
   reviewer:
     harness: codex
     model: gpt-5.5
-    identity: radiusred-checky
+    identity: app:radiusred-checky
   qa:
     harness: codex
     model: gpt-5.5
-    identity: radiusred-testy
+    identity: app:radiusred-testy
   doc-synthesizer:
     harness: claude-code
-    identity: radiusred-wordy
+    identity: app:radiusred-wordy
   coordinator:
     identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)
 ```
