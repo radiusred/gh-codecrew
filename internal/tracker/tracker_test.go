@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -662,5 +663,60 @@ func TestMissingChecksPermission(t *testing.T) {
 	}
 	if got := MissingChecksPermission(nil); got != "" {
 		t.Errorf("nil: %q", got)
+	}
+}
+
+// The ## Adopts section is read one list line at a time, and only the ref
+// at the head of a line counts: the prose after it is the capture's title,
+// so a `#42` inside a title is not an adoption, and neither is a ref
+// written anywhere else in the body. Bare numbers resolve against the
+// task's own repo, full refs against themselves, and a repeat collapses.
+func TestAdoptedRefs(t *testing.T) {
+	body := `## Goal
+Delivers #900, which is not an adoption.
+
+## Requirements
+M14-R1
+
+## Adopts
+- #193 — task new/close: carry an adopted backlog issue
+* o/other#7 — the tidy verb, fixing #42 on the way
+- #193 — the same capture again
+- not a ref at all
+- #8
+
+## Plan
+Adopts #999 in prose, which is not the section.
+`
+	want := []IssueRef{
+		{Repo: "o/hub", Number: 193},
+		{Repo: "o/other", Number: 7},
+		{Repo: "o/hub", Number: 8},
+	}
+	if got := AdoptedRefs(body, "o/hub"); !reflect.DeepEqual(got, want) {
+		t.Errorf("AdoptedRefs = %v, want %v", got, want)
+	}
+	if got := AdoptedRefs("## Goal\nNo section here.\n", "o/hub"); got != nil {
+		t.Errorf("a body with no ## Adopts section adopted %v", got)
+	}
+}
+
+// AdoptsBlock writes what AdoptedRefs reads, and writes nothing at all for
+// a task that adopts nothing — the body task new has always written.
+func TestAdoptsBlockRoundTrips(t *testing.T) {
+	if got := AdoptsBlock("o/hub", nil); got != "" {
+		t.Errorf("no adoptions rendered %q", got)
+	}
+	adopted := []Adoption{
+		{Ref: IssueRef{Repo: "o/hub", Number: 193}, Title: "carry an adopted backlog issue"},
+		{Ref: IssueRef{Repo: "o/other", Number: 7}, Title: ""},
+	}
+	block := AdoptsBlock("o/hub", adopted)
+	if want := "\n## Adopts\n- #193 — carry an adopted backlog issue\n- o/other#7\n"; block != want {
+		t.Fatalf("AdoptsBlock = %q, want %q", block, want)
+	}
+	want := []IssueRef{adopted[0].Ref, adopted[1].Ref}
+	if got := AdoptedRefs(block+"\n## Plan\n", "o/hub"); !reflect.DeepEqual(got, want) {
+		t.Errorf("the block reads back as %v, want %v", got, want)
 	}
 }

@@ -181,6 +181,11 @@ type Tracker interface {
 	// (task finish --bypass; fails with GitHub's own error when the caller
 	// is not a bypass actor).
 	MergePRBypass(repo string, number int) error
+	// MergeCommit returns the commit a merged PR left on the base branch,
+	// or "" when it has none yet. A rebase merge rewrites the head, so the
+	// head SHA is not that commit — task finish names this one when it
+	// closes the captures the task adopted.
+	MergeCommit(repo string, number int) (string, error)
 	// CloseIssue closes an issue with a closing comment.
 	CloseIssue(ref IssueRef, comment string) error
 	// Comments lists issue (or PR) comments.
@@ -320,6 +325,91 @@ func PlanPresent(body string) bool {
 	content := section(body, "## Plan")
 	content = strings.ReplaceAll(content, PlanPlaceholder, "")
 	return strings.TrimSpace(content) != ""
+}
+
+// AdoptsHeading opens the task-body section listing the backlog issues a
+// task adopts (SPEC §4). `task new --adopts` writes it; `task finish`
+// reads it and closes each capture once the merge is done.
+const AdoptsHeading = "## Adopts"
+
+// Adoption is one backlog issue a task adopts: the capture's ref, and its
+// title as it read at the moment of adoption.
+type Adoption struct {
+	Ref   IssueRef
+	Title string
+}
+
+// AdoptsBlock renders the ## Adopts section for a task body in taskRepo —
+// a leading blank line, the heading, one list line per capture — or the
+// empty string when a task adopts nothing, so a body without adoptions is
+// byte for byte the body task new has always written. A ref in the task's
+// own repo is written short (`#193`), one elsewhere in full; the title
+// follows it for the reader.
+func AdoptsBlock(taskRepo string, adopted []Adoption) string {
+	if len(adopted) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n" + AdoptsHeading + "\n")
+	for _, a := range adopted {
+		b.WriteString("- " + ShortRef(a.Ref, taskRepo))
+		if t := strings.TrimSpace(a.Title); t != "" {
+			b.WriteString(" — " + t)
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// ShortRef writes a ref the way a body in repo reads it: `#N` in the same
+// repo, `owner/repo#N` anywhere else.
+func ShortRef(ref IssueRef, repo string) string {
+	if ref.Repo == repo {
+		return fmt.Sprintf("#%d", ref.Number)
+	}
+	return ref.String()
+}
+
+// adoptedLine matches one entry of the ## Adopts section: a list marker,
+// then the ref. Only the ref at the head of the line is one — the prose
+// after it is the capture's title, so a title carrying a `#42` of its own
+// is not a second adoption, and nothing task finish closes was ever
+// merely quoted.
+var adoptedLine = regexp.MustCompile(`(?m)^[ \t]*[-*][ \t]+((?:[\w.-]+/[\w.-]+)?#\d+)\b`)
+
+// AdoptedRefs returns the captures listed under a task body's ## Adopts
+// section, in the order written, deduplicated; a bare `#N` resolves
+// against defaultRepo, the task's own repo. No section, or none of its
+// lines carrying a ref, is no adoptions.
+func AdoptedRefs(body, defaultRepo string) []IssueRef {
+	var refs []IssueRef
+	seen := map[IssueRef]bool{}
+	for _, m := range adoptedLine.FindAllStringSubmatch(section(body, AdoptsHeading), -1) {
+		ref, err := ParseRef(m[1], defaultRepo)
+		if err != nil || seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+// AdoptionRecord is the comment task new posts on a capture, so the
+// backlog issue itself says which task now carries it.
+func AdoptionRecord(task IssueRef) string {
+	return fmt.Sprintf("**Adopted by** %s — this issue is delivered as that task, and `gh codecrew task finish` closes it when the task's pull request merges (SPEC §4). The PR needs no `Closes` line for it.", task)
+}
+
+// AdoptionClose is the comment task finish closes a capture with: the task
+// that adopted it, the pull request that delivered it, and the commit the
+// merge left on the default branch when that could be read.
+func AdoptionClose(task, pr IssueRef, sha string) string {
+	msg := fmt.Sprintf("Closed by `gh codecrew task finish %d`: adopted by %s and delivered by %s", task.Number, task, pr)
+	if sha != "" {
+		msg += fmt.Sprintf(", merged as %s", sha)
+	}
+	return msg + "."
 }
 
 // section returns the text between the given heading and the next "## ".
