@@ -11,7 +11,7 @@ import (
 const usage = `usage: gh codecrew <verb>
 
 verbs:
-  init [--hub owner/repo]                    scaffold a new hub or spoke
+  init [--hub owner/repo]                    scaffold a new hub or spoke, and create the cc: labels
   migrate [--dry-run]                        move a protocol 1.x repo to the 2.0 layout: one local
                                              commit, never pushed (--dry-run: every step, nothing written)
   status                                     where the project is

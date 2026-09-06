@@ -6,6 +6,34 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `init` and `checkpoint` create the `cc:` labels, in the crew palette
+- **Nothing defined the protocol's labels.** `cc:milestone`, `cc:task` and
+  `cc:needs-decision` were created implicitly by the first
+  `gh issue create --label` or `POST /issues/N/labels` that mentioned
+  them, so they wore whatever colour GitHub generated and carried no
+  description at all — and the first gate in a repository was an untested
+  path. `init` now ensures all three exist, hub and spoke alike, and
+  `checkpoint` defines `cc:needs-decision` before applying it. An existing
+  label is never touched, colour and description included: a project may
+  have restyled one deliberately, and nothing can tell that from a GitHub
+  default.
+- **The colours come from the crew images.** `cc:milestone` takes the
+  mark's cyan `#01d4ff`, `cc:task` the test seat's `#92edff` — the same
+  hue, lightened, a task being part of a milestone — and
+  `cc:needs-decision` the review seat's `#f0aeff`, because a gate is a
+  question for a human and review is the seat whose job is asking one. The
+  pairing is chosen for the two that co-occur on a gated task issue. SPEC
+  §4 carries the table as the protocol's defaults; only the names are
+  protocol.
+- **A GitHub failure never reaches the scaffold.** The label step is the
+  only thing `init` does after the commit, so an unreadable label
+  listing, a refused creation, a `gh` that cannot name the repository, or
+  a directory that is not a git repository yet is a `note:` line and
+  nothing more — the files are written and the scaffold is committed
+  either way. `checkpoint` degrades the same way: a creation that fails
+  still raises the gate, since applying an unknown label creates it
+  implicitly as before. (#283, #267)
+
 ### A close sweeps the branches earlier closes left behind
 - **`milestone close` no longer walks past a stale task branch.** The sweep
   visited only the closing milestone's own tasks, so a branch whose task
