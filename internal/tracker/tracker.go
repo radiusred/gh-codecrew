@@ -455,8 +455,9 @@ type Verdict struct {
 }
 
 // ParseVerdicts scans comments in order for verdict lines, at most one per
-// requirement ID per comment — the first match in the comment — with code
-// spans and fenced blocks stripped first (StripCode), so a verdict quoted
+// requirement ID per comment — the first match in the comment — with all
+// three Markdown code forms stripped first (StripCode: spans, fenced blocks
+// and blocks indented four columns after a blank line), so a verdict quoted
 // back inside code is content, not a verdict, exactly as a URL in code is
 // not a citation.
 //

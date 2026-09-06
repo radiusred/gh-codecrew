@@ -23,9 +23,10 @@ var urlPattern = regexp.MustCompile(`https?://[A-Za-z0-9\-._~:/?#@!$&+,;=%()]+`)
 
 // extractURLs pulls the deduplicated, ordered citations from a piece of
 // record text. A citation is a URL in prose or in a Markdown link outside
-// code; a URL inside an inline code span or a fenced code block is content
-// — a probe target meant to be unreachable, a command transcript, an error
-// string — and is not a citation (#222: two NXDOMAIN-by-design hostnames
+// code; a URL inside any of Markdown's three code forms — an inline span, a
+// fenced block, or a block indented four columns after a blank line — is
+// content: a probe target meant to be unreachable, a command transcript, an
+// error string, and not a citation (#222: two NXDOMAIN-by-design hostnames
 // in a survey comment refused a complete record). Trailing punctuation
 // that prose attaches (., ,, ;, :) is trimmed, and a closing parenthesis
 // is kept only when the URL opened it — a markdown link's `)` and a
