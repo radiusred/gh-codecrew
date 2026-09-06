@@ -349,7 +349,12 @@ the pointer's on every verb that loads it: a different major is refused
 ahead of the binary asks for an extension upgrade, one behind it is told the
 repo predates this protocol and is moved with `codecrew migrate`; neither
 asks anyone to edit the version field, which describes the repo rather than
-choosing for it. A missing field is assumed current, with a note. Decided at
+choosing for it. A missing field is assumed current, with a note — the
+pointer's own path is the layout's proof, since a repo still on 1.x has no
+`.codecrew/config.yml` for the check to reach and refuses `LAYOUT_LEGACY`
+first. There is no other leniency: 1.0's acceptance of `"0.1"`, the pre-1.0
+form of the same conventions, is gone with the other 1.0 shims (§10) — a
+`0.1` pointer is two majors back and is migrated like any other. Decided at
 the M6 gate on
 [#114](https://github.com/radiusred/gh-codecrew/issues/114):
 
@@ -518,12 +523,32 @@ hub).
 | `codecrew role <name> [--login]` | Prints the typed identity holding a role — `app:<slug>`, `user:<login>`, `team:<org>/<slug>`, or `~` for the operator (§5). Script-consumable; resolves from the hub's routing table when run in a spoke. `--login` prints instead the handle GitHub will accept a review request for — the login of a `user:` seat, `<org>/<slug>` for a `team:` seat — and **nothing at all** for an `app:` or `~` seat, neither of which can be requested: the emptiness is the caller's whole decision. The implementer uses it that way at PR creation; App-held seats are dispatched instead, Apps not being requestable (CODEOWNERS-driven requests coexist — requested reviewers union). |
 | *(every verb that reads the working repo's `.codecrew/config.yml`)* | Refuses `LAYOUT_LEGACY` when the repo is still on the protocol 1.x layout — a root `.codecrew.yml`, or a root `roles/` holding one of the five contracts, with no `.codecrew/config.yml` above it: the detail names what was found and `codecrew migrate`, and nothing reads the old layout. Refuses `PROTOCOL_MISMATCH` when the pointer's protocol major differs from the one the binary implements (§5), `IDENTITY_UNTYPED` when a routing row's identity carries no type prefix — the detail names the row and the four forms — `SPOKE_ROUTING` when a spoke's pointer carries a `roles:` block — the hub carries the one routing table (§5) — and `GH_TOO_OLD` when the installed `gh` is below the floor the verbs need (2.50.0, for `gh pr checks --json`) — checked once, up front, so the gate never fails inside `gh`. **The hub's routing table is checked, and routing fails closed.** In a spoke it is fetched at load and governs every role, so a hub pointer that cannot be fetched or parsed refuses `HUB_UNREADABLE` naming the hub and the path — never a degrade to the empty local table, which would resolve every seat to `~` and open the holder-review and verdict gates to anyone. A hub that reads fine and declares no table is a different thing and is legitimately `~` everywhere. The hub pointer's `codecrew:` major is read on that fetch and refuses `PROTOCOL_MISMATCH` naming both sides: one project speaks one protocol major. A hub reads its own pointer from disk, so it resolves roles with no network. `gh` failing to reach GitHub at all — no route, no DNS, no credentials — refuses `GH_UNREACHABLE` naming that condition rather than any of the above; `version`, `help`, and `roles show`/`roles diff` in a hub need no network at all. |
 | *(every verb that reads a milestone's `## Requirements`)* | Refuses `REQUIREMENT_ID_MISMATCH` when an ID declared there is not the milestone's own — `M<milestone>-R<k>` is the grammar (§4) — naming every offending ID and the milestone read; `status` prints it as a line and carries on, reporting rather than gating. |
-| `codecrew task finish <ref> [--dry-run]` | The gatekeeper (`--dry-run` evaluates every gate below in order and prints each — ok, refused with its code, not reached, not applicable — then the comments, merge and head deletion it would perform, writing nothing and exiting with the first refusal's code): refuses while the task carries `cc:needs-decision` (`refused[GATED]`) and, once the label is gone, while a gate raised on it has no answer (`refused[GATE_UNRECORDED]` — both labels are read per paragraph and only a later `**Gate resolved:**` answers, §4 and §8); verifies the caller is the seat that started the task (the `**Started by**` record `task start` posts on every start — accepted only from the login it names — else, for tasks started before the record, the assignee: the same login with the `[bot]` suffix ignored, or the same routed seat — a team-held role is any member; `refused[NOT_OWNER]` otherwise — the operator's own auth is not exempt; handover is `task start` again by the new seat, latest record wins, and `--bypass` is the recorded override for a human operator; a task with no start record is not gated), that a PR exists, CI checks exist and are green (`refused[NO_CHECKS]` when a PR reports zero checks — the deterministic gate cannot be satisfied by absence, and there is no override; `refused[NO_CHECKS_PERMISSION]`, naming the App and the permission, when the caller's installation token cannot read the checks at all — a private repo requires `checks: read` and `actions: read`, granted on the App's settings page and accepted on the installation), an approving review exists from the reviewer role's holder when the role routes to a distinct principal (`refused[NO_HOLDER_REVIEW]` otherwise — other approvals coexist but do not satisfy the gate; any non-doer approval suffices only when the role is operator-held) — then merges (rebase) and closes. When GitHub's own required-review rule is still unmet at that point (`reviewDecision: REVIEW_REQUIRED` — approvals count only from principals with write access: a write-access App's approval counts, a read-only App's and an operator confirmation do not), it refuses with `refused[REVIEW_NOT_COUNTED]` naming the supported paths; `--bypass` performs the ruleset's administrator merge instead, recorded as a PR comment, and only for a human operator the ruleset lists as a bypass actor. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (a `[bot]` suffix, or an `app:`-typed routed role) are refused with `refused[SELF_CONFIRM]`; a `user:`- or `team:`-typed holder is a human and is not. After the merge it deletes the head branch — the counterpart of `task start` creating it; a deletion failure is a note, the merge stands. |
+| `codecrew task finish <ref> [--operator-confirm] [--bypass] [--dry-run]` | The gatekeeper (`--dry-run` evaluates every gate below in order and prints each — ok, refused with its code, not reached, not applicable — then the comments, merge and head deletion it would perform, writing nothing and exiting with the first refusal's code): refuses while the task carries `cc:needs-decision` (`refused[GATED]`) and, once the label is gone, while a gate raised on it has no answer (`refused[GATE_UNRECORDED]` — both labels are read per paragraph and only a later `**Gate resolved:**` answers, §4 and §8); verifies the caller is the seat that started the task — the `**Started by**` record `task start` posts on every start, accepted only from the login it names, and the only thing that says a task was started: the same login with the `[bot]` suffix ignored, or the same routed seat, a team-held role being any member (`refused[NOT_OWNER]` otherwise — the operator's own auth is not exempt; handover is `task start` again by the new seat, latest record wins, and `--bypass` is the recorded override for a human operator). A task with no start record has no owner and is refused too, its detail naming `task start`: an assignee is not a start record, and 1.0's fallback to the first assignee is gone with the other shims (§10), that a PR exists, CI checks exist and are green (`refused[NO_CHECKS]` when a PR reports zero checks — the deterministic gate cannot be satisfied by absence, and there is no override; `refused[NO_CHECKS_PERMISSION]`, naming the App and the permission, when the caller's installation token cannot read the checks at all — a private repo requires `checks: read` and `actions: read`, granted on the App's settings page and accepted on the installation), an approving review exists from the reviewer role's holder when the role routes to a distinct principal (`refused[NO_HOLDER_REVIEW]` otherwise — other approvals coexist but do not satisfy the gate; any non-doer approval suffices only when the role is operator-held) — then merges (rebase) and closes. When GitHub's own required-review rule is still unmet at that point (`reviewDecision: REVIEW_REQUIRED` — approvals count only from principals with write access: a write-access App's approval counts, a read-only App's and an operator confirmation do not), it refuses with `refused[REVIEW_NOT_COUNTED]` naming the supported paths; `--bypass` performs the ruleset's administrator merge instead, recorded as a PR comment, and only for a human operator the ruleset lists as a bypass actor. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (a `[bot]` suffix, or an `app:`-typed routed role) are refused with `refused[SELF_CONFIRM]`; a `user:`- or `team:`-typed holder is a human and is not. After the merge it deletes the head branch — the counterpart of `task start` creating it; a deletion failure is a note, the merge stands. |
 | `codecrew milestone evidence <n>` | Walks the milestone's record — tracking issue and every sub-issue, bodies and comments — and verifies every citation resolves (github.com references via the API under the caller's auth, everything else by HTTP). A citation is a URL in prose or in a Markdown link outside code; a URL inside an inline code span or a fenced code block is content — a probe target meant to be unreachable, a verbatim command or error string — and is not checked. A github.com citation that does not resolve is `refused[EVIDENCE_UNREACHABLE]`; an external one prints a `warning:` line and does not block, for QA to weigh. It also checks the milestone's own ID grammar before the walk (`refused[REQUIREMENT_ID_MISMATCH]`, §4): the record is read so QA can be dispatched against it, and a requirement belonging to another milestone is not this record's to verdict. Run by the coordination layer before dispatching QA, and by QA as its first act: uncommitted evidence cost M4-R4 its verdict, and the check is deterministic, so it runs as code. The milestone is resolved from the hub's milestone listing regardless of state — a closed one resolves too and is reported as closed before the citation report, link rot in a shipped record being what a maintainer reads the verb for; `refused[NOT_FOUND]` means no milestone carries that number, open or closed. `milestone close` and `status` keep their open-only reads. |
 | `codecrew milestone close <id> [--dry-run]` | (`--dry-run`: the same gates in order, then every branch the sweep would delete or keep and why, and the closing comment; nothing written, the first refusal's code.) Verifies that the milestone issue itself carries no `cc:needs-decision` (`refused[MILESTONE_GATED]` otherwise — a requirement-level gate raised there by `checkpoint` is answered before anything is counted, §8), that all tasks are closed (`refused[OPEN_TASKS]`), that the tracking issue's `## Requirements` section declares at least one bold requirement ID (`refused[NO_REQUIREMENTS]` otherwise — IDs written elsewhere in the body are not requirements, so a close can never verify nothing) and that every ID it declares is the milestone's own (`refused[REQUIREMENT_ID_MISMATCH]` otherwise, naming them — §4's grammar, checked before anything is counted against a foreign requirement), and every requirement's latest QA verdict is `satisfied` (`refused[VERDICT_MISSING]` / `refused[VERDICT_UNSATISFIED]` otherwise; only verdicts from the qa role's holder count — its routed identity, or the human operator when the role is unrouted (§5) — and supersession is per comment: the latest comment carrying a verdict for an ID wins, the first verdict for that ID inside it counts, and a verdict written inside a code span or a fenced block is content, not a verdict, §4); once every gate has passed, sweeps the tasks' branches (the heads of their PRs, the `task/<n>-…` names `task start` cut) — deleting one only when its PR merged and the branch still sits at the merged commit, or when no PR is open and it carries nothing beyond the default branch; never a fork's branch or the default branch itself; reporting every other one — so the successful close and its closing comment record what was removed and why; gathers every Decision/Deviation comment across the milestone's tasks into raw material for the doc-synthesizer; refuses to close until the milestone document PR is merged. |
 
-Verbs exit nonzero with a machine-readable reason when a gate blocks them, so
-agents can act on the refusal rather than parse prose.
+**The exit-code contract.** A verb exits `0` when it did what it was asked
+and `1` on every failure — a refused gate, an unusable flag, an unreachable
+GitHub, a `gh` that failed. There is no exit-code taxonomy and none is
+coming within this major: a status of `1` says only "this did not happen",
+and anything finer would break every caller already asserting on it the day
+it arrived. `--dry-run` follows the same rule, exiting `1` when it reports a
+gate that would refuse.
+
+The machine channel is one line on **stderr**:
+
+```
+codecrew: refused[CODE]: detail
+```
+
+The **code** is the branch point — a fixed vocabulary, catalogued in §10,
+whose meanings are stable within a major. The **detail** is prose for a
+human and may be reworded in any release; nothing should parse it. A
+`note:` line is the other thing stderr carries: advisory, never a failure,
+and printed alongside a verb that went on to succeed. Output a caller
+consumes — a minted token, `role <name>`'s identity, a report and its
+`warning:` lines — goes to **stdout**, so it stays clean whatever stderr
+says.
 
 ## 7. Roles
 
@@ -671,6 +696,59 @@ role contracts may change in a minor — `status`'s drift report and `roles
 diff` are the mechanism, reconciliation the project's judgment. A change to
 this document that invalidates existing pointers or recorded comments is a
 protocol major, and the CLI that implements it refuses the old pointer.
+
+**The refusal codes.** Forty-two, and this table is the catalogue: a code
+absent from it is not one the protocol promises. Every row is raised as
+`refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
+below means any verb that loads the working repo's pointer — every verb
+except `version`, `help` and `identity token`, which read no pointer, and
+`init` and `migrate`, which read none either and raise the layout codes
+themselves.
+
+| Code | Raised by | Meaning |
+|------|-----------|---------|
+| `BAD_CREDENTIALS` | `identity token`, `identity webhook` | GitHub rejected the App JWT, or knows no App by the id it was signed as: the key and the id are not the same App's. |
+| `BOTH_LAYOUTS` | `migrate` | The 1.x and 2.0 layouts overlap, and neither file is migrate's to overwrite. |
+| `CHECKS_FAILING` | `task finish` | A CI check on the closing PR failed. |
+| `CHECKS_PENDING` | `task finish` | The closing PR's checks are still running. |
+| `CLOSED` | `task start`, `task finish` | The task issue is already closed. |
+| `CREW_BYPASS` | `task finish` | `--bypass` was given by a crew identity; the override is a human operator's act. |
+| `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a task before the close. |
+| `EVIDENCE_UNREACHABLE` | `milestone evidence` | A github.com citation in the milestone's record does not resolve. |
+| `FOREIGN_ROLES_DIR` | `migrate` | A root `roles/` holding CodeCrew's files also holds entries it does not recognise; it stops rather than guess which are its own. |
+| `GATED` | `task finish` | The task carries `cc:needs-decision`: a human gate is open. |
+| `GATE_UNRECORDED` | `task finish` | A gate was raised and the label removed, but no `**Gate resolved:**` comment records the answer (§8). |
+| `GH_TOO_OLD` | any verb | The installed `gh` is below the floor the verbs need, checked up front rather than met inside a gate. |
+| `GH_UNREACHABLE` | any verb, `migrate`, `roles show` | `gh` never reached GitHub — no route, no DNS, no credentials — named as itself and never folded into another condition. |
+| `HUB_UNREADABLE` | any verb in a spoke | The hub's pointer could not be fetched or parsed, so no role resolves; routing fails closed rather than degrade to `~` everywhere (§5). |
+| `IDENTITY_UNRESOLVED` | `migrate` | GitHub answered and the answer did not type a 1.0 identity: nothing, both a user and an App, or an organization. |
+| `IDENTITY_UNTYPED` | any verb | A routing row's `identity` names no kind of principal; the grammar is `~`, `app:`, `user:`, `team:` (§5). |
+| `INSTALLATION_AMBIGUOUS` | `identity token` | The App is installed on several accounts and nothing selects one. |
+| `LAYOUT_LEGACY` | any verb, `init` | The repo is still on the protocol 1.x layout; nothing reads it, and `migrate` moves it (§3). |
+| `MIGRATION_UNSUPPORTED` | `migrate` | The pointer's protocol major is not 1: below 1.0 predates the conventions the move assumes, above it is not a 1.x repo. |
+| `MILESTONE_GATED` | `milestone close` | The milestone issue itself carries `cc:needs-decision`: a requirement-level question, answered before anything is counted. |
+| `MILESTONE_NUMBER_TAKEN` | `milestone new` | The issue was created but another milestone holds its `M<n>:` prefix, and the verb's own renumbering did not settle it. |
+| `NOT_A_TASK` | `task start` | The issue is not labelled `cc:task`. |
+| `NOT_FOUND` | `task new`, `milestone close`, `milestone evidence` | No milestone with that number — open, for the first two; open or closed, for `evidence`. |
+| `NOT_OWNER` | `task finish` | The caller is not the seat that started the task, or nothing records a start at all (§8). |
+| `NO_CHECKS` | `task finish` | The closing PR reports no CI checks; absence cannot satisfy a deterministic gate, and there is no override. |
+| `NO_CHECKS_PERMISSION` | `task finish` | The installation token cannot read the PR's checks at all: a private repo needs permissions the App has not been granted. |
+| `NO_CREDENTIALS` | `identity token`, `identity webhook` | Nothing to sign with: no App id and key in the environment, and no key and stub under `~/.config/codecrew/`. |
+| `NO_HOLDER_REVIEW` | `task finish` | The reviewer seat routes to a distinct principal and that holder has not approved; other approvals do not satisfy it. |
+| `NO_INSTALLATION` | `identity token` | The App is installed on no account its key can see. |
+| `NO_NONDOER_APPROVAL` | `task finish` | The reviewer seat is operator-held and no non-author has approved (solo tier: `--operator-confirm`). |
+| `NO_PLAN` | `task start` | The task's Plan section is empty; plans come before work (§4). |
+| `NO_PR` | `task finish` | No open PR closes the task. |
+| `NO_REQUIREMENTS` | `milestone close` | The milestone's `## Requirements` section declares no bold ID, so there is nothing to verdict. |
+| `NO_WEBHOOK` | `identity webhook` | The App was minted without a webhook, and GitHub's API cannot create one. |
+| `OPEN_TASKS` | `milestone close` | Tasks under the milestone are still open. |
+| `PROTOCOL_MISMATCH` | any verb | A pointer's protocol major differs from the one this binary implements — the local one, or the hub's on the spoke's fetch (§5). |
+| `REQUIREMENT_ID_MISMATCH` | `milestone close`, `milestone evidence` | An ID under `## Requirements` is not the milestone's own; the grammar is `M<milestone>-R<k>` (§4). |
+| `REVIEW_NOT_COUNTED` | `task finish` | The protocol's review gate passed but GitHub's own required-review rule has not; the detail names the supported paths. |
+| `SELF_CONFIRM` | `task finish` | `--operator-confirm` was given by a crew identity; agents never waive review, in any tier. |
+| `SPOKE_ROUTING` | any verb, `migrate` | A spoke's pointer carries a `roles:` block; the hub carries the one routing table (§5). |
+| `VERDICT_MISSING` | `milestone close` | A requirement has no QA verdict from the qa seat's holder. |
+| `VERDICT_UNSATISFIED` | `milestone close` | The latest verdict on a requirement is not `satisfied`. |
 
 - **Go**, single static binary (`CGO_ENABLED=0`), cross-compiled for
   linux/mac/windows. Also installable as a `gh` extension (`gh codecrew …`),

@@ -115,8 +115,8 @@ into a CodeCrew repo starts at [.codecrew/AGENTS.md](.codecrew/AGENTS.md) and it
 under [.codecrew/roles/](.codecrew/roles/):
 
 - [docs/introduction.md](docs/introduction.md) — what CodeCrew is, precisely:
-  the three parts, what is shipped, and all forty-two refusal codes by the
-  verb that raises each
+  the three parts, what is shipped, and how a refusal reads (the code table
+  itself is [SPEC §10](SPEC.md#10-the-cli))
 - [docs/first-milestone.md](docs/first-milestone.md) — one milestone end to
   end, solo: open it, plan a task, do the work, verdict it, close it
 - [docs/identities.md](docs/identities.md) — routing seats to humans, teams
