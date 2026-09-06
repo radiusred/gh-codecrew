@@ -512,15 +512,10 @@ query($owner: String!, $repo: String!, $num: Int!) {
 	return names, nil
 }
 
-// taskBranchPrefix is the ref prefix the sweep lists under. GitHub returns
-// each node's name with the prefix removed, so the branch names are rebuilt
-// from it too — one constant, so the two can never drift.
-const taskBranchPrefix = "task/"
-
-func (GitHub) TaskBranches(repo string) ([]string, error) {
+func (GitHub) TaskBranches(repo string) ([]string, bool, error) {
 	owner, name, ok := strings.Cut(repo, "/")
 	if !ok {
-		return nil, fmt.Errorf("bad repo ref %q", repo)
+		return nil, false, fmt.Errorf("bad repo ref %q", repo)
 	}
 	var resp struct {
 		Data struct {
@@ -529,6 +524,9 @@ func (GitHub) TaskBranches(repo string) ([]string, error) {
 					Nodes []struct {
 						Name string `json:"name"`
 					} `json:"nodes"`
+					PageInfo struct {
+						HasNextPage bool `json:"hasNextPage"`
+					} `json:"pageInfo"`
 				} `json:"refs"`
 			} `json:"repository"`
 		} `json:"data"`
@@ -536,21 +534,49 @@ func (GitHub) TaskBranches(repo string) ([]string, error) {
 	query := `
 query($owner: String!, $repo: String!, $prefix: String!) {
   repository(owner: $owner, name: $repo) {
-    refs(refPrefix: $prefix, first: 100) { nodes { name } }
+    refs(refPrefix: $prefix, first: 100) {
+      nodes { name }
+      pageInfo { hasNextPage }
+    }
   }
 }`
 	if err := gh.JSON(&resp, "api", "graphql", "-f", "query="+query,
 		"-f", "owner="+owner, "-f", "repo="+name,
-		"-f", "prefix=refs/heads/"+taskBranchPrefix); err != nil {
-		return nil, err
+		"-f", "prefix=refs/heads/"+TaskBranchPrefix); err != nil {
+		return nil, false, err
 	}
+	// GitHub returns each node's name with the queried prefix removed, so
+	// the branch name is rebuilt from the same constant the query used.
 	var branches []string
 	for _, n := range resp.Data.Repository.Refs.Nodes {
 		if n.Name != "" {
-			branches = append(branches, taskBranchPrefix+n.Name)
+			branches = append(branches, TaskBranchPrefix+n.Name)
 		}
 	}
-	return branches, nil
+	return branches, resp.Data.Repository.Refs.PageInfo.HasNextPage, nil
+}
+
+// OpenPRsForBranch asks the pulls listing for open PRs with this head. gh
+// builds the query string, so a branch name's slashes need no escaping of
+// ours; the `head` filter's own grammar is `<owner>:<ref>`.
+func (GitHub) OpenPRsForBranch(repo, branch string) ([]int, error) {
+	owner, _, ok := strings.Cut(repo, "/")
+	if !ok {
+		return nil, fmt.Errorf("bad repo ref %q", repo)
+	}
+	var prs []struct {
+		Number int `json:"number"`
+	}
+	if err := gh.JSON(&prs, "api", "repos/"+repo+"/pulls", "-X", "GET",
+		"-f", "state=open", "-f", "per_page=100",
+		"-f", "head="+owner+":"+branch); err != nil {
+		return nil, err
+	}
+	numbers := make([]int, 0, len(prs))
+	for _, pr := range prs {
+		numbers = append(numbers, pr.Number)
+	}
+	return numbers, nil
 }
 
 func (g GitHub) BranchAhead(repo, branch string) (int, string, error) {

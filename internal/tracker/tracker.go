@@ -55,6 +55,11 @@ const (
 	Done       State = "done"
 )
 
+// TaskBranchPrefix opens every branch `task start` cuts —
+// `task/<n>-<slug>`. The sweep lists under it and reads the task number
+// back out of it, so the two live off one constant.
+const TaskBranchPrefix = "task/"
+
 // LabelNeedsDecision marks a raised human gate.
 const LabelNeedsDecision = "cc:needs-decision"
 
@@ -200,8 +205,15 @@ type Tracker interface {
 	LinkedBranches(ref IssueRef) ([]string, error)
 	// TaskBranches lists repo's `task/<n>-<slug>` branch names, filtered at
 	// the server by ref prefix: one listing per repo, and no branch outside
-	// the protocol's own naming can enter a sweep's candidate set.
-	TaskBranches(repo string) ([]string, error)
+	// the protocol's own naming can enter a sweep's candidate set. truncated
+	// reports that the repo carries more of them than one page holds, so a
+	// caller can say so rather than sweep a silent subset.
+	TaskBranches(repo string) (names []string, truncated bool, err error)
+	// OpenPRsForBranch lists the numbers of open pull requests whose head is
+	// branch. It is the relation ClosingPRs cannot see: a PR need not carry
+	// a `Closes` line for the issue whose branch it works on, and deleting
+	// a branch closes every PR open on it.
+	OpenPRsForBranch(repo, branch string) ([]int, error)
 	// BranchAhead reports how many commits branch carries beyond repo's
 	// default branch and the branch's current tip; an error when the branch
 	// does not exist.
