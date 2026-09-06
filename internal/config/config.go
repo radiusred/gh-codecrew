@@ -306,21 +306,23 @@ func gitRoot(dir string) string {
 }
 
 // Compatible checks a pointer's protocol version against the one the
-// binary implements (SPEC §5). Same major: compatible. "0.1" — the
-// pre-1.0 form of the same conventions — is compatible with a 1.x binary,
-// with a note to update. A missing field is compatible with a note. Any
-// other major is an error, and the two directions read differently: a
-// pointer ahead of the binary is met with "upgrade the extension", one
-// behind it with the migration that moves the repo forward. Neither ever
-// suggests editing the version field by hand.
+// binary implements (SPEC §5). Same major: compatible. A missing field is
+// compatible with a note — under 2.0 the pointer's own path is proof of
+// the layout it speaks, since a repo still on 1.x has no
+// .codecrew/config.yml at all and refuses LAYOUT_LEGACY long before this
+// check is reached. Any other major is an error, and the two directions
+// read differently: a pointer ahead of the binary is met with "upgrade the
+// extension", one behind it with the migration that moves the repo
+// forward. Neither ever suggests editing the version field by hand.
+//
+// 1.0's acceptance of "0.1" — the pre-1.0 form of the same conventions —
+// is gone with the rest of the 1.0 shims (M13-R7): a 0.1 pointer is two
+// majors back, and what it needs is the migration, not a note.
 func Compatible(pointer, implemented string) (note string, err error) {
-	implMajor := major(implemented)
 	switch {
 	case pointer == "":
 		return fmt.Sprintf("note: %s has no codecrew: protocol version — assuming %s; add codecrew: \"%s\" (SPEC §5)", Pointer, implemented, implemented), nil
-	case pointer == "0.1" && implMajor == "1":
-		return fmt.Sprintf("note: %s says protocol 0.1, the pre-1.0 form of 1.0 — update it to codecrew: \"%s\" (SPEC §5)", Pointer, implemented), nil
-	case major(pointer) == implMajor:
+	case major(pointer) == major(implemented):
 		return "", nil
 	case olderMajor(pointer, implemented):
 		// The repo predates this binary's protocol. Never "update the
