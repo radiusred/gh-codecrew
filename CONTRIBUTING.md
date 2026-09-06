@@ -17,4 +17,4 @@ the contribution process.
 - **Decisions and deviations** are recorded as comments when they happen
   (SPEC §4), so the milestone document can be synthesized from the record.
 
-If you are an agent, start at [AGENTS.md](AGENTS.md).
+If you are an agent, start at [.codecrew/AGENTS.md](.codecrew/AGENTS.md).

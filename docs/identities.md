@@ -358,7 +358,7 @@ davison/numberguess#8 — where the isolated reviewer caught a real encoding
 crash the implementer's tests had missed, refused approval until it was
 fixed, then verified the exact reproduction before approving):
 
-> Act as the CodeCrew reviewer for `<repo>` PR #N. Read AGENTS.md and the
+> Act as the CodeCrew reviewer for `<repo>` PR #N. Read .codecrew/AGENTS.md and the
 > hub's .codecrew/roles/reviewer.md first and follow them exactly. You are
 > not the implementer and must not edit code. Inspect the PR diff BEFORE its
 > description, then the task and milestone issues. Authenticate as
@@ -486,9 +486,11 @@ stop using the framework:
   `.codecrew/roles/` (the contracts and, from 1.1, the scaffolded
   `.codecrew/roles/<role>.local.md` extensions beside them — blank unless the
   project wrote into them),
-  `AGENTS.md`, `CLAUDE.md` (hub only; it imports `AGENTS.md` for Claude
-  Code — keep it if you had one of your own), `ROADMAP.md` in each repo.
-  Delete or keep; they are plain files with no hooks.
+  `.codecrew/AGENTS.md` (the instructions), the root `AGENTS.md` and
+  `CLAUDE.md` that point at them (in every repo; `CLAUDE.md` imports
+  `AGENTS.md` for Claude Code — keep either if you had one of your own),
+  `ROADMAP.md` in the hub. Delete or keep; they are plain files with no
+  hooks.
 - **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
   created on first use. Remove in the repo's label settings if you like.
 - **Task branches** — `task finish` deletes a merged head and `milestone

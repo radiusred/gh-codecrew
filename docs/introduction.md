@@ -12,7 +12,8 @@ The verbs are documented so they *can* be run by hand; in practice the coding
 agent runs them and a human answers the gates. And onboarding is the three
 commands under [Start now](../README.md#start-now) — install the extension,
 `cd` into the repo, `gh codecrew init` — after which an agent dispatched into
-the repo reads [AGENTS.md](../AGENTS.md) and its role contract and does the
+the repo reads [.codecrew/AGENTS.md](../.codecrew/AGENTS.md) (the root
+[AGENTS.md](../AGENTS.md) points at it) and its role contract and does the
 rest; the quickstart is the long form of what happens next, not a
 prerequisite.
 
@@ -104,8 +105,10 @@ the field-by-field reference.
 (`init --hub owner/repo`); this repo is its own hub (`hub: self`; SPEC §3
 on choosing yours). The hub's config also routes the five roles — the four
 crew seats and the coordinator, which unrouted is you — and `init` writes
-that table for you. Agents dispatched into a CodeCrew repo start at
-[AGENTS.md](../AGENTS.md). Agent identities are GitHub Apps; a seat's
+that table for you. Every repo also carries the entry point — the
+instructions in [.codecrew/AGENTS.md](../.codecrew/AGENTS.md), a root
+[AGENTS.md](../AGENTS.md) pointing at them and a `CLAUDE.md` importing that
+— so an agent dispatched into a spoke lands the same way it does in the hub. Agent identities are GitHub Apps; a seat's
 first act is `export GH_TOKEN=$(gh codecrew identity token <slug>)`, which
 mints a short-lived installation token from the platform's env bindings
 or the local key and stub and discovers the installation from the App

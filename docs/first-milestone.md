@@ -22,9 +22,9 @@ runs the verbs, writes plans into task issues, does the work, opens the
 PRs, and stops at every gate; you review, resolve raised gates, confirm
 merges, and give verdicts. Start your agent in the scaffolded repo and
 say "Let's build this project!" — `init` writes the entry point it reads
-(`AGENTS.md`, and from v1.0.1 a `CLAUDE.md` that imports it), so it knows
-where it is; point it at this page too if you want it to follow the long
-form. The refusals keep it honest even when you're not watching.
+(`.codecrew/AGENTS.md`, with a root `AGENTS.md` pointing at it and a
+`CLAUDE.md` importing that), so it knows where it is; point it at this page
+too if you want it to follow the long form. The refusals keep it honest even when you're not watching.
 
 Every command below is equally pasteable by a human — the protocol is fully
 human-operable end to end, and running one milestone by hand is a fine way
@@ -63,10 +63,14 @@ routing table declaring all five roles — `~` means "held by you"), a
 `ROADMAP.md` seed, the five role contracts under `.codecrew/roles/` — each
 with a blank `.codecrew/roles/<role>.local.md` beside it, the place for this
 project's own additions to a contract (the file says what belongs there; it
-adds nothing until you write into it) — and an
-`AGENTS.md` entry point for any agent you later dispatch — plus, from
-v1.0.1, a `CLAUDE.md` that imports it, because Claude Code loads
-`CLAUDE.md` and never `AGENTS.md` — and commits exactly those files
+adds nothing until you write into it) — and the entry point for any agent
+you later dispatch: `.codecrew/AGENTS.md`, which holds the instructions and
+is CodeCrew's to rewrite, a root `AGENTS.md` of two lines pointing at it
+(a sentence naming the path and an `@.codecrew/AGENTS.md` import), and a
+`CLAUDE.md` importing that root, because Claude Code loads `CLAUDE.md` and
+never `AGENTS.md`. If you already have an `AGENTS.md` or a `CLAUDE.md`,
+`init` keeps it untouched and prints the exact lines to paste into it.
+It commits exactly the files it wrote
 (`chore: scaffold codecrew`), leaving anything else you had staged or
 modified as it was. It never pushes; that is yours (run `init` at the
 repository root — it refuses a subdirectory, since the pointer belongs at

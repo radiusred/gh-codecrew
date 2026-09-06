@@ -92,11 +92,14 @@ permissions) works without convention.
 **Every repo carries a pointer file, `.codecrew/config.yml`**, so an agent
 dropped into any repo can find the coordination point. In the hub it declares
 `hub: self`; in a spoke it names the hub (`hub: owner/repo`). Everything
-CodeCrew owns operationally lives under `.codecrew/` — the pointer and the
-role contracts — so the framework never competes for a name in a project's
-own tree (`roles/` is Ansible's before it is ours). The human-facing record
-does not: `ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and `CLAUDE.md` stay
-where readers and harnesses look for them.
+CodeCrew owns operationally lives under `.codecrew/` — the pointer, the role
+contracts, and `.codecrew/AGENTS.md`, the instructions a dispatched agent
+reads — so the framework never competes for a name in a project's own tree
+(`roles/` is Ansible's before it is ours). The human-facing record does not:
+`ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and `CLAUDE.md` stay where
+readers and harnesses look for them — and the root `AGENTS.md` is only a
+pointer at `.codecrew/AGENTS.md`, so the file an adopter owns holds two
+lines the framework never has to rewrite.
 
 **A spoke belongs to one hub.** The single `hub:` field is permanent — a
 repo is in one delivery stream at a time, and the pointer is the answer to
@@ -495,7 +498,7 @@ hub).
 | Verb | What it does |
 |------|--------------|
 | `codecrew status` | Where the project is: open milestones, task states, raised gates — on tasks and on milestone issues alike, the latter marked `(milestone)` and on the milestone's own line; notes contract drift and a repo that does not delete branches on merge. With no open milestone it says so in place of the board and the gates section, and the two notes still print: both are local and have nothing to do with milestone state, and the quiet period between milestones is when a `.codecrew/roles/` fork gets reconciled against a new release. |
-| `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew/config.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release) under `.codecrew/roles/`, each with a blank `.codecrew/roles/<role>.local.md` extension beside it (a comment saying what the file is for, pointing at §7 and the upstream examples page; comments-only composes to nothing), and an AGENTS.md entry point; spoke mode writes the two-line pointer. Then it commits exactly the files it wrote — a pathspec commit, so the operator's own staged and unstaged work is untouched — on the current branch, or on `codecrew-bootstrap` cut from the default branch when that branch requires pull requests (asked through `gh`; assumed when it cannot be asked), never pushing; it refuses a subdirectory (the pointer belongs at the root) and leaves a detached HEAD uncommitted with the command to run: the scaffold is the last commit before the protocol starts, and where a ruleset requires it, the scaffold PR is the one merge the operator does by hand, recorded as the pre-milestone gate (§8; #172). Idempotent — existing files are kept and reported, and a rerun that writes nothing commits nothing. Scaffolded contracts carry a provenance stamp naming the release that wrote them. `init` reads no pointer, so it is exempt from the protocol check — but not from the layout: a repo still on 1.x refuses `LAYOUT_LEGACY` naming `codecrew migrate`, rather than writing a second layout beside the first. |
+| `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew/config.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release) under `.codecrew/roles/`, each with a blank `.codecrew/roles/<role>.local.md` extension beside it (a comment saying what the file is for, pointing at §7 and the upstream examples page; comments-only composes to nothing); spoke mode writes the pointer alone of those. Both modes write the entry point: `.codecrew/AGENTS.md`, which carries the instructions a dispatched agent reads and belongs to CodeCrew, and the two root files that reach it — an `AGENTS.md` holding only a sentence naming the path and a bare `@.codecrew/AGENTS.md` import line (both forms: the sentence is what a harness reading plain markdown follows, the import is what Claude Code resolves), and a `CLAUDE.md` importing `AGENTS.md`, since Claude Code reads `CLAUDE.md` and never `AGENTS.md`. A root `AGENTS.md` or `CLAUDE.md` that already exists is kept, as every existing file is, and `init` then prints the exact lines to add to it — byte for byte the ones its own pointer carries — under an `action needed` heading naming each file it kept: instructions on disk that nothing reaches are the one skip that leaves a project incomplete. Then it commits exactly the files it wrote — a pathspec commit, so the operator's own staged and unstaged work is untouched — on the current branch, or on `codecrew-bootstrap` cut from the default branch when that branch requires pull requests (asked through `gh`; assumed when it cannot be asked), never pushing; it refuses a subdirectory (the pointer belongs at the root) and leaves a detached HEAD uncommitted with the command to run: the scaffold is the last commit before the protocol starts, and where a ruleset requires it, the scaffold PR is the one merge the operator does by hand, recorded as the pre-milestone gate (§8; #172). Idempotent — existing files are kept and reported, and a rerun that writes nothing commits nothing. Scaffolded contracts carry a provenance stamp naming the release that wrote them. `init` reads no pointer, so it is exempt from the protocol check — but not from the layout: a repo still on 1.x refuses `LAYOUT_LEGACY` naming `codecrew migrate`, rather than writing a second layout beside the first. |
 | `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template (`--dry-run` prints the number it would assign, the title and the requirement IDs, and creates nothing — so requirement prose can be written knowing the number); each `--requirement` (repeatable) becomes a bold-ID line under `## Requirements`, numbered M<n>-R1, R2, … in the order given — the section the close gate reads — and the IDs counted are printed; text that brings its own ID is refused. The CLI derives n, twice: before creating, as one past the highest `M<k>:` title across the hub's label-filtered milestone listing and its newest unfiltered issues — either listing alone can lag an issue created seconds earlier ([#195](https://github.com/radiusred/gh-codecrew/issues/195)) — and after creating, when both listings are read again and the number must be the new issue's alone; another issue already carrying the prefix has the new issue renumbered to the next free number, title and `M<n>-R<k>` IDs, printed as a `renumbered:` line (bounded; `refused[MILESTONE_NUMBER_TAKEN]` naming both issues and the hand fix when the repair fails or the number is still taken). A title carrying an `M<k>` prefix that disagrees is refused, one that agrees is stripped. Touches no file: the milestone's ROADMAP.md row is added, Done, by its document PR (§4). |
 | `codecrew task new --milestone <id> --repo <spoke>` | Creates a task issue in the spoke from the template; attaches it to the milestone as a sub-issue. The milestone is resolved by number from the hub's open-milestone listing — and, when that listing lacks it, from the hub's newest issues regardless of label (an open issue titled `M<n>:` carrying `cc:milestone`), then again after a short wait, three reads in all: the label-filtered listing can lag a milestone created seconds earlier ([#234](https://github.com/radiusred/gh-codecrew/issues/234)), and a milestone found by either fallback is noted in the output. `refused[NOT_FOUND]` only after that. |
 | `codecrew task start <ref>` | Verifies a plan is present, posts the `**Started by** @<login>.` record (and assigns the caller where GitHub allows — humans; App identities are not assignable) (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
@@ -517,8 +520,10 @@ agents can act on the refusal rather than parse prose.
 ## 7. Roles
 
 Role contracts live in the hub under `.codecrew/roles/`, one short markdown file each,
-loadable by any harness (and referenced from `AGENTS.md` for harnesses that
-read it natively). Roles are contracts, not accounts: no GitHub App needs to
+loadable by any harness (and referenced from `.codecrew/AGENTS.md`, the entry
+point, for harnesses that read a repository's instructions natively — the root
+`AGENTS.md` points at it and `CLAUDE.md` imports the root, so every harness
+arrives at the same text). Roles are contracts, not accounts: no GitHub App needs to
 exist for a role to be staffed — every role can act as the human operator
 (§5, and [docs/identities.md](docs/identities.md) for both the solo path and
 App creation). v1 roles:
@@ -559,7 +564,7 @@ then the working repo's `.codecrew/roles/<role>.local.md` when it is a spoke. Th
 language and no precedence beyond that order — an extension that
 contradicts its contract is a review finding, not a resolver's job.
 `codecrew roles show <role>` prints the composition a dispatched session
-should load; a harness that reads `AGENTS.md` natively follows the same
+should load; a harness that reads the entry point natively follows the same
 order by hand.
 
 The inter-agent protocol is **GitHub itself** — issue comments, PR reviews,
@@ -636,14 +641,16 @@ ability to run a CLI and read/write GitHub. Supported shapes:
 **What 2.0 broke.** 2.0 is a protocol major, and the break is the layout:
 every CodeCrew-owned operational file moved under `.codecrew/` — the pointer
 from `.codecrew.yml` to `.codecrew/config.yml`, the contracts and their
-extensions from `roles/` to `.codecrew/roles/` — so the framework stops
+extensions from `roles/` to `.codecrew/roles/`, the agent instructions from
+`AGENTS.md` to `.codecrew/AGENTS.md` — so the framework stops
 competing for names in the root of a repo it does not own. There is no
 compatibility shim and no dual-read: a 2.0 binary meeting a 1.x repo refuses
 `LAYOUT_LEGACY` and names `codecrew migrate`, the one-shot verb that moves
 the files and rewrites the pointer. Nothing else about a 1.x project
 changes — the issues, labels, branches, records and roadmap are untouched,
 and `ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and `CLAUDE.md` stay at
-the root where readers and harnesses expect them.
+the root where readers and harnesses expect them, the last two now pointing
+at the instructions rather than holding them.
 
 **What 1.0 promises** (decided at the M6 gate, #114). Within a major release
 series of the CLI: verb names and their flags are additive — nothing is
