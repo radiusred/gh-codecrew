@@ -198,6 +198,10 @@ type Tracker interface {
 	// LinkedBranches lists the branch names linked to an issue — the
 	// relation task start creates through gh issue develop.
 	LinkedBranches(ref IssueRef) ([]string, error)
+	// TaskBranches lists repo's `task/<n>-<slug>` branch names, filtered at
+	// the server by ref prefix: one listing per repo, and no branch outside
+	// the protocol's own naming can enter a sweep's candidate set.
+	TaskBranches(repo string) ([]string, error)
 	// BranchAhead reports how many commits branch carries beyond repo's
 	// default branch and the branch's current tip; an error when the branch
 	// does not exist.

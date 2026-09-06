@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,8 +13,9 @@ import (
 
 // fakeGH stands a gh behind gh.Command for one test: `pr view` answers
 // with a minimal open PR, `pr checks` fails with checksErr on stderr the
-// way gh reports a GraphQL refusal. The fake is this test binary
-// re-entered at TestHelperGH — no script, no PATH shim.
+// way gh reports a GraphQL refusal, and the task-branch ref listing answers
+// the way GitHub does. The fake is this test binary re-entered at
+// TestHelperGH — no script, no PATH shim.
 func fakeGH(t *testing.T, checksErr string) {
 	t.Helper()
 	orig := gh.Command
@@ -47,6 +49,12 @@ func TestHelperGH(t *testing.T) {
 			fmt.Fprint(os.Stderr, os.Getenv("GH_HELPER_CHECKS_STDERR"))
 			os.Exit(1)
 		}
+	}
+	// The ref listing, answered as GitHub answers it: each node's name has
+	// the queried prefix removed.
+	if len(args) >= 2 && args[0] == "api" && args[1] == "graphql" && slices.Contains(args, "prefix=refs/heads/task/") {
+		fmt.Print(`{"data":{"repository":{"refs":{"nodes":[{"name":"8-cycle-1-record"},{"name":"14-cycle-2-record"},{"name":""}]}}}}`)
+		os.Exit(0)
 	}
 	fmt.Fprintf(os.Stderr, "fake gh: unexpected call %v", args)
 	os.Exit(2)
@@ -95,5 +103,26 @@ func TestPRInfoMapsMissingChecksPermission(t *testing.T) {
 	pr, err = GitHub{}.PRInfo("o/r", 9)
 	if err != nil || !pr.NoChecks || pr.ChecksUnreadable != "" {
 		t.Errorf("the checkless shape still maps to NoChecks: err %v pr %+v", err, pr)
+	}
+}
+
+// The stale sweep's listing is filtered at the server by ref prefix, and
+// GitHub returns each ref's name with that prefix removed — so TaskBranches
+// puts it back, and what the sweep reads is a branch name it can delete
+// rather than a bare slug. The shape was read off radiusred/numberguess,
+// the repo #167 was captured from. A nameless node is not a branch.
+func TestTaskBranchesRestoresThePrefix(t *testing.T) {
+	fakeGH(t, "")
+	got, err := GitHub{}.TaskBranches("radiusred/numberguess")
+	if err != nil {
+		t.Fatalf("TaskBranches: %v", err)
+	}
+	want := []string{"task/8-cycle-1-record", "task/14-cycle-2-record"}
+	if !slices.Equal(got, want) {
+		t.Errorf("TaskBranches = %v, want %v", got, want)
+	}
+	_, err = GitHub{}.TaskBranches("numberguess")
+	if err == nil {
+		t.Error("a repo ref with no owner must refuse before the API call")
 	}
 }
