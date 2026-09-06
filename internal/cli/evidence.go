@@ -324,19 +324,37 @@ func milestoneEvidence(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	milestones, err := c.t.OpenMilestones(c.hub)
+	return milestoneEvidenceReport(w, c, args[0])
+}
+
+// milestoneEvidenceReport is the verb without its pointer read, so the walk
+// is testable. The milestone is resolved from the state=all listing: link
+// rot in a shipped record is what a maintainer reads this verb for, and a
+// closed milestone answering NOT_FOUND refused a reviewer on M11 (#250).
+// milestone close and status keep their open-only reads — a closed
+// milestone is nothing either of them can act on.
+func milestoneEvidenceReport(w io.Writer, c *ctx, n string) error {
+	milestones, err := c.t.MilestoneIssues(c.hub)
 	if err != nil {
 		return err
 	}
-	var milestone *tracker.Milestone
+	var milestone *tracker.TitledIssue
 	for i := range milestones {
-		if got, ok := tracker.MilestoneNumber(milestones[i].Title); ok && fmt.Sprint(got) == args[0] {
+		if got, ok := tracker.MilestoneNumber(milestones[i].Title); ok && fmt.Sprint(got) == n {
 			milestone = &milestones[i]
 			break
 		}
 	}
 	if milestone == nil {
-		return refuse("NOT_FOUND", "no open milestone M%s in %s", args[0], c.hub)
+		return refuse("NOT_FOUND", "no milestone M%s in %s", n, c.hub)
+	}
+	// Said before the report, not after: it frames everything below it —
+	// the record is finished, so a dead citation is rot, not work in
+	// progress. Task is a plain issue query and serves a milestone issue,
+	// as status's own read of it does; an unreadable state is not worth
+	// refusing a walk that can still run.
+	if issue, err := c.t.Task(milestone.Ref); err == nil && issue.Closed {
+		fmt.Fprintf(w, "note: milestone M%s (%s) is closed — checking the record as it stands\n", n, milestone.Ref)
 	}
 
 	if body, err := c.t.IssueBody(milestone.Ref); err == nil {
