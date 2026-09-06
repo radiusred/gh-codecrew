@@ -296,10 +296,22 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	// Last, so the one thing needing a human is the last thing on screen.
 	if len(stranded) > 0 {
-		fmt.Fprintf(w, "\naction needed — a kept entry point does not reach CodeCrew's instructions.\n")
-		fmt.Fprintf(w, "Kept: %s\n", strings.Join(stranded, ", "))
-		fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
-		fmt.Fprint(w, entryPointLines)
+		entryPointAction(w, "a kept entry point does not reach CodeCrew's instructions.", "Kept: "+strings.Join(stranded, ", "))
 	}
 	return nil
+}
+
+// entryPointAction prints the one thing these verbs cannot do for the
+// operator: the root entry points that do not reach .codecrew/AGENTS.md,
+// and the exact lines to paste into each — entryPointLines verbatim, so
+// what is pasted is what the scaffold would have written. init and migrate
+// both end with it, because instructions on disk that nothing arrives at
+// are the same incomplete project either way. The two find the files in
+// different states, so each passes its own headline and list line; the
+// payload below them is shared and must stay so.
+func entryPointAction(w io.Writer, headline, list string) {
+	fmt.Fprintf(w, "\naction needed — %s\n", headline)
+	fmt.Fprintf(w, "%s\n", list)
+	fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
+	fmt.Fprint(w, entryPointLines)
 }

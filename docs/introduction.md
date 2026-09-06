@@ -185,6 +185,13 @@ raises them (the source is the catalogue of record — `refuse("CODE"` in
 
 **`migrate`**
 
+Not a refusal, but the one thing the verb leaves for a human: a root
+`AGENTS.md` or `CLAUDE.md` that does not reach `.codecrew/AGENTS.md` — a
+1.x repo's root file holds the old instructions — is named under an
+`action needed` heading with the exact lines to paste. The root file is the
+project's and is never rewritten; `.codecrew/AGENTS.md` itself is written
+when absent, as part of the migration commit. The codes:
+
 - `BOTH_LAYOUTS` — the two layouts overlap: the repo carries
   `.codecrew/config.yml` *and* a protocol 1.x pointer or contracts, or a
   2.0 file already sits where a 1.x one would move (`.codecrew/roles/qa.md`
