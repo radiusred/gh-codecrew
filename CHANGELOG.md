@@ -23,7 +23,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   branch of that name, nothing happens and nothing is printed; `--dry-run`
   names the local steps beside the remote gates without fetching or moving
   a ref. The CLI can only tidy the clone it runs in — a multi-clone setup
-  still sweeps the others (#271).
+  still sweeps the others, and `docs/identities.md`'s cleanup guidance now
+  tells the remaining remote refs (`git branch -r`) from the local branches
+  left in each clone (`git branch`), the ones kept for their commits
+  included (#271).
 
 ### The M13 record
 - `docs/milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md`
