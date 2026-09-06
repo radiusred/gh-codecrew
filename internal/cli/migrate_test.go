@@ -168,6 +168,71 @@ func TestMigrateHub(t *testing.T) {
 	}
 }
 
+// A 1.x hub carries CodeCrew's instructions in its root AGENTS.md, which
+// belongs to the project. The migration writes the 2.0 entry point beside
+// the rest of the layout, leaves the root file exactly as it found it, and
+// ends with the lines to paste in — the same block init prints (M13-R3).
+func TestMigrateWritesTheEntryPoint(t *testing.T) {
+	const rootAgents = "# Agents\n\nRead `roles/implementer.md` before doing anything else.\n"
+	dir := legacyRepo(t, legacy1x, map[string]string{
+		"roles/qa.md": "# Role: qa\n",
+		"AGENTS.md":   rootAgents,
+		"CLAUDE.md":   "@AGENTS.md\n",
+	})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, dir, config.AgentsFile); got != agentsScaffold {
+		t.Errorf("%s = %q, want the scaffold init writes", config.AgentsFile, got)
+	}
+	if got := read(t, dir, "AGENTS.md"); got != rootAgents {
+		t.Errorf("the project's root AGENTS.md was rewritten: %q", got)
+	}
+	for _, want := range []string{"wrote " + config.AgentsFile, "action needed", "AGENTS.md (kept)", "CLAUDE.md (kept)", entryPointLines} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output does not carry %q:\n%s", want, out.String())
+		}
+	}
+	// The new file rides the migration's own commit, not the operator's
+	// next one.
+	files := committedFiles(t, dir, "HEAD")
+	if !strings.Contains(files, config.AgentsFile) {
+		t.Errorf("%s is not in the migration commit:\n%s", config.AgentsFile, files)
+	}
+	status, err := git(dir, "status", "--short")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != "" {
+		t.Errorf("the migration left work uncommitted: %q", status)
+	}
+}
+
+// A root entry point that already reaches the instructions asks for
+// nothing: the block is for a project that would otherwise be disconnected,
+// not a banner on every migration.
+func TestMigrateSaysNothingWhenTheRootAlreadyReaches(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{
+		"AGENTS.md": "# Agents\n\n" + entryPointLines,
+		"CLAUDE.md": "@AGENTS.md\n",
+	})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "action needed") {
+		t.Errorf("a reaching root entry point still asked for an action:\n%s", out.String())
+	}
+	if !exists(t, dir, config.AgentsFile) {
+		t.Errorf("%s was not written", config.AgentsFile)
+	}
+}
+
 // An older scaffold — four contracts, no extensions — moves what is there
 // and invents nothing.
 func TestMigrateHubWithoutExtensions(t *testing.T) {
@@ -409,6 +474,7 @@ func TestMigrateDryRun(t *testing.T) {
 		"would move " + config.LegacyPointer + " -> " + config.Pointer,
 		"would move roles/qa.md -> " + config.RolesDir + "/qa.md",
 		"would remove the emptied roles/",
+		"would write " + config.AgentsFile,
 		"would rewrite " + config.Pointer,
 		"roles.implementer.identity: myorg-coder -> app:myorg-coder",
 		"roles.coordinator: added",
@@ -418,7 +484,7 @@ func TestMigrateDryRun(t *testing.T) {
 			t.Errorf("dry run did not print %q:\n%s", want, out.String())
 		}
 	}
-	if exists(t, dir, config.Pointer) || !exists(t, dir, config.LegacyPointer) || !exists(t, dir, "roles/qa.md") {
+	if exists(t, dir, config.Pointer) || !exists(t, dir, config.LegacyPointer) || !exists(t, dir, "roles/qa.md") || exists(t, dir, config.AgentsFile) {
 		t.Error("the dry run wrote to disk")
 	}
 	if headSubject(t, dir) != before {

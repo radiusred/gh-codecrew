@@ -24,6 +24,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   directory is CodeCrew's, an entry outside the ten refuses
   `refused[FOREIGN_ROLES_DIR]` naming it: migrate does not guess which
   files it owns.
+- **What it writes.** `.codecrew/AGENTS.md`, the 2.0 entry point, when the
+  repo has none — under 1.x those instructions lived in the root
+  `AGENTS.md`, which belongs to the project, so a tree migrated without it
+  would be on the 2.0 layout with no 2.0 entry point. The root `AGENTS.md`
+  and `CLAUDE.md` are then treated exactly as `init` treats a kept one: one
+  that already reaches `.codecrew/AGENTS.md` asks for nothing, one that
+  does not is named under an `action needed` heading with the exact lines
+  to paste, and neither is ever rewritten.
 - **What it rewrites.** The pointer, in place: `codecrew: "2.0"`, a
   `coordinator` row when the table declares none, and every identity typed
   per the grammar above. A bare 1.0 value is typed by asking GitHub what it
@@ -158,6 +166,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   git show                          # read it: the pointer's rewrite is in there
   git push -u origin HEAD           # migrate never pushes; open the PR yourself
   ```
+
+  `migrate` ends with an `action needed` block whenever the repo's root
+  `AGENTS.md` or `CLAUDE.md` does not yet reach `.codecrew/AGENTS.md` — a
+  1.x root entry point holds the old instructions, so it usually does not.
+  Paste the two lines it prints into each file it names; migrate does not
+  edit them itself.
 
   `migrate` is described in its own entry above. (#256)
 
