@@ -374,3 +374,43 @@ func TestContractsAreReadOnlyFromTheNewPath(t *testing.T) {
 		t.Errorf("show did not read %s:\n%s", contractPath("qa"), buf.String())
 	}
 }
+
+// From a spoke, `roles show` needs the hub. When GitHub cannot be reached
+// the refusal says so and keeps its code: "no contract in the hub" would
+// be a claim about a repo nobody managed to read (M13-R5).
+func TestComposedContractNamesAnUnreachableHub(t *testing.T) {
+	offline := errors.New(`gh api: Get "https://api.github.com/...": dial tcp: lookup api.github.com: no such host`)
+	_, err := composedContract("qa", func(string) ([]byte, error) {
+		return nil, unreachable(offline)
+	}, "")
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "GH_UNREACHABLE" {
+		t.Fatalf("err = %v, want refused[GH_UNREACHABLE]", err)
+	}
+	if strings.Contains(err.Error(), "reading .codecrew/roles/qa.md from the hub") {
+		t.Errorf("a classified refusal was wrapped in prose: %v", err)
+	}
+
+	// An extension fetch that fails the same way is named the same way —
+	// composedContract surfaces every non-absent failure, so a session
+	// never runs on a silently partial contract.
+	calls := 0
+	_, err = composedContract("qa", func(path string) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return []byte("# Role: qa\n"), nil
+		}
+		return nil, unreachable(offline)
+	}, "")
+	if !errors.As(err, &r) || r.Code != "GH_UNREACHABLE" {
+		t.Fatalf("extension fetch: err = %v, want refused[GH_UNREACHABLE]", err)
+	}
+
+	// An ordinary failure still says which path it was reading.
+	_, err = composedContract("qa", func(string) ([]byte, error) {
+		return nil, errors.New("gh api: gh: Resource not accessible by integration (HTTP 403)")
+	}, "")
+	if err == nil || !strings.Contains(err.Error(), "reading "+contractPath("qa")+" from the hub") {
+		t.Errorf("err = %v, want it to name the path", err)
+	}
+}

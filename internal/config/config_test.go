@@ -471,3 +471,81 @@ func TestCompatibleMismatchIsAsymmetric(t *testing.T) {
 		t.Errorf("unparseable pointer: %v", err)
 	}
 }
+
+// A spoke's pointer carries no routing table: the hub carries one table
+// for the whole project, and a copy in a spoke either outranks it or goes
+// stale (the Claude scan on #254, finding 8). Refused at parse, so no verb
+// ever reads one (M13-R5).
+func TestParseRefusesASpokeRoutingTable(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		yml     string
+		refused bool
+	}{
+		{"a spoke carrying a table", "hub: acme/hub\nroles:\n  reviewer: { identity: user:alice }\n", true},
+		{"a spoke carrying only the pointer", "hub: acme/hub\n", false},
+		{"a spoke with an empty table", "hub: acme/hub\nroles: {}\n", false},
+		{"the hub's own table", "hub: self\nroles:\n  reviewer: { identity: user:alice }\n", false},
+	} {
+		_, err := Parse([]byte(c.yml))
+		var spoke *SpokeRoutingError
+		if got := errors.As(err, &spoke); got != c.refused {
+			t.Errorf("%s: err = %v, want SpokeRoutingError %v", c.name, err, c.refused)
+		}
+		if !c.refused {
+			continue
+		}
+		// The detail must name the hub that does carry the table, the row
+		// found, and the file — an agent acts on it without reading code.
+		for _, want := range []string{"acme/hub", "reviewer", Pointer} {
+			if !strings.Contains(spoke.Error(), want) {
+				t.Errorf("%s: detail %q does not name %q", c.name, spoke, want)
+			}
+		}
+	}
+	// Several rows are named in role order, so the refusal reads the same
+	// on every run.
+	_, err := Parse([]byte("hub: acme/hub\nroles:\n  reviewer: { identity: user:alice }\n  qa: { identity: ~ }\n"))
+	var spoke *SpokeRoutingError
+	if !errors.As(err, &spoke) {
+		t.Fatalf("err = %v, want SpokeRoutingError", err)
+	}
+	if got := strings.Join(spoke.Roles, ","); got != "qa,reviewer" {
+		t.Errorf("Roles = %q, want them sorted", got)
+	}
+}
+
+// The hub's protocol major is checked from the spoke that reads its table,
+// which is what makes the version check topology-wide (M13-R5). The two
+// directions read as Compatible's do, and both sides are named.
+func TestCompatibleHub(t *testing.T) {
+	for _, c := range []struct {
+		hubVersion string
+		wantNote   bool
+		wantErr    string
+	}{
+		{hubVersion: "2.0"},
+		{hubVersion: "2.7"},                                   // same major, later minor
+		{hubVersion: "", wantNote: true},                      // absent: assumed, noted
+		{hubVersion: "1.0", wantErr: "gh codecrew migrate"},   // the hub is behind
+		{hubVersion: "3.0", wantErr: "upgrade the extension"}, // the hub is ahead
+		{hubVersion: "0.1", wantErr: "gh codecrew migrate"},   // two majors back
+	} {
+		note, err := CompatibleHub("acme/hub", c.hubVersion, "2.0")
+		if (note != "") != c.wantNote {
+			t.Errorf("%q: note = %q, want note %v", c.hubVersion, note, c.wantNote)
+		}
+		if (err != nil) != (c.wantErr != "") {
+			t.Fatalf("%q: err = %v, want error %v", c.hubVersion, err, c.wantErr != "")
+		}
+		if err == nil {
+			continue
+		}
+		// Both sides, so the reader knows which end to move.
+		for _, want := range []string{"acme/hub", c.hubVersion, "2.0", c.wantErr} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%q: %v does not name %q", c.hubVersion, err, want)
+			}
+		}
+	}
+}

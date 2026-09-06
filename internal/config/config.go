@@ -148,6 +148,21 @@ func (e *UntypedIdentityError) Error() string {
 	return fmt.Sprintf("roles.%s.identity: %q names no kind of principal — a routing identity is `~` (the operator), `app:<slug>` (a GitHub App), `user:<login>` (a named human) or `team:<org>/<slug>` (any member of the team); `gh codecrew migrate` rewrites a 1.0 table (SPEC §5)", e.Role, e.Value)
 }
 
+// SpokeRoutingError is a spoke pointer carrying a `roles:` block. The hub
+// holds the one routing table for the whole topology (SPEC §5); a copy in
+// a spoke is either a stale duplicate that silently outranks it or a
+// promise the spoke cannot keep, and 2.0 refuses both rather than picking
+// a winner. The CLI gives it the refusal code (SPOKE_ROUTING).
+type SpokeRoutingError struct {
+	Hub   string   // the hub this pointer names
+	Roles []string // the rows it declares, in name order
+}
+
+func (e *SpokeRoutingError) Error() string {
+	return fmt.Sprintf("%s names the hub %s and carries a roles: block (%s) — the hub carries the routing table for the whole project, and a spoke's copy would outrank it while going stale; delete the block here and declare the routing in %s's %s (SPEC §5)",
+		Pointer, e.Hub, strings.Join(e.Roles, ", "), e.Hub, Pointer)
+}
+
 // Pointer, RolesDir and AgentsFile are the protocol 2.0 layout, relative to
 // a repo's root: every CodeCrew-owned operational file lives under
 // .codecrew/ (SPEC §3), so nothing the framework writes collides with a
@@ -312,6 +327,28 @@ func Compatible(pointer, implemented string) (note string, err error) {
 	}
 }
 
+// CompatibleHub checks the protocol version of a hub's pointer, fetched
+// from a spoke, against the version this binary implements — which the
+// spoke's own pointer has already been checked against, so this is what
+// makes the version check topology-wide rather than repo-local (SPEC §5,
+// §6). A skew names both sides, and reads in the same two directions
+// Compatible does: a hub behind the binary is moved forward with
+// `migrate`, a hub ahead of it wants a newer extension here. A hub with no
+// codecrew: field is assumed current, with a note, exactly as a local
+// pointer is.
+func CompatibleHub(hub, hubVersion, implemented string) (note string, err error) {
+	switch {
+	case hubVersion == "":
+		return fmt.Sprintf("note: the hub %s's %s has no codecrew: protocol version — assuming %s (SPEC §5)", hub, Pointer, implemented), nil
+	case major(hubVersion) == major(implemented):
+		return "", nil
+	case olderMajor(hubVersion, implemented):
+		return "", fmt.Errorf("the hub %s speaks protocol %s in its %s; this repo speaks protocol %s — one project speaks one protocol major, so move the hub forward with gh codecrew migrate (SPEC §5)", hub, hubVersion, Pointer, implemented)
+	default:
+		return "", fmt.Errorf("the hub %s speaks protocol %s in its %s; this repo speaks protocol %s — one project speaks one protocol major, so upgrade the extension here (SPEC §5)", hub, hubVersion, Pointer, implemented)
+	}
+}
+
 func major(v string) string {
 	if i := strings.Index(v, "."); i >= 0 {
 		return v[:i]
@@ -346,6 +383,9 @@ func Parse(data []byte) (*Config, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	if cfg.Hub != "self" && len(names) > 0 {
+		return nil, &SpokeRoutingError{Hub: cfg.Hub, Roles: names}
+	}
 	for _, name := range names {
 		if id := cfg.Roles[name].Identity; id.Kind == KindUntyped {
 			return nil, &UntypedIdentityError{Role: name, Value: id.Value}

@@ -198,6 +198,18 @@ func withoutHTMLComments(s string) string {
 	}
 }
 
+// fromHub says which hub path a read failed on — unless the failure has
+// already been classified into a refusal of its own (GH_UNREACHABLE), in
+// which case it speaks for itself and wrapping would bury its code inside
+// prose.
+func fromHub(path string, err error) error {
+	var r refusal
+	if errors.As(err, &r) {
+		return err
+	}
+	return fmt.Errorf("reading %s from the hub: %w", path, err)
+}
+
 // composedContract assembles what a dispatched session loads for role:
 // the hub's .codecrew/roles/<role>.md (the project's fork of the contract),
 // then the hub's .codecrew/roles/<role>.local.md, then the working repo's
@@ -210,7 +222,7 @@ func composedContract(role string, hubRead func(string) ([]byte, error), spokeDi
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", fmt.Errorf("no %s in the hub", contractPath(role))
 	} else if err != nil {
-		return "", fmt.Errorf("reading %s from the hub: %w", contractPath(role), err)
+		return "", fromHub(contractPath(role), err)
 	}
 	// An absent extension is the normal case and is skipped; any other
 	// failure surfaces, so a session never runs on a silently partial
@@ -220,7 +232,7 @@ func composedContract(role string, hubRead func(string) ([]byte, error), spokeDi
 	if data, err := hubRead(ext); err == nil {
 		locals = append(locals, localPart{Source: ext + " (hub)", Body: string(data)})
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return "", fmt.Errorf("reading %s from the hub: %w", ext, err)
+		return "", fromHub(ext, err)
 	}
 	if spokeDir != "" {
 		if data, err := os.ReadFile(filepath.Join(spokeDir, filepath.FromSlash(ext))); err == nil {
@@ -286,6 +298,12 @@ func rolesCmd(w io.Writer, args []string) error {
 				data, err := tracker.GitHub{}.FileContent(hub, path)
 				if err != nil && strings.Contains(err.Error(), "HTTP 404") {
 					return nil, fs.ErrNotExist // absent, as distinct from unreachable
+				}
+				// Unreachable is named as such: from a spoke this verb
+				// needs the hub, and "no contract in the hub" would be a
+				// lie about a network that never answered (M13-R5).
+				if ghErr := unreachable(err); ghErr != nil {
+					return nil, ghErr
 				}
 				return data, err
 			}

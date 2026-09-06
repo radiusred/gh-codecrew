@@ -20,7 +20,7 @@ type ctx struct {
 	hub     string // owner/repo of the hub
 	t       tracker.Tracker
 
-	roles *config.Config // memoized routing table (local or hub)
+	roles *config.Config // the routing table (this repo's, or the hub's), settled at load
 
 	// teams memoizes team member sets per run (the #43 ctx pattern):
 	// one fetch per team, however many logins are tested against it.
@@ -33,8 +33,9 @@ type ctx struct {
 // stderr (SPEC §5). A repo still on the protocol 1.x layout refuses
 // LAYOUT_LEGACY — this binary does not read that layout, it names the verb
 // that moves it forward. A routing row whose identity carries no kind
-// refuses IDENTITY_UNTYPED — config detects each condition, the CLI names
-// it, as with the protocol check.
+// refuses IDENTITY_UNTYPED, and a spoke pointer carrying a roles: block
+// refuses SPOKE_ROUTING — config detects each condition, the CLI names it,
+// as with the protocol check.
 func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 	cfg, err := config.Load(dir)
 	if err != nil {
@@ -45,6 +46,10 @@ func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 		var untyped *config.UntypedIdentityError
 		if errors.As(err, &untyped) {
 			return nil, refuse("IDENTITY_UNTYPED", "%v", untyped)
+		}
+		var spokeRoles *config.SpokeRoutingError
+		if errors.As(err, &spokeRoles) {
+			return nil, refuse("SPOKE_ROUTING", "%v", spokeRoles)
 		}
 		return nil, err
 	}
@@ -116,33 +121,89 @@ func load() (*ctx, error) {
 	}
 	current, err := gh.CurrentRepo()
 	if err != nil {
+		if ghErr := unreachable(err); ghErr != nil {
+			return nil, ghErr
+		}
 		return nil, err
 	}
-	return &ctx{
+	c := &ctx{
 		cfg:     cfg,
 		current: current,
 		hub:     cfg.HubRepo(current),
 		t:       tracker.GitHub{},
-	}, nil
+	}
+	if err := c.resolveRoles(os.Stderr); err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
-// rolesConfig returns the config whose routing table governs role
-// resolution. Spokes carry only the pointer config (SPEC §5), so when the
-// local file has no roles the hub's .codecrew/config.yml is fetched
-// (memoized); an unreadable hub config degrades to the local one rather
-// than failing the verb — routing is advisory.
-func (c *ctx) rolesConfig() *config.Config {
+// resolveRoles settles the routing table before any verb can consult it,
+// so a ctx never exists without one. That is the whole of "routing fails
+// closed" (M13-R5): an unreadable hub used to degrade to the local, empty
+// table, which turns holder() into `~` for every role — and with it the
+// holder-review gate into "any non-author approved" and the QA verdict
+// count into "anyone commented" (the Claude scan on #254, finding 2).
+// Resolving here rather than lazily at each call site means no predicate
+// — the review gate, the verdict count, crewIdentity, roleFor — can
+// forget to handle the error.
+//
+// The table is chosen by topology, not by emptiness:
+//
+//   - hub: self — the local pointer *is* the table. No fetch, so a hub
+//     keeps working with no network, and a hub declaring no table is
+//     legitimately `~` everywhere, as it always was.
+//   - hub: owner/repo — the table is always the hub's, fetched here. A
+//     spoke may not carry one at all (SPOKE_ROUTING), so there is nothing
+//     local to prefer.
+//
+// "Read fine, no table" and "could not read" are told apart by whether the
+// fetch and the parse succeeded — never by the table being empty.
+func (c *ctx) resolveRoles(notes io.Writer) error {
 	if c.roles != nil {
-		return c.roles
+		return nil
 	}
-	c.roles = c.cfg
-	if len(c.cfg.Roles) == 0 {
-		if data, err := c.t.FileContent(c.hub, config.Pointer); err == nil {
-			if hubCfg, err := config.Parse(data); err == nil {
-				c.roles = hubCfg
-			}
+	if c.cfg.Hub == "self" {
+		c.roles = c.cfg
+		return nil
+	}
+	data, err := c.t.FileContent(c.hub, config.Pointer)
+	if err != nil {
+		if ghErr := unreachable(err); ghErr != nil {
+			return ghErr
 		}
+		return refuse("HUB_UNREADABLE", "the hub %s's %s could not be read (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved; a hub still on the protocol 1.x layout has no such file and is moved with gh codecrew migrate (SPEC §5, §6)", c.hub, config.Pointer, err)
 	}
+	hubCfg, err := config.Parse(data)
+	if err != nil {
+		return refuse("HUB_UNREADABLE", "the hub %s's %s does not parse (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved (SPEC §5, §6)", c.hub, config.Pointer, err)
+	}
+	note, err := config.CompatibleHub(c.hub, hubCfg.Codecrew, protocolVersion)
+	if err != nil {
+		return refuse("PROTOCOL_MISMATCH", "%v", err)
+	}
+	if note != "" {
+		fmt.Fprintln(notes, note)
+	}
+	c.roles = hubCfg
+	return nil
+}
+
+// unreachable turns a gh failure that never reached GitHub — offline, no
+// DNS, no credentials — into its own refusal, and returns nil for
+// everything else so the caller can name its own condition. GitHub
+// answering 403 or 404 is not this: the API was reached (SPEC §6).
+func unreachable(err error) error {
+	if !gh.Unreachable(err) {
+		return nil
+	}
+	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (SPEC §6)", err)
+}
+
+// rolesConfig returns the routing table that governs role resolution,
+// settled once by resolveRoles at load. It cannot fail: a ctx that reached
+// a verb has a table.
+func (c *ctx) rolesConfig() *config.Config {
 	return c.roles
 }
 
@@ -165,8 +226,8 @@ var teamMembers = func(org, team string) (map[string]bool, error) {
 
 // inTeam reports whether login is a member of the team identity, through
 // the per-run memo. Bot logins are never team members; an unreadable team
-// resolves to no members (routing is advisory — the verbs that gate on a
-// holder then refuse for absence, which fails closed).
+// resolves to no members, so the verbs that gate on a holder refuse for
+// absence — the same direction resolveRoles fails in.
 func (c *ctx) inTeam(identity config.Identity, login string) bool {
 	if strings.HasSuffix(login, "[bot]") {
 		return false
