@@ -374,10 +374,23 @@ func TestInitPrintsTheLineToAddForAStrandedEntryPoint(t *testing.T) {
 			}
 			continue
 		}
-		for _, f := range c.stranded {
-			if !strings.Contains(got, "Kept: ") || !strings.Contains(got, f) {
-				t.Errorf("%s: the action-needed heading does not name %s:\n%s", c.name, f, got)
+		// Asserted against the Kept: line itself, not the whole output: the
+		// skip report a dozen lines above already names every kept file, so
+		// a Contains over `got` would pass whatever the heading said
+		// (checky's finding on PR #278). Exact, in rootEntryPoints order, so
+		// a file that should not be listed fails as loudly as one missing.
+		if !strings.Contains(got, "action needed") {
+			t.Errorf("%s: init asked for no action:\n%s", c.name, got)
+		}
+		var keptLine string
+		for _, line := range strings.Split(got, "\n") {
+			if after, ok := strings.CutPrefix(line, "Kept: "); ok {
+				keptLine = after
+				break
 			}
+		}
+		if want := strings.Join(c.stranded, ", "); keptLine != want {
+			t.Errorf("%s: the action-needed heading reads \"Kept: %s\", want \"Kept: %s\":\n%s", c.name, keptLine, want, got)
 		}
 		// The lines it prints are the ones its own root pointer carries.
 		if !strings.Contains(got, entryPointLines) {
