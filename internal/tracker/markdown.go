@@ -2,12 +2,15 @@ package tracker
 
 import "strings"
 
-// StripCode blanks Markdown code out of record text: fenced blocks (a line
-// opening with three or more backticks or tildes, closed by a fence of the
-// same character at least as long) and inline spans (a backtick run closed
-// by a run of the same length, as CommonMark reads them). An unclosed fence
-// runs to the end of the text; an unclosed backtick run is literal text.
-// Replaced with a space so words on either side do not fuse.
+// StripCode blanks Markdown code out of record text in all three of its
+// forms: inline spans (a backtick run closed by a run of the same length,
+// as CommonMark reads them), fenced blocks (a line opening with three or
+// more backticks or tildes, closed by a fence of the same character at
+// least as long) and indented blocks (a run of lines indented four columns
+// or more, opening after a blank line or at the start of the text). An
+// unclosed fence runs to the end of the text; an unclosed backtick run is
+// literal text. A span is replaced with a space so the words on either side
+// do not fuse; a block's lines are dropped.
 //
 // One rule, one implementation: the citation walk (milestone evidence) and
 // the verdict scan (ParseVerdicts) both read a comment through it, so a URL
@@ -16,22 +19,66 @@ import "strings"
 // internal/cli beside the citation walk until the verdict scan needed it.
 func StripCode(text string) string {
 	var out strings.Builder
-	var fence string // the opening fence of the block being skipped
+	var fence string   // the opening fence of the block being skipped
+	indented := false  // inside an indented code block
+	afterBlank := true // the start of the text opens a block like a blank line
 	for _, line := range strings.SplitAfter(text, "\n") {
 		trimmed := strings.TrimLeft(line, " \t")
 		if fence != "" {
 			if strings.HasPrefix(trimmed, fence) && strings.Trim(trimmed, fence[:1]+" \t\r\n") == "" {
 				fence = ""
 			}
+			afterBlank = true // whatever follows a fence starts its own block
+			continue
+		}
+		blank := strings.TrimRight(line, " \t\r\n") == ""
+		if indented {
+			// Blank lines inside the run belong to the block, and dropping
+			// them parts no paragraphs: the blank that opened the block was
+			// written before it, so the break on either side survives.
+			if blank || indentWidth(line) >= 4 {
+				continue
+			}
+			indented = false
+		}
+		// Tested before the fence, as CommonMark orders them: four columns
+		// after a blank line is an indented block whatever it holds.
+		if !blank && afterBlank && indentWidth(line) >= 4 {
+			indented = true
 			continue
 		}
 		if f := fenceOpener(trimmed); f != "" {
 			fence = f
 			continue
 		}
+		afterBlank = blank
 		out.WriteString(stripSpans(line))
 	}
 	return out.String()
+}
+
+// indentWidth is a line's indentation in columns, a tab advancing to the
+// next multiple of four as CommonMark expands one. Four or more opens an
+// indented code block after a blank line; a line that continues a paragraph
+// or a list item is measured too, but never opens one, because the line
+// above it is not blank. The measure is from column 0: a list item's own
+// content column is not tracked (#285).
+func indentWidth(line string) int {
+	n := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case ' ':
+			n++
+		case '\t':
+			n += 4 - n%4
+		default:
+			return n
+		}
+		if n >= 4 {
+			return n
+		}
+	}
+	return n
 }
 
 // fenceOpener returns the fence run that opens a code block on this line
