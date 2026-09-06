@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M14 record
+
+- `docs/milestones/14-adoption-tidy-and-the-v2-0-0-release.md` — the
+  milestone that made the protocol do its own bookkeeping and then cut
+  v2.0.0: adoption as a first-class link, `task finish` tidying the clone it
+  ran in, the stale-branch sweep, the `cc:` label palette, the release and
+  the fleet migration. Five requirements, six delivery tasks, thirteen review
+  rounds, and the one `not satisfied` verdict that was answered with a
+  Decision rather than a remedy. The M14 row is added to `ROADMAP.md`, and
+  `docs/introduction.md`'s verb summary now names what M14 added to
+  `task finish` and `init`. (#302)
+
 ### The hub carries the root entry points its own `init` writes
 - Claude Code loads `CLAUDE.md` and never `AGENTS.md`, so the root pointer
   #257 added had nothing to reach it from in the harness this project is
