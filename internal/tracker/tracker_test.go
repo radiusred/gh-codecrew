@@ -403,6 +403,23 @@ func TestParseVerdictsPerComment(t *testing.T) {
 			[]Verdict{{ID: "M2-R2", State: "satisfied", Author: "testy"}},
 		},
 		{
+			// testy's probe on #260, verbatim: the quoted line is sample
+			// output, and only the verdict in prose below it counts.
+			"a verdict quoted in an indented block is content",
+			[]Comment{{Author: "testy", Body: "Quoted example:\n\n    **M2-R1 — satisfied.** this is sample output, not a verdict\n\nActual prose.\n\n**M2-R1 — not satisfied.** the probe fails"}},
+			[]Verdict{{ID: "M2-R1", State: "not satisfied", Author: "testy"}},
+		},
+		{
+			"a verdict on an indented paragraph continuation is a verdict",
+			[]Comment{{Author: "testy", Body: "I reran the suite and\n    **M2-R1 — satisfied.** is the record"}},
+			[]Verdict{{ID: "M2-R1", State: "satisfied", Author: "testy"}},
+		},
+		{
+			"a verdict on a list item's indented continuation is a verdict",
+			[]Comment{{Author: "testy", Body: "- reran on merged main:\n    **M2-R2 — satisfied.** green, and the probe held"}},
+			[]Verdict{{ID: "M2-R2", State: "satisfied", Author: "testy"}},
+		},
+		{
 			"different IDs in one comment all count",
 			[]Comment{{Author: "testy", Body: "- **M2-R1 — satisfied.** a\n- **M2-R2 — not satisfied.** b\n"}},
 			[]Verdict{
@@ -469,7 +486,8 @@ func TestMismatchedRequirementIDs(t *testing.T) {
 
 // One code rule for the whole binary: the citation walk and the verdict
 // scan read a comment through StripCode, so what is content for one is
-// content for the other (M13-R6).
+// content for the other (M13-R6). All three Markdown code forms are
+// stripped — spans, fences and indented blocks (#285).
 func TestStripCode(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"a span is blanked", "keep `drop` keep", "keep   keep"},
@@ -477,6 +495,16 @@ func TestStripCode(t *testing.T) {
 		{"a tilde fence is blanked", "a\n~~~\ndrop\n~~~\nb\n", "a\nb\n"},
 		{"an unclosed fence runs to the end", "a\n```\ndrop\ndrop\n", "a\n"},
 		{"an unclosed backtick run is literal", "a ` b\n", "a ` b\n"},
+		// The finding's probe (#260, comment 5560080971): four spaces after
+		// a blank line is a code block, so what it holds is content.
+		{"an indented block is blanked", "Quoted example:\n\n    **M13-R1 — satisfied.** sample output\n\nActual prose.\n", "Quoted example:\n\nActual prose.\n"},
+		{"a tab-indented block is blanked", "Quoted example:\n\n\t**M13-R1 — satisfied.** sample output\n\nActual prose.\n", "Quoted example:\n\nActual prose.\n"},
+		{"a blank line inside an indented block belongs to it", "a\n\n    one\n\n    two\n\nb\n", "a\n\nb\n"},
+		{"an indented block opens at the start of the text", "    drop\nb\n", "b\n"},
+		{"an indented block ends at the first line under four columns", "a\n\n    drop\n  b\n", "a\n\n  b\n"},
+		{"an indented paragraph continuation is not a block", "The report says\n    **M13-R1 — satisfied.** and means it\n", "The report says\n    **M13-R1 — satisfied.** and means it\n"},
+		{"a list item's indented continuation is not a block", "- the probe ran and\n    **M13-R1 — satisfied.** is the record\n", "- the probe ran and\n    **M13-R1 — satisfied.** is the record\n"},
+		{"a fence indented four columns is code either way", "a\n\n    ```\n    drop\n    ```\nb\n", "a\n\nb\n"},
 	}
 	for _, c := range cases {
 		if got := StripCode(c.in); got != c.want {

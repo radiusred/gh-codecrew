@@ -30,9 +30,10 @@ branch of yours.
   a whole requirement untestable once (M4-R4), and evidence living only in
   a working tree did it twice more; that is the refusing condition. Do not
   proceed past `refused[EVIDENCE_UNREACHABLE]`; report it instead. A citation is a URL
-  in prose or in a Markdown link; a URL inside a code span or a fenced
-  block is content the verb does not check — a probe target that is
-  unreachable by design, a verbatim command or error string
+  in prose or in a Markdown link; a URL inside code — a code span, a
+  fenced block, or a block indented four columns after a blank line — is
+  content the verb does not check: a probe target that is unreachable by
+  design, a verbatim command or error string
   ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Write
   your own findings the same way. A `warning:` line names an external
   citation that does not resolve without refusing: weigh it in the verdict
@@ -68,9 +69,10 @@ branch of yours.
   so when re-verifying. Supersession is per comment, so **one verdict per
   requirement ID per comment** — the first for that ID is the one that
   counts, and the latest comment carrying a verdict for it wins. Quote an
-  earlier verdict only inside a code span or a fenced block: code is
-  content, as it is for citations, so a verdict shown verbatim in a fence is
-  safe and one quoted in prose is a verdict (SPEC §4). A satisfied verdict
+  earlier verdict only inside code — a code span, a fenced block, or a block
+  indented four columns after a blank line: code is content, as it is for
+  citations, so a verdict shown verbatim in any of the three is safe and one
+  quoted in prose is a verdict (SPEC §4). A satisfied verdict
   with no findings says what was tried that failed to break it, so it
   carries the same weight as "not satisfied". Every requirement's latest
   verdict must be `satisfied` before the milestone can close. When the qa role is unrouted,

@@ -143,9 +143,10 @@ func TestExtractURLsStopsWhereAURLCannotContinue(t *testing.T) {
 
 // A URL inside code is content, not a citation (#222): probe targets that
 // are NXDOMAIN by design, command transcripts and error strings live in
-// inline spans and fenced blocks. A Markdown link outside code, and a bare
-// URL in prose, remain citations. Spans follow CommonMark: a run of n
-// backticks closes only on a run of exactly n; an unclosed run is literal.
+// inline spans, fenced blocks and four-space indented blocks (#285). A
+// Markdown link outside code, and a bare URL in prose, remain citations.
+// Spans follow CommonMark: a run of n backticks closes only on a run of
+// exactly n; an unclosed run is literal.
 func TestExtractURLsSkipsCode(t *testing.T) {
 	for _, tc := range []struct {
 		name, text string
@@ -165,6 +166,9 @@ func TestExtractURLsSkipsCode(t *testing.T) {
 		{"fence opening on the list marker's line", "- ```go\n  http.Get(\"https://zoo.example.test/\")\n  ```\n1. ```\n   https://example.com/ordered\n   ```\nthen https://example.com/after", []string{"https://example.com/after"}},
 		{"a bullet that is not a fence", "- https://example.com/bullet and -- https://example.com/dash", []string{"https://example.com/bullet", "https://example.com/dash"}},
 		{"markdown link outside code", "[the run](https://github.com/o/r/actions/runs/7) after `https://example.com/not-cited`", []string{"https://github.com/o/r/actions/runs/7"}},
+		{"indented block", "before https://github.com/o/r/pull/9\n\n    $ curl -sI https://hooks.example.test/\n    curl: (6) Could not resolve host\n\nafter https://example.com/after", []string{"https://github.com/o/r/pull/9", "https://example.com/after"}},
+		{"tab-indented block", "before https://github.com/o/r/pull/9\n\n\t$ curl -sI https://hooks.example.test/\n\nafter https://example.com/after", []string{"https://github.com/o/r/pull/9", "https://example.com/after"}},
+		{"indented continuation is prose, not a block", "the transcript is at\n    https://example.com/continued and holds", []string{"https://example.com/continued"}},
 	} {
 		got := extractURLs(tc.text)
 		if len(got) != len(tc.want) {
