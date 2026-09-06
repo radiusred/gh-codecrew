@@ -175,17 +175,19 @@ const (
 	AgentsFile = ".codecrew/AGENTS.md"
 )
 
-// legacyPointer and legacyRolesDir are the 1.x layout: recognised only to
-// refuse it. Nothing reads them.
+// LegacyPointer and LegacyRolesDir are the 1.x layout. Nothing reads that
+// layout: they are here to recognise it, so a verb can refuse it and so
+// `codecrew migrate` can move the files out of it.
 const (
-	legacyPointer  = ".codecrew.yml"
-	legacyRolesDir = "roles"
+	LegacyPointer  = ".codecrew.yml"
+	LegacyRolesDir = "roles"
 )
 
-// contractNames are the five role contracts (SPEC §7). A 1.x roles/
-// directory is identified by holding at least one of them — a project's own
+// RoleNames are the five roles the protocol defines (SPEC §7), in the order
+// a scaffold and a routing table declare them. A 1.x roles/ directory is
+// identified by holding at least one of their contracts — a project's own
 // roles/ (Ansible's, say) is not the layout this binary refuses.
-var contractNames = []string{"implementer.md", "reviewer.md", "qa.md", "doc-synthesizer.md", "coordinator.md"}
+var RoleNames = []string{"implementer", "reviewer", "qa", "doc-synthesizer", "coordinator"}
 
 // LegacyLayoutError reports a protocol 1.x layout found where the 2.0
 // pointer should be. The CLI turns it into refused[LAYOUT_LEGACY]; there is
@@ -209,12 +211,12 @@ func (e *LegacyLayoutError) Error() string {
 // through Load.
 func LegacyLayout(dir string) []string {
 	var found []string
-	if isFile(filepath.Join(dir, legacyPointer)) {
-		found = append(found, legacyPointer)
+	if isFile(filepath.Join(dir, LegacyPointer)) {
+		found = append(found, LegacyPointer)
 	}
-	for _, name := range contractNames {
-		if isFile(filepath.Join(dir, legacyRolesDir, name)) {
-			found = append(found, legacyRolesDir+"/"+name)
+	for _, role := range RoleNames {
+		if isFile(filepath.Join(dir, LegacyRolesDir, role+".md")) {
+			found = append(found, LegacyRolesDir+"/"+role+".md")
 		}
 	}
 	return found
