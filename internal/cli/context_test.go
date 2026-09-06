@@ -17,7 +17,7 @@ import (
 func teamCtx(t *testing.T) *ctx {
 	t.Helper()
 	cfg, err := config.Parse([]byte(`
-codecrew: "0.1"
+codecrew: "2.0"
 hub: self
 roles:
   implementer: { identity: app:myorg-coder }

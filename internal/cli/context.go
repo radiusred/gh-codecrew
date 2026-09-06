@@ -29,8 +29,11 @@ type ctx struct {
 
 // loadConfig reads the pointer and checks its protocol version against the
 // one this binary implements: a different major refuses
-// (PROTOCOL_MISMATCH); "0.1" and a missing field proceed with a note on
-// stderr (SPEC §5). A repo still on the protocol 1.x layout refuses
+// (PROTOCOL_MISMATCH), and a "0.1" pointer is one of them — an older
+// major, refused with the detail that names gh codecrew migrate, since
+// 1.0's acceptance of it went with the other shims (M13-R7). A missing
+// field is the only version the check proceeds on, with a note on stderr
+// (SPEC §5). A repo still on the protocol 1.x layout refuses
 // LAYOUT_LEGACY — this binary does not read that layout, it names the verb
 // that moves it forward. A routing row whose identity carries no kind
 // refuses IDENTITY_UNTYPED, and a spoke pointer carrying a roles: block
