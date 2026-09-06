@@ -104,6 +104,25 @@ func ProtocolLabel(name string) (Label, bool) {
 	return Label{}, false
 }
 
+// FindLabel returns the label in labels that GitHub would call name — the
+// comparison is case-insensitive, as it is everywhere else a label name is
+// matched.
+func FindLabel(labels []Label, name string) (Label, bool) {
+	for _, l := range labels {
+		if strings.EqualFold(l.Name, name) {
+			return l, true
+		}
+	}
+	return Label{}, false
+}
+
+// Styled reports whether l already wears want's colour and description.
+// Colour is compared case-insensitively: the API answers in lowercase hex
+// but accepts either.
+func (l Label) Styled(want Label) bool {
+	return strings.EqualFold(l.Color, want.Color) && l.Description == want.Description
+}
+
 // Comment is one issue or PR comment.
 type Comment struct {
 	Author string
@@ -207,11 +226,15 @@ type Tracker interface {
 	Comment(ref IssueRef, body string) error
 	// AddLabel applies a label.
 	AddLabel(ref IssueRef, label string) error
-	// Labels returns the names of the labels repo defines — what exists to
-	// be applied, not what any issue carries.
-	Labels(repo string) ([]string, error)
+	// Labels returns the labels repo defines — what exists to be applied,
+	// with the colour and description each carries, not what any issue
+	// carries.
+	Labels(repo string) ([]Label, error)
 	// CreateLabel defines a label in repo with its colour and description.
 	CreateLabel(repo string, label Label) error
+	// UpdateLabel restyles an existing label: its colour and description
+	// become the ones given, and its name is left as the repo spells it.
+	UpdateLabel(repo string, label Label) error
 	// Assign assigns a login to an issue.
 	Assign(ref IssueRef, login string) error
 	// Viewer returns the login the current credentials act as.

@@ -112,8 +112,8 @@ func TestSameSeat(t *testing.T) {
 type gateFake struct {
 	tracker.Tracker
 	labels   []string
-	defined  []string // the label names the repository already defines
-	defErr   error    // what reading them fails with, if it does
+	defined  []tracker.Label // the labels the repository already defines
+	defErr   error           // what reading them fails with, if it does
 	comments []string
 	added    []string
 	created  []tracker.Label
@@ -128,10 +128,10 @@ func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
 	f.added = append(f.added, label)
 	return nil
 }
-func (f *gateFake) Labels(string) ([]string, error) { return f.defined, f.defErr }
+func (f *gateFake) Labels(string) ([]tracker.Label, error) { return f.defined, f.defErr }
 func (f *gateFake) CreateLabel(_ string, l tracker.Label) error {
 	f.created = append(f.created, l)
-	f.defined = append(f.defined, l.Name)
+	f.defined = append(f.defined, l)
 	return nil
 }
 
@@ -153,7 +153,7 @@ func TestRaiseGateWordingByTarget(t *testing.T) {
 		{"pull request", nil, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
 		{"milestone", []string{tracker.LabelMilestone}, "`status` lists this gate beside the tasks' gates and `milestone close` refuses while the label is present", "gate raised on o/r#6 (milestone issue) — status lists it and milestone close refuses until a human removes cc:needs-decision\n", "`task finish` refuses"},
 	} {
-		f := &gateFake{labels: tc.labels, defined: []string{tracker.LabelNeedsDecision}}
+		f := &gateFake{labels: tc.labels, defined: []tracker.Label{{Name: tracker.LabelNeedsDecision}}}
 		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
 		c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
 		var out bytes.Buffer
@@ -193,7 +193,7 @@ func TestRaiseGateDefinesTheLabelBeforeApplyingIt(t *testing.T) {
 		note    string
 	}{
 		{"the repository has no cc: labels", &gateFake{labels: []string{tracker.LabelTask}}, []string{tracker.LabelNeedsDecision}, ""},
-		{"the label already exists", &gateFake{labels: []string{tracker.LabelTask}, defined: []string{"CC:Needs-Decision"}}, nil, ""},
+		{"the label already exists, restyled", &gateFake{labels: []string{tracker.LabelTask}, defined: []tracker.Label{{Name: "CC:Needs-Decision", Color: "ededed"}}}, nil, ""},
 		{"the labels cannot be read", &gateFake{labels: []string{tracker.LabelTask}, defErr: errors.New("403")}, nil, "note: could not read o/r's labels (403)"},
 	} {
 		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}

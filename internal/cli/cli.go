@@ -13,7 +13,8 @@ const usage = `usage: gh codecrew <verb>
 verbs:
   init [--hub owner/repo]                    scaffold a new hub or spoke, and create the cc: labels
   migrate [--dry-run]                        move a protocol 1.x repo to the 2.0 layout: one local
-                                             commit, never pushed (--dry-run: every step, nothing written)
+                                             commit, never pushed, and the cc: labels restyled to the
+                                             defaults (--dry-run: every step, nothing written)
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
            [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)

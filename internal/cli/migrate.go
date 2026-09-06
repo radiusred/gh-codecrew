@@ -140,6 +140,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 
 	if dryRun {
 		fmt.Fprintf(w, "would commit %d paths on %s: %q\n", commitPathCount(moves)+len(written), currentBranch(root), migrateSubject)
+		migrateLabels(w, true)
 		fmt.Fprintln(w, "dry run: nothing written")
 		reportEntryPoint(w, root)
 		return nil
@@ -181,6 +182,11 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		return nil
 	}
 	fmt.Fprintf(w, "committed %s on %s: %q — the migration only; your other changes are as they were\n", sha, branch, migrateSubject)
+	// Then the one part of the migration that is not a file: the three
+	// labels, brought to the protocol's colour and description whatever a
+	// 1.x repo had them wearing (§4). After the commit, so a GitHub
+	// failure is a note and the move stands (M14-R5, #267).
+	migrateLabels(w, false)
 	fmt.Fprintf(w, "next: read it (git show %s), then push and open a pull request — migrate never pushes\n", sha)
 	// Last, so the one thing needing a human is the last thing on screen.
 	reportEntryPoint(w, root)

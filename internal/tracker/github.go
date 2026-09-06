@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/radiusred/gh-codecrew/internal/gh"
@@ -162,25 +163,38 @@ func (GitHub) AddLabel(ref IssueRef, label string) error {
 	return err
 }
 
-// Labels lists the label names repo defines, paginated: a repository with
-// more than a page of labels must not read as missing the protocol's.
-func (GitHub) Labels(repo string) ([]string, error) {
+// Labels lists the labels repo defines, paginated: a repository with more
+// than a page of labels must not read as missing the protocol's.
+func (GitHub) Labels(repo string) ([]Label, error) {
 	var items []struct {
-		Name string `json:"name"`
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Description string `json:"description"`
 	}
 	if err := gh.JSON(&items, "api", "--paginate", fmt.Sprintf("repos/%s/labels?per_page=100", repo)); err != nil {
 		return nil, err
 	}
-	names := make([]string, 0, len(items))
+	labels := make([]Label, 0, len(items))
 	for _, l := range items {
-		names = append(names, l.Name)
+		labels = append(labels, Label{Name: l.Name, Color: l.Color, Description: l.Description})
 	}
-	return names, nil
+	return labels, nil
 }
 
 func (GitHub) CreateLabel(repo string, label Label) error {
 	_, err := gh.Run("api", "-X", "POST", fmt.Sprintf("repos/%s/labels", repo),
 		"-f", "name="+label.Name, "-f", "color="+label.Color, "-f", "description="+label.Description)
+	return err
+}
+
+// UpdateLabel sends colour and description and no new_name: the label is
+// addressed by the name the repository spells it with — which may differ
+// in case, GitHub matching names case-insensitively — and restyling is not
+// renaming.
+func (GitHub) UpdateLabel(repo string, label Label) error {
+	_, err := gh.Run("api", "-X", "PATCH",
+		fmt.Sprintf("repos/%s/labels/%s", repo, url.PathEscape(label.Name)),
+		"-f", "color="+label.Color, "-f", "description="+label.Description)
 	return err
 }
 
