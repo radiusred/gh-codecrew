@@ -184,8 +184,10 @@ func (e *LegacyLayoutError) Error() string {
 
 // LegacyLayout reports the 1.x files present directly in dir: the root
 // pointer, and each of the five contracts sitting in a root roles/. An
-// empty result means dir carries no 1.x layout. init calls it too — it
-// scaffolds rather than loading a pointer, so its refusal cannot come
+// empty result means dir carries no 1.x layout. It is asked about one
+// directory — a repo root — never about every level of a walk: a nested
+// roles/ belongs to the project, not to CodeCrew. init calls it too, since
+// it scaffolds rather than loading a pointer and its refusal cannot come
 // through Load.
 func LegacyLayout(dir string) []string {
 	var found []string
@@ -225,32 +227,57 @@ type Config struct {
 // Load walks upward from dir until it finds a .codecrew/config.yml and
 // parses it. Dir is set to the directory that *contains* .codecrew/ — the
 // repo root — so everything downstream keeps reading paths from the root.
-// A level that carries no 2.0 pointer but does carry the 1.x layout stops
-// the walk with a *LegacyLayoutError: this binary implements protocol 2.0
-// and does not read 1.x.
+//
+// Only when the whole walk finds no pointer does the 1.x layout come into
+// question, and then at one level: the repo root, or the starting directory
+// when there is no repository. The pointer always wins, wherever it sits
+// above the caller — otherwise a 2.0 repo carrying an ordinary nested
+// playbook/roles/qa.md would refuse LAYOUT_LEGACY the moment a verb ran
+// from playbook/, which is exactly the collision the layout move exists to
+// end (checky's finding on PR #277).
 func Load(dir string) (*Config, error) {
-	dir, err := filepath.Abs(dir)
+	start, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
-	for {
-		path := filepath.Join(dir, filepath.FromSlash(Pointer))
+	for d := start; ; {
+		path := filepath.Join(d, filepath.FromSlash(Pointer))
 		if data, err := os.ReadFile(path); err == nil {
 			cfg, err := Parse(data)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", path, err)
 			}
-			cfg.Dir = dir
+			cfg.Dir = d
 			return cfg, nil
 		}
-		if legacy := LegacyLayout(dir); len(legacy) > 0 {
-			return nil, &LegacyLayoutError{Dir: dir, Found: legacy}
+		parent := filepath.Dir(d)
+		if parent == d {
+			break
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return nil, fmt.Errorf("no %s found (not a CodeCrew repo?)", Pointer)
+		d = parent
+	}
+	root := gitRoot(start)
+	if legacy := LegacyLayout(root); len(legacy) > 0 {
+		return nil, &LegacyLayoutError{Dir: root, Found: legacy}
+	}
+	return nil, fmt.Errorf("no %s found (not a CodeCrew repo?)", Pointer)
+}
+
+// gitRoot is the nearest ancestor of dir (dir itself included) holding a
+// .git entry — the repository root, found the way the pointer walk finds
+// the pointer, without shelling out. Outside a repository it is dir: the
+// caller's own directory is the only level a 1.x layout could sensibly be
+// looked for.
+func gitRoot(dir string) string {
+	for d := dir; ; {
+		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
+			return d
 		}
-		dir = parent
+		parent := filepath.Dir(d)
+		if parent == d {
+			return dir
+		}
+		d = parent
 	}
 }
 

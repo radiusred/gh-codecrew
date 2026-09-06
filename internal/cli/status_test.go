@@ -103,8 +103,9 @@ func TestStatusMilestoneWithoutGate(t *testing.T) {
 }
 
 // Between milestones status still reports what it knows: the contract-drift
-// check reads the hub's roles/ against the contracts embedded in the
-// binary and never touches milestone state, and the quiet period is when a
+// check reads the hub's .codecrew/roles/ against the contracts embedded in
+// the binary and never touches milestone state, and the quiet period is
+// when a
 // fork gets reconciled against a new release — so the no-open-milestones
 // line replaces the board, not the two advisory checks under it (#253).
 func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {

@@ -33,8 +33,75 @@ func TestLoadWalksUpwardToTheRoot(t *testing.T) {
 	}
 }
 
-// The 1.x layout is refused, never read: a root .codecrew.yml, or a root
-// roles/ holding one of the five contracts, stops the walk (M13-R1).
+// The pointer wins wherever it sits above the caller. A 2.0 repo with an
+// ordinary nested roles/ — a playbook's, a project's own — loads from
+// inside that directory: the layout move exists to end that collision, and
+// a walk that judged the 1.x layout level by level would have kept it
+// (checky's finding on PR #277).
+func TestLoadIgnoresANestedRolesUnderA20Pointer(t *testing.T) {
+	root := t.TempDir()
+	writePointer(t, root, "codecrew: \"2.0\"\nhub: self\n")
+	nested := filepath.Join(root, "playbook", "roles")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nested, "qa.md"), []byte("# Role: qa\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, from := range []string{filepath.Join(root, "playbook"), nested} {
+		cfg, err := Load(from)
+		if err != nil {
+			t.Fatalf("Load(%s) = %v, want the 2.0 pointer above it", from, err)
+		}
+		wantDir, _ := filepath.EvalSymlinks(root)
+		gotDir, _ := filepath.EvalSymlinks(cfg.Dir)
+		if gotDir != wantDir {
+			t.Errorf("Load(%s): Dir = %q, want %q", from, gotDir, wantDir)
+		}
+	}
+}
+
+// With no pointer anywhere, the 1.x layout is looked for at one level: the
+// repo root when the caller is in a repository, the starting directory
+// otherwise. So a 1.x repo refuses from any subdirectory, and a nested
+// roles/ with nothing at the root is somebody else's directory.
+func TestLoadLooksForTheLegacyLayoutAtTheRepoRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	deep := filepath.Join(root, "internal", "cli")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Nothing 1.x at the root yet: a nested roles/ is not the layout.
+	nested := filepath.Join(deep, "roles")
+	os.MkdirAll(nested, 0o755)
+	os.WriteFile(filepath.Join(nested, "qa.md"), []byte("# Role: qa\n"), 0o644)
+	_, err := Load(deep)
+	var legacy *LegacyLayoutError
+	if errors.As(err, &legacy) {
+		t.Fatalf("a nested roles/ read as the repo's layout: %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), Pointer) {
+		t.Fatalf("err = %v, want the not-a-CodeCrew-repo error", err)
+	}
+	// Now the repo really is 1.x: refused from the subdirectory, named at
+	// the root.
+	os.WriteFile(filepath.Join(root, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644)
+	if _, err := Load(deep); !errors.As(err, &legacy) {
+		t.Fatalf("Load(%s) = %v, want a *LegacyLayoutError", deep, err)
+	}
+	wantDir, _ := filepath.EvalSymlinks(root)
+	gotDir, _ := filepath.EvalSymlinks(legacy.Dir)
+	if gotDir != wantDir {
+		t.Errorf("refusal names %q, want the repo root %q", gotDir, wantDir)
+	}
+}
+
+// The 1.x layout is refused, never read: with no pointer anywhere above,
+// a root .codecrew.yml or a root roles/ holding one of the five contracts
+// is the repo's layout (M13-R1).
 func TestLoadRefusesTheLegacyLayout(t *testing.T) {
 	for _, c := range []struct {
 		name  string

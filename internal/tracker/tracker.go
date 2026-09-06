@@ -149,7 +149,7 @@ type Tracker interface {
 	// IssueLabels fetches the labels on an issue or a pull request — the
 	// REST issues endpoint serves both, where Task's GraphQL issue query
 	// answers NOT_FOUND for a PR; a gate may be recorded on the scaffold
-	// PR (roles/coordinator.md), so checkpoint reads labels this way.
+	// PR (.codecrew/roles/coordinator.md), so checkpoint reads labels this way.
 	IssueLabels(ref IssueRef) ([]string, error)
 	// CreateIssue opens an issue and returns its ref.
 	CreateIssue(repo, title, body string, labels []string) (IssueRef, error)
@@ -446,7 +446,8 @@ func MismatchedRequirementIDs(body string, n int) []string {
 	return bad
 }
 
-// Verdict is one QA requirement verdict found in a comment (roles/qa.md).
+// Verdict is one QA requirement verdict found in a comment
+// (.codecrew/roles/qa.md).
 type Verdict struct {
 	ID     string
 	State  string // "satisfied", "not satisfied", or "untestable"
