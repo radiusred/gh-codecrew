@@ -6,6 +6,25 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Two captures from the field: status between milestones, evidence after a close
+- `status` no longer stops at `no open milestones in <hub>`: that line replaces
+  the board and the gates section, and the two advisory checks below it still
+  run — the delete-branch-on-merge note and the contract-drift report. Drift is
+  purely local (the hub's `roles/` against the contracts embedded in the
+  binary) and has nothing to do with milestone state, and the quiet period
+  between milestones is exactly when an operator reconciles a fork against a
+  new release; a hub in that state had shown no drift line while
+  `roles diff` showed the divergence (#253).
+- `milestone evidence <n>` resolves a closed milestone too, reading the hub's
+  milestone listing regardless of state under the same `M<n>:` title rule, and
+  prints a note naming it as closed before the citation report. A reviewer
+  checking M11's shipped record had been refused `NOT_FOUND`; link rot in a
+  finished record is what the verb is most useful for. `refused[NOT_FOUND]` now
+  means no milestone carries that number in either state, and `milestone close`
+  and `status` keep their open-only reads (#250).
+- SPEC §6's `status` and `milestone evidence` rows and the introduction's
+  refusal-code list follow. (#262)
+
 ### The M12 record
 - `docs/milestones/12-v1-2-0-and-the-field-fixes-behind-it.md` — the
   milestone document for "v1.2.0 and the field fixes behind it": the changelog
