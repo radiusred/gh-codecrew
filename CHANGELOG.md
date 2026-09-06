@@ -6,6 +6,43 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Routing fails closed
+- **Breaking (protocol 2.0).** A spoke that cannot read its hub's
+  `.codecrew/config.yml` now refuses `refused[HUB_UNREADABLE]`, naming the hub
+  and the path, instead of degrading to its own empty table. An empty table
+  resolves every seat to `~`, so the old fallback silently turned `task
+  finish`'s holder-review gate into "any non-author approved" and `milestone
+  close`'s verdict count into "anyone commented" — the two gates the protocol
+  exists to enforce, failing open on a 404. The `.codecrew/` move guarantees
+  that 404 for a whole migration window, in both directions of skew (#254,
+  the Claude scan's finding 2). A hub that reads fine and declares no table is
+  a different condition and is still legitimately `~` everywhere.
+- The routing table is resolved once, at load, so no verb can consult an
+  unresolved one: a hub reads its own pointer from disk — no fetch, so a hub
+  resolves roles with the network down — and a spoke always reads the hub's.
+- **Breaking (protocol 2.0).** The protocol-version check becomes
+  topology-wide: a spoke reads the hub pointer's `codecrew:` major on that
+  same fetch, and a major differing from the one the binary implements refuses
+  `PROTOCOL_MISMATCH` naming both sides. One project speaks one protocol
+  major.
+- **Breaking (protocol 2.0).** A spoke's pointer carrying a `roles:` block is
+  refused at load with `refused[SPOKE_ROUTING]`, naming the hub and the rows.
+  The hub carries the one table; a copy in a spoke either silently outranks it
+  or goes stale, and the protocol will not pick a winner (#254, finding 8).
+- GitHub being unreachable — no route, no DNS, no credentials — is now its own
+  `refused[GH_UNREACHABLE]`, never reported as a missing hub table and never a
+  bare `gh` error. The classification was read off the installed `gh` rather
+  than guessed, and is narrow on purpose: an HTTP 403 or 404 means GitHub
+  answered. `codecrew version`, `codecrew help`, and `roles show`/`roles diff`
+  in a hub read only local and embedded files and keep working with the
+  network cut; from a spoke `roles show` needs the hub and raises the new code
+  cleanly.
+- SPEC §5 states that the hub carries the one table and §6 loses "A hub's
+  routing table fetched from a spoke is advisory and is not checked", stating
+  the checks in its place; the coordinator contract says what to do with the
+  new codes; the introduction's refusal-code list gains three (thirty-five →
+  thirty-eight, with the README's count). (#259)
+
 ### The entry point stands on its own
 - **Breaking.** The CodeCrew instructions move out of the root `AGENTS.md`
   and into `.codecrew/AGENTS.md` — CodeCrew's file, in CodeCrew's directory,
@@ -34,6 +71,7 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   §10, the README, `CONTRIBUTING.md`, `docs/first-milestone.md`,
   `docs/introduction.md`, `docs/identities.md` and `docs/extensions.md`
   follow. (#257)
+
 
 ### Protocol 2.0: the .codecrew/ layout
 - **Breaking.** Every CodeCrew-owned operational file moves under

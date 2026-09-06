@@ -137,7 +137,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-five, by the verb that
+the agent; the detail is for the human. All thirty-eight, by the verb that
 raises them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -149,13 +149,34 @@ raises them (the source is the catalogue of record — `refuse("CODE"` in
   `gh codecrew migrate`, the one-shot verb that moves it; nothing reads the
   old layout. `init` is exempt from the pointer check and raises this one
   too, rather than writing a second layout beside the first.
-- `PROTOCOL_MISMATCH` — the pointer's protocol major differs from the one
-  this binary implements (SPEC §5); a missing field proceeds with a note. A
-  pointer ahead of the binary asks for an extension upgrade, one behind it
-  is told the repo predates this protocol and is moved with `migrate`.
+- `PROTOCOL_MISMATCH` — a protocol major differs from the one this binary
+  implements (SPEC §5); a missing field proceeds with a note. A pointer
+  ahead of the binary asks for an extension upgrade, one behind it is told
+  the repo predates this protocol and is moved with `migrate`. The check is
+  topology-wide: a spoke reads the hub's pointer to resolve roles and
+  applies it there too, naming both sides — one project speaks one protocol
+  major.
 - `IDENTITY_UNTYPED` — a routing row's `identity` carries no type prefix,
   so it names no kind of principal; the detail names the row and the four
   forms (`~`, `app:<slug>`, `user:<login>`, `team:<org>/<slug>`).
+- `SPOKE_ROUTING` — a spoke's pointer carries a `roles:` block. The hub
+  carries the one routing table for the project (SPEC §5); a copy in a
+  spoke either silently outranks it or goes stale, and the protocol will
+  not pick a winner. The detail names the hub and the rows found.
+- `HUB_UNREADABLE` — this repo is a spoke and the hub's
+  `.codecrew/config.yml` could not be fetched or parsed, so no role can be
+  resolved. Routing fails closed: before 2.0 the verb fell back to the
+  spoke's own empty table, which resolves every seat to `~` — turning
+  `task finish`'s holder-review gate into "any non-author approved" and
+  `milestone close`'s verdict count into "anyone commented". A hub that
+  reads fine and declares no table is a different thing entirely and is
+  legitimately `~` everywhere. A hub still on the 1.x layout has no such
+  file, and the detail names `gh codecrew migrate`.
+- `GH_UNREACHABLE` — `gh` never reached GitHub: no route, no DNS, or no
+  credentials at all. Never reported as a missing hub table, and never a
+  bare `gh` error. `codecrew version`, `codecrew help`, and
+  `roles show`/`roles diff` in a hub need no network, so they keep working;
+  from a spoke `roles show` needs the hub and raises this.
 - `GH_TOO_OLD` — the installed `gh` is older than 2.50.0, the floor
   `task finish` and the close's branch sweep need (`gh pr checks --json`);
   the detail names both versions. A `gh --version` banner the CLI cannot
