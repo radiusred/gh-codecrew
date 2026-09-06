@@ -93,9 +93,10 @@ its own milestone's number. Each has its own entry below.
   migration half done, and the migration's promise is a repository
   indistinguishable from a fresh 2.0 `init`. `--dry-run` lists the
   creations and restyles beside the file steps and writes neither. The
-  asymmetry is deliberate: `migrate` runs once, on a repository whose
-  labels nobody chose; `init` reruns, on one whose labels somebody may
-  have.
+  asymmetry is deliberate, and SPEC §4 puts the weight on `init`: `init`
+  is the verb that reruns on a repository whose labels somebody may have
+  chosen, so it leaves them; the *move* `migrate` performs happens once,
+  on a repository whose labels nobody chose.
 - **A GitHub failure never reaches the local work, and a rerun finishes
   it.** An unreadable label listing, a refused write, a `gh` that cannot
   name the repository, or a directory that is not a git repository yet is a
