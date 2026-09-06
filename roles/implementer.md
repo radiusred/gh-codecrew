@@ -79,7 +79,11 @@ Then, every run:
 - **Record deviations from the plan** — `**Deviation:** / **Why:**` comments.
   A deviation that changes what a requirement means is not yours to make:
   raise a human gate instead (`gh codecrew checkpoint`, or apply
-  `cc:needs-decision` with a comment stating the question).
+  `cc:needs-decision` with a comment stating the question). A gate is
+  recognised in any paragraph of a comment, like every other label — it
+  need not open the body — and only a `**Gate resolved:**` reply answers
+  it: a `**Decision:**` of your own resolves nothing, and `task finish`
+  refuses `GATE_UNRECORDED` until the answer is on the record (SPEC §8).
 - **Code you touch ships with tests in the same PR.** Cover the behaviour
   your task adds or changes; there are no dedicated write-tests-later tasks.
   (Reviewer convention, set on
