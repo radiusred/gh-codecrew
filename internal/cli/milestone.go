@@ -325,14 +325,16 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	}
 
 	// Gate 3: the milestone declares requirements where the parser reads
-	// them. A close that would verify zero requirements is not a close —
-	// numberguess M1 closed over an unsatisfied verdict this way (#144).
+	// them, and they are its own. A close that would verify zero
+	// requirements is not a close — numberguess M1 closed over an
+	// unsatisfied verdict this way (#144) — and one that counted another
+	// milestone's IDs would verify the wrong thing (M13-R6).
 	body, err := c.t.IssueBody(milestone.Ref)
 	if err != nil {
 		return nil, nil, err
 	}
-	ids := tracker.RequirementIDs(body)
-	if !p.gate("requirements declared", requireRequirements(milestone.Ref, ids)) {
+	ids, e := requireRequirements(milestone.Ref, n, body)
+	if !p.gate("requirements declared", e) {
 		return p.stop(closeGates), nil, nil
 	}
 
@@ -492,16 +494,50 @@ func writeRecords(w io.Writer, records []tracker.Record) {
 	}
 }
 
-// requireRequirements is milestone close's third gate: a body whose
-// "## Requirements" section yields no bold IDs has nothing to verdict, so
-// the close refuses instead of passing vacuously. IDs written anywhere
-// else in the body are not requirements (the parser is section-scoped so
-// the template's placeholder can never become a phantom requirement).
-func requireRequirements(ref tracker.IssueRef, ids []string) error {
-	if len(ids) > 0 {
-		return nil
+// requireRequirements is milestone close's third gate, and returns the IDs
+// the verdict gate then tallies. A body whose "## Requirements" section
+// yields no bold IDs has nothing to verdict, so the close refuses instead
+// of passing vacuously; IDs written anywhere else in the body are not
+// requirements (the parser is section-scoped so the template's placeholder
+// can never become a phantom requirement). An ID that is not this
+// milestone's is refused too: SPEC §4's grammar is M<milestone>-R<k>, and
+// counting M12-R3 among M13's requirements would tally a verdict against a
+// requirement this close does not own (M13-R6).
+func requireRequirements(ref tracker.IssueRef, n int, body string) ([]string, error) {
+	ids := tracker.RequirementIDs(body)
+	if len(ids) == 0 {
+		return nil, refuse("NO_REQUIREMENTS", "the Requirements section of %s yields no bold IDs (bold IDs elsewhere in the body do not count) — put each requirement under ## Requirements as **M<n>-R<k>** and rerun", ref)
 	}
-	return refuse("NO_REQUIREMENTS", "the Requirements section of %s yields no bold IDs (bold IDs elsewhere in the body do not count) — put each requirement under ## Requirements as **M<n>-R<k>** and rerun", ref)
+	if bad := tracker.MismatchedRequirementIDs(body, n); len(bad) > 0 {
+		return ids, requirementIDMismatch(ref, n, bad)
+	}
+	return ids, nil
+}
+
+// requirementIDMismatch is the refusal milestone close and milestone
+// evidence share when the Requirements section declares an ID belonging to
+// another milestone. The detail names every offending ID and the milestone
+// they were read under, because the fix is a hand edit of the issue body.
+func requirementIDMismatch(ref tracker.IssueRef, n int, bad []string) error {
+	return refuse("REQUIREMENT_ID_MISMATCH", "the Requirements section of %s declares %s that %s not M%d's: %s — a requirement ID is M<milestone>-R<k> (SPEC §4); renumber them to M%d-R<k> or move them to the milestone they belong to",
+		ref, plural("ID", len(bad)), isare(len(bad)), n, strings.Join(bad, ", "), n)
+}
+
+// requirementIDMismatchNote is status's line for the same condition. status
+// reports the board rather than gating it — a mismatch it cannot fix must
+// not stop it printing the other milestones' tasks — so it names the code
+// the two gating verbs will refuse with instead of refusing itself.
+func requirementIDMismatchNote(n int, bad []string) string {
+	return fmt.Sprintf("note: %s under ## Requirements %s not M%d's: %s — milestone close and milestone evidence refuse REQUIREMENT_ID_MISMATCH; a requirement ID is M<milestone>-R<k> (SPEC §4)",
+		plural("requirement ID", len(bad)), isare(len(bad)), n, strings.Join(bad, ", "))
+}
+
+// isare agrees a verb with a count, so a one-ID refusal reads as prose.
+func isare(n int) string {
+	if n == 1 {
+		return "is"
+	}
+	return "are"
 }
 
 // requirementsNote is the line new, status and evidence print so the

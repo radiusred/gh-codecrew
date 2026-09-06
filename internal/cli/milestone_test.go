@@ -36,15 +36,60 @@ func TestCloseRefusesWhenRequirementsSectionIsEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := tracker.IssueRef{Repo: "radiusred/numberguess", Number: 3}
-	err = requireRequirements(ref, tracker.RequirementIDs(string(body)))
+	_, err = requireRequirements(ref, 1, string(body))
 	if err == nil {
 		t.Fatal("expected refusal, got nil")
 	}
 	if !strings.Contains(err.Error(), "refused[NO_REQUIREMENTS]") || !strings.Contains(err.Error(), "radiusred/numberguess#3") {
 		t.Errorf("unexpected refusal: %v", err)
 	}
-	if err := requireRequirements(ref, []string{"M1-R1"}); err != nil {
+	populated := "## Requirements\n- **M1-R1** — a thing\n"
+	ids, err := requireRequirements(ref, 1, populated)
+	if err != nil {
 		t.Errorf("populated section must pass, got %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "M1-R1" {
+		t.Errorf("requireRequirements returned %v, want [M1-R1]", ids)
+	}
+}
+
+// SPEC §4's ID grammar, enforced where the close reads it: M13's
+// requirements are M13-R<k>, and an ID belonging to another milestone is
+// refused before any verdict is counted against it (M13-R6). status prints
+// the same condition as a line, since it reports rather than gates.
+func TestRequirementIDMismatch(t *testing.T) {
+	ref := tracker.IssueRef{Repo: "radiusred/gh-codecrew", Number: 254}
+	body := "## Goal\nx\n\n## Requirements\n- **M13-R1** — mine\n- **M12-R3** — another milestone's\n- **M1-R1** — and another\n\n## Gates\n- **M9-R9** — outside the section, ignored\n"
+
+	ids, err := requireRequirements(ref, 13, body)
+	if err == nil {
+		t.Fatal("a foreign requirement ID must refuse")
+	}
+	if !strings.Contains(err.Error(), "refused[REQUIREMENT_ID_MISMATCH]") {
+		t.Errorf("wrong code: %v", err)
+	}
+	for _, want := range []string{"M12-R3", "M1-R1", "M13", "radiusred/gh-codecrew#254"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal detail lacks %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "M9-R9") {
+		t.Errorf("an ID outside ## Requirements is not a requirement: %v", err)
+	}
+	if len(ids) != 3 {
+		t.Errorf("the IDs are still returned for the report: %v", ids)
+	}
+
+	note := requirementIDMismatchNote(13, []string{"M12-R3"})
+	for _, want := range []string{"REQUIREMENT_ID_MISMATCH", "M12-R3", "M13"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("status note lacks %q: %q", want, note)
+		}
+	}
+
+	// The matching set passes, and the note is only for a mismatch.
+	if _, err := requireRequirements(ref, 13, "## Requirements\n- **M13-R1** — mine\n- **M13-R2** — mine too\n"); err != nil {
+		t.Errorf("a milestone's own IDs must pass, got %v", err)
 	}
 }
 
