@@ -41,23 +41,30 @@ func TestHolder(t *testing.T) {
 	}
 }
 
-// A 1.0 hub's table predates the coordinator row; the seat exists
-// regardless and, absent from the table, is the operator's — so `role
-// coordinator` prints ~ rather than refusing the name (M7-R1).
-func TestCoordinatorAbsentFromTableIsOperator(t *testing.T) {
+// Until 2.0 a declared table with no coordinator row resolved the seat to
+// ~, because the row arrived after 1.0 hubs scaffolded their tables. The
+// shim is gone (M13-R7): the row is scaffolded by init and written into a
+// 1.x table by migrate, so its absence from a declared table is the same
+// error every other missing role is, and nothing infers a holder for a
+// seat the table does not name.
+func TestCoordinatorAbsentFromDeclaredTableRefuses(t *testing.T) {
 	table := map[string]config.Role{
 		"implementer":     {Identity: config.ParseIdentity("app:myorg-coder")},
 		"reviewer":        {Identity: config.ParseIdentity("app:myorg-reviewy")},
 		"qa":              {},
 		"doc-synthesizer": {},
 	}
-	got, err := holder(table, "coordinator")
-	if err != nil || got.String() != "~" {
-		t.Errorf("coordinator absent from a declared table = %q, %v; want ~", got, err)
+	if got, err := holder(table, "coordinator"); err == nil {
+		t.Errorf("coordinator absent from a declared table = %q, want an error", got)
 	}
 	table["coordinator"] = config.Role{Identity: config.ParseIdentity("app:myorg-loopy")}
 	if got, _ := holder(table, "coordinator"); got.String() != "app:myorg-loopy" {
 		t.Errorf("routed coordinator = %q", got)
+	}
+	// A table declaring nothing at all is untouched by the removal: every
+	// seat, coordinator included, is the operator's.
+	if got, err := holder(nil, "coordinator"); err != nil || got.String() != "~" {
+		t.Errorf("coordinator with no table declared = %q, %v; want ~", got, err)
 	}
 	if _, err := holder(table, "navigator"); err == nil {
 		t.Error("an unknown role still resolves")
