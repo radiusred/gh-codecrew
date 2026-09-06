@@ -239,6 +239,10 @@ What this task delivers.
 ## Requirements
 M1-R2, M1-R4
 
+## Adopts
+- #12 — a backlog capture this task takes up. Written by `task new
+  --adopts`; absent when the task adopts none.
+
 ## Plan
 Intended changes, in enough detail that a deviation is detectable.
 
@@ -257,6 +261,14 @@ finish` closes each of them after the merge, pointing back at the task and
 its pull request. Adoption is the protocol's own link, so a capture stays
 open exactly as long as the task carrying it, and no pull request body has
 to remember a closing keyword for one.
+
+The section is read strictly, because what it lists is closed after a merge
+where nothing can refuse: the heading counts only as a heading — prose
+quoting `## Adopts` does not open the section, and the section ends at the
+next heading of level 1 or 2 — only the ref at the head of a list line is
+an adoption, the prose after it being the capture's title, and the body is
+read through the same code rule the records are (a ref inside a code span,
+a fenced block or an indented one is content, not an adoption).
 
 ### Task lifecycle
 
@@ -731,7 +743,7 @@ themselves.
 | `GATED` | `task finish` | The task carries `cc:needs-decision`: a human gate is open. |
 | `GATE_UNRECORDED` | `task finish` | A gate was raised and the label removed, but no `**Gate resolved:**` comment records the answer (§8). |
 | `GH_TOO_OLD` | any verb | The installed `gh` is below the floor the verbs need, checked up front rather than met inside a gate. |
-| `GH_UNREACHABLE` | any verb, `migrate`, `roles show` | `gh` never reached GitHub — no route, no DNS, no credentials — named as itself and never folded into another condition. |
+| `GH_UNREACHABLE` | any verb, `migrate`, `roles show`, `task new` | `gh` never reached GitHub — no route, no DNS, no credentials — named as itself and never folded into another condition. |
 | `HUB_UNREADABLE` | any verb in a spoke | The hub's pointer could not be fetched or parsed, so no role resolves; routing fails closed rather than degrade to `~` everywhere (§5). |
 | `IDENTITY_UNRESOLVED` | `migrate` | GitHub answered and the answer did not type a 1.0 identity: nothing, both a user and an App, or an organization. |
 | `IDENTITY_UNTYPED` | any verb | A routing row's `identity` names no kind of principal; the grammar is `~`, `app:`, `user:`, `team:` (§5). |
