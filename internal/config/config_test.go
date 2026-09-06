@@ -185,7 +185,7 @@ func writePointer(t *testing.T, dir, yml string) {
 
 func TestParse(t *testing.T) {
 	cfg, err := Parse([]byte(`
-codecrew: "0.1"
+codecrew: "2.0"
 hub: self
 roles:
   implementer:
@@ -215,7 +215,7 @@ roles:
 }
 
 func TestParseMissingHub(t *testing.T) {
-	if _, err := Parse([]byte(`codecrew: "0.1"`)); err == nil {
+	if _, err := Parse([]byte(`codecrew: "2.0"`)); err == nil {
 		t.Error("expected error for missing hub")
 	}
 }
@@ -308,17 +308,48 @@ func TestCompatible(t *testing.T) {
 		wantNote bool
 		wantErr  bool
 	}{
-		{"1.0", false, false},
-		{"1.4", false, false}, // same major, later minor
-		{"0.1", true, false},  // the pre-1.0 form of 1.0
+		{"2.0", false, false},
+		{"2.4", false, false}, // same major, later minor
 		{"", true, false},     // missing: assumed, noted
-		{"2.0", false, true},  // another major
-		{"0.2", false, true},  // not the frozen form
+		{"1.0", false, true},  // another major
+		{"3.0", false, true},
 	}
 	for _, c := range cases {
-		note, err := Compatible(c.pointer, "1.0")
+		note, err := Compatible(c.pointer, "2.0")
 		if (err != nil) != c.wantErr || (note != "") != c.wantNote {
-			t.Errorf("Compatible(%q, 1.0) = note %q, err %v", c.pointer, note, err)
+			t.Errorf("Compatible(%q, 2.0) = note %q, err %v", c.pointer, note, err)
+		}
+	}
+}
+
+// 1.0 accepted "0.1" — the pre-1.0 form of the same conventions — with a
+// note to update the field. Protocol 2.0 deletes the shim (M13-R7): a 0.1
+// pointer is two majors back, its repo is on the 1.x layout, and the only
+// thing that moves it forward is the migration.
+func TestCompatibleRefuses01(t *testing.T) {
+	note, err := Compatible("0.1", "2.0")
+	if err == nil {
+		t.Fatalf("0.1 was accepted with note %q", note)
+	}
+	for _, want := range []string{"predates", "gh codecrew migrate"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("0.1 pointer: %v, want it to name %q", err, want)
+		}
+	}
+}
+
+// The missing-field rule is kept, not inverted, and 2.0 is what makes it
+// safe: the pointer being read at all means the repo is on the 2.0 layout,
+// because a 1.x repo has no .codecrew/config.yml and never reaches this
+// check (Decision on #261).
+func TestCompatibleMissingFieldIsAssumedCurrent(t *testing.T) {
+	note, err := Compatible("", "2.0")
+	if err != nil {
+		t.Fatalf("a pointer with no codecrew: field was refused: %v", err)
+	}
+	for _, want := range []string{Pointer, "2.0"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("note %q lacks %q", note, want)
 		}
 	}
 }
