@@ -69,7 +69,9 @@ is CodeCrew's to rewrite, a root `AGENTS.md` of two lines pointing at it
 (a sentence naming the path and an `@.codecrew/AGENTS.md` import), and a
 `CLAUDE.md` importing that root, because Claude Code loads `CLAUDE.md` and
 never `AGENTS.md`. If you already have an `AGENTS.md` or a `CLAUDE.md`,
-`init` keeps it untouched and prints the exact lines to paste into it.
+`init` keeps it untouched and prints the exact lines to paste into it —
+unless it already points at the instructions, so rerunning `init` on a repo
+it scaffolded asks you for nothing.
 It commits exactly the files it wrote
 (`chore: scaffold codecrew`), leaving anything else you had staged or
 modified as it was. It never pushes; that is yours (run `init` at the

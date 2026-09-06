@@ -23,10 +23,13 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   extensions.
 - **A kept `AGENTS.md` or `CLAUDE.md` is no longer only reported.** `init`
   keeps an existing root entry point untouched, as it keeps every existing
-  file, and then prints the exact lines to paste into it — byte for byte the
-  ones its own pointer carries — under an `action needed` heading naming
-  each file it kept. Instructions on disk that nothing reaches were the one
-  skip that left a project incomplete.
+  file, and — when that file does not already reach `.codecrew/AGENTS.md` —
+  prints the exact lines to paste into it, byte for byte the ones its own
+  pointer carries, under an `action needed` heading naming each stranded
+  file, last in its output. Instructions on disk that nothing arrives at
+  were the one skip that left a project incomplete. A kept file that already
+  arrives — the pointer `init` wrote on an earlier run — asks for nothing,
+  so a rerun stays idempotent in what it says as well as in what it writes.
 - This hub's own entry point follows the same shape, and SPEC §3, §6, §7 and
   §10, the README, `CONTRIBUTING.md`, `docs/first-milestone.md`,
   `docs/introduction.md`, `docs/identities.md` and `docs/extensions.md`

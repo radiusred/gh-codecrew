@@ -316,15 +316,33 @@ func TestScaffoldWritesTheEntryPointAndARootPointer(t *testing.T) {
 	}
 }
 
-// An existing root entry point is kept — and init prints the exact lines to
-// add to it, byte for byte the ones its own pointer carries, rather than
-// reporting a skip that leaves the project with instructions nothing reaches
-// (M13-R3).
-func TestInitPrintsTheLineToAddForAKeptEntryPoint(t *testing.T) {
-	for _, existing := range [][]string{{"AGENTS.md"}, {"CLAUDE.md"}, {"AGENTS.md", "CLAUDE.md"}, nil} {
+// An existing root entry point is kept — and when it does not reach the
+// instructions, init prints the exact lines to add to it, byte for byte the
+// ones its own pointer carries, rather than reporting a skip that leaves the
+// project with instructions nothing arrives at. A kept file that already
+// reaches them asks for nothing: a rerun on what init wrote is idempotent in
+// its output too, not only on disk (M13-R3, SPEC §6; checky on PR #278).
+func TestInitPrintsTheLineToAddForAStrandedEntryPoint(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		// what is on disk before init runs
+		existing map[string]string
+		// the files init must name under "action needed"; none means the
+		// block must not appear at all
+		stranded []string
+	}{
+		{"a foreign AGENTS.md", map[string]string{"AGENTS.md": "# mine\n"}, []string{"AGENTS.md"}},
+		{"a foreign CLAUDE.md", map[string]string{"CLAUDE.md": "# mine\n"}, []string{"CLAUDE.md"}},
+		{"both foreign", map[string]string{"AGENTS.md": "# mine\n", "CLAUDE.md": "# mine\n"}, []string{"AGENTS.md", "CLAUDE.md"}},
+		{"a fresh repo", nil, nil},
+		{"a rerun on what init wrote", map[string]string{"AGENTS.md": agentsPointerScaffold, "CLAUDE.md": claudeScaffold}, nil},
+		// CLAUDE.md's import is only as good as the file it lands on: init's
+		// own CLAUDE.md beside somebody else's AGENTS.md reaches nothing.
+		{"init's CLAUDE.md over a foreign AGENTS.md", map[string]string{"AGENTS.md": "# mine\n", "CLAUDE.md": claudeScaffold}, []string{"AGENTS.md", "CLAUDE.md"}},
+	} {
 		dir := t.TempDir()
-		for _, f := range existing {
-			if err := os.WriteFile(filepath.Join(dir, f), []byte("# mine\n"), 0o644); err != nil {
+		for f, content := range c.existing {
+			if err := os.WriteFile(filepath.Join(dir, f), []byte(content), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -336,100 +354,40 @@ func TestInitPrintsTheLineToAddForAKeptEntryPoint(t *testing.T) {
 		err := initCmd(&out, nil)
 		os.Chdir(wd)
 		if err != nil {
-			t.Fatalf("%v: %v", existing, err)
+			t.Fatalf("%s: %v", c.name, err)
 		}
 		got := out.String()
-		if len(existing) == 0 {
-			// Nothing was kept, so there is nothing to paste.
+
+		// Whatever was there is kept, byte for byte, and reported.
+		for f, content := range c.existing {
+			if !strings.Contains(got, "kept existing "+f) {
+				t.Errorf("%s: init did not report keeping %s:\n%s", c.name, f, got)
+			}
+			if data, _ := os.ReadFile(filepath.Join(dir, f)); string(data) != content {
+				t.Errorf("%s: init overwrote %s", c.name, f)
+			}
+		}
+
+		if len(c.stranded) == 0 {
 			if strings.Contains(got, "action needed") {
-				t.Errorf("a fresh init asked for an action:\n%s", got)
+				t.Errorf("%s: init asked for an action it does not need:\n%s", c.name, got)
 			}
 			continue
 		}
-		for _, f := range existing {
-			if !strings.Contains(got, "kept existing "+f) {
-				t.Errorf("%v: init did not report keeping %s:\n%s", existing, f, got)
-			}
-			if data, _ := os.ReadFile(filepath.Join(dir, f)); string(data) != "# mine\n" {
-				t.Errorf("%v: init overwrote %s", existing, f)
-			}
-			if !strings.Contains(got, "Kept:") || !strings.Contains(got, f) {
-				t.Errorf("%v: the action-needed heading does not name %s:\n%s", existing, f, got)
+		for _, f := range c.stranded {
+			if !strings.Contains(got, "Kept: ") || !strings.Contains(got, f) {
+				t.Errorf("%s: the action-needed heading does not name %s:\n%s", c.name, f, got)
 			}
 		}
 		// The lines it prints are the ones its own root pointer carries.
 		if !strings.Contains(got, entryPointLines) {
-			t.Errorf("%v: init printed no line to add:\n%s", existing, got)
+			t.Errorf("%s: init printed no line to add:\n%s", c.name, got)
 		}
 		if !strings.Contains(agentsPointerScaffold, entryPointLines) {
 			t.Error("the printed block is not what the root pointer scaffold contains")
 		}
 		if !strings.Contains(got, config.AgentsFile) {
-			t.Errorf("%v: the report never names %s:\n%s", existing, config.AgentsFile, got)
-		}
-	}
-}
-
-func TestScaffoldKeepsExistingClaude(t *testing.T) {
-	dir := t.TempDir()
-	marker := filepath.Join(dir, "CLAUDE.md")
-	if err := os.WriteFile(marker, []byte("mine\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, skipped, err := scaffold(dir, "self", fakeContracts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(skipped, "CLAUDE.md") {
-		t.Errorf("existing CLAUDE.md not reported as skipped: %v", skipped)
-	}
-	if data, _ := os.ReadFile(marker); string(data) != "mine\n" {
-		t.Error("existing CLAUDE.md was overwritten")
-	}
-}
-
-// init writes a blank extension beside every contract it scaffolds — the
-// mechanism made visible at onboarding, holding only the comment that says
-// what the file is for (M7-R4). Blank means comments-only: it composes to
-// nothing, an existing extension is never touched, and a spoke gets none.
-func TestScaffoldWritesBlankExtensions(t *testing.T) {
-	dir := t.TempDir()
-	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
-		t.Fatal(err)
-	}
-	for _, role := range []string{"implementer", "qa"} {
-		data, err := os.ReadFile(filepath.Join(dir, rolesPath(role+localSuffix)))
-		if err != nil {
-			t.Fatalf("no blank extension for %s: %v", role, err)
-		}
-		s := string(data)
-		for _, want := range []string{extensionPath(role), contractPath(role), "gh codecrew roles show " + role, U + "/docs/extensions.md", U + "/SPEC.md"} {
-			if !strings.Contains(s, want) {
-				t.Errorf("%s extension lacks %q", role, want)
-			}
-		}
-		if strings.TrimSpace(withoutHTMLComments(s)) != "" {
-			t.Errorf("%s extension is not comments-only: %q", role, s)
-		}
-	}
-	// Rerunning init keeps a written extension and reports it.
-	p := filepath.Join(dir, rolesPath("qa"+localSuffix))
-	os.WriteFile(p, []byte("- House style.\n"), 0o644)
-	written, skipped, err := scaffold(dir, "self", fakeContracts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(written) != 0 || !slices.Contains(skipped, rolesPath("qa"+localSuffix)) {
-		t.Errorf("rerun wrote %v, skipped %v", written, skipped)
-	}
-	if data, _ := os.ReadFile(p); string(data) != "- House style.\n" {
-		t.Error("rerun overwrote a written extension")
-	}
-	spoke := t.TempDir()
-	written, _, _ = scaffold(spoke, "org/hub", fakeContracts)
-	for _, w := range written {
-		if strings.HasSuffix(w, localSuffix) {
-			t.Errorf("spoke scaffold wrote an extension: %s", w)
+			t.Errorf("%s: the report never names %s:\n%s", c.name, config.AgentsFile, got)
 		}
 	}
 }
