@@ -109,8 +109,28 @@ const agentsPointerScaffold = `# Agents
 ` + entryPointLines
 
 // rootEntryPoints are the two root files a harness discovers on its own.
-// init never overwrites one; when it keeps one it prints the lines to add.
+// init never overwrites one; when it keeps one that does not already reach
+// the instructions it prints the lines to add (reachesInstructions).
 var rootEntryPoints = []string{"AGENTS.md", "CLAUDE.md"}
+
+// reachesInstructions reports whether a root entry point already leads to
+// .codecrew/AGENTS.md: by naming the path — the sentence and the @-import
+// both do — or, for CLAUDE.md, through its @AGENTS.md import into a root
+// AGENTS.md that does. A file that already arrives needs no line pasted
+// into it, so a rerun in a repo init itself scaffolded reports a plain
+// skip and asks for nothing (SPEC §6, idempotency).
+func reachesInstructions(dir, name string) bool {
+	data, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return false
+	}
+	if strings.Contains(string(data), config.AgentsFile) {
+		return true
+	}
+	// One hop, and only this one: CLAUDE.md's own scaffold reaches the
+	// instructions through the root pointer rather than naming them.
+	return name == "CLAUDE.md" && strings.Contains(string(data), "@AGENTS.md") && reachesInstructions(dir, "AGENTS.md")
+}
 
 // claudeScaffold bridges Claude Code to the harness-neutral entry point:
 // Claude Code loads CLAUDE.md, never AGENTS.md (code.claude.com/docs/en/memory),
@@ -247,20 +267,16 @@ func initCmd(w io.Writer, args []string) error {
 	for _, f := range skipped {
 		fmt.Fprintf(w, "kept existing %s\n", f)
 	}
-	// A kept AGENTS.md or CLAUDE.md is the one skip that leaves the project
-	// disconnected: the instructions are on disk and nothing reaches them.
-	// Reporting the skip is not enough — print the lines to paste.
-	var kept []string
+	// A kept AGENTS.md or CLAUDE.md that does not reach the instructions is
+	// the one skip that leaves the project disconnected: the instructions
+	// are on disk and nothing arrives at them. Reporting the skip is not
+	// enough — print the lines to paste. A kept file that already reaches
+	// them (a rerun on what init wrote) is a plain skip and asks nothing.
+	var stranded []string
 	for _, f := range rootEntryPoints {
-		if slices.Contains(skipped, f) {
-			kept = append(kept, f)
+		if slices.Contains(skipped, f) && !reachesInstructions(".", f) {
+			stranded = append(stranded, f)
 		}
-	}
-	if len(kept) > 0 {
-		fmt.Fprintf(w, "\naction needed — a kept entry point does not reach CodeCrew's instructions.\n")
-		fmt.Fprintf(w, "Kept: %s\n", strings.Join(kept, ", "))
-		fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
-		fmt.Fprint(w, entryPointLines)
 	}
 	if repoRoot(".") == "" {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
@@ -277,6 +293,13 @@ func initCmd(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
 	} else {
 		fmt.Fprintf(w, "\nnext: tasks for this spoke attach to milestones in %s\n", *hub)
+	}
+	// Last, so the one thing needing a human is the last thing on screen.
+	if len(stranded) > 0 {
+		fmt.Fprintf(w, "\naction needed — a kept entry point does not reach CodeCrew's instructions.\n")
+		fmt.Fprintf(w, "Kept: %s\n", strings.Join(stranded, ", "))
+		fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
+		fmt.Fprint(w, entryPointLines)
 	}
 	return nil
 }
