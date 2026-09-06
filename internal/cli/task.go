@@ -114,6 +114,11 @@ func resolveAdoptions(c *ctx, target string, vals []string) ([]tracker.Adoption,
 			seen[ref] = true
 			issue, err := c.t.Task(ref)
 			if err != nil {
+				// A GitHub nothing reached is that condition, not a
+				// verdict on the ref (SPEC §6, as migrate has it).
+				if ghErr := unreachable(err); ghErr != nil {
+					return nil, ghErr
+				}
 				return nil, refuse("ADOPT_NOT_OPEN", "--adopts %s could not be read (%v) — a task adopts an open backlog issue in its own repo, or one named owner/repo#n", ref, err)
 			}
 			if issue.Closed {
@@ -516,12 +521,6 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	}
 
 	prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
-	// The captures this task adopted, read once every gate has passed so a
-	// refused finish pays for none of it.
-	adopted, err := planAdoptions(c.t, ref)
-	if err != nil {
-		return nil, nil, err
-	}
 	var posts []string
 	if ownerBypass {
 		// Recorded before any merge path: the override is the fact, whatever
@@ -573,6 +572,13 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 			"unmerged, the bypass was refused.", viewer))
 	} else {
 		p.na("bypass actor")
+	}
+	// The captures this task adopted, read once every gate has passed —
+	// the last two of them depend on the flags, so this comes after them
+	// and a refused finish pays for none of it.
+	adopted, err := planAdoptions(c.t, ref)
+	if err != nil {
+		return nil, nil, err
 	}
 	for _, m := range posts {
 		p.would("comment on PR #%d: %s", pr.Number, firstLine(m))
@@ -662,8 +668,11 @@ func closeAdopted(w io.Writer, t tracker.Tracker, task, pr tracker.IssueRef, ite
 		return
 	}
 	sha, err := t.MergeCommit(pr.Repo, pr.Number)
-	if err != nil {
-		fmt.Fprintf(w, "note: could not read %s's merge commit (%v)\n", pr, err)
+	switch {
+	case err != nil:
+		fmt.Fprintf(w, "note: could not read %s's merge commit (%v); the captures below are closed without naming it\n", pr, err)
+	case sha == "":
+		fmt.Fprintf(w, "note: GitHub reports no merge commit for %s yet; the captures below are closed without naming it\n", pr)
 	}
 	for _, it := range items {
 		if !it.Close {
