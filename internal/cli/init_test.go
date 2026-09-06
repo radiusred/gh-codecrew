@@ -405,6 +405,22 @@ func TestInitPrintsTheLineToAddForAStrandedEntryPoint(t *testing.T) {
 	}
 }
 
+// This hub is a CodeCrew project, so its own root CLAUDE.md is the file
+// init would write here — Claude Code loads CLAUDE.md and never AGENTS.md,
+// and the hub went without one until #299. Read from disk and compared
+// against the constant, the way refusals_test.go reads SPEC.md: neither
+// can move without the other, in either direction, so an edit to the
+// scaffold fails here until the hub follows it.
+func TestTheHubsClaudeFileIsTheScaffold(t *testing.T) {
+	got, err := os.ReadFile(filepath.Join("..", "..", "CLAUDE.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != claudeScaffold {
+		t.Errorf("the hub's CLAUDE.md has drifted from claudeScaffold:\n got %q\nwant %q", got, claudeScaffold)
+	}
+}
+
 // init scaffolds rather than loading a pointer, so it never meets the
 // pointer check — but a repo on the 1.x layout is still refused: a second
 // layout written beside the first is the one outcome nobody can migrate

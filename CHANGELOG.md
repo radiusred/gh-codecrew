@@ -6,7 +6,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### The hub carries the `CLAUDE.md` its own `init` writes
+- Claude Code loads `CLAUDE.md` and never `AGENTS.md`, so the root pointer
+  #257 added had nothing to reach it from in the harness this project is
+  developed with: the hub had no `CLAUDE.md` at all. It now carries the
+  file byte for byte as `init` scaffolds it, and a test reads it back and
+  compares it against the constant, so the two cannot drift. (#299)
 
 ## [2.0.0] — 2026-09-06
 
