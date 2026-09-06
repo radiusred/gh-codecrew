@@ -24,7 +24,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   the reason. Bounded: one listing per repo, and an open task's branch costs
   a single issue read. `--dry-run` lists them beside the milestone's own and
   writes nothing, and the milestone's own branches are never revisited by the
-  second pass. (#273)
+  second pass. Two guards make the wider candidate set safe: a branch about
+  to go because no PR is open is checked once more against the pull requests
+  whose head it is — whatever they close, which is the relation a task's own
+  closing PRs cannot see — and a candidate the verb could not read at all is
+  reported and left standing, never deleted. A repo with more task branches
+  than one listing holds is swept in part and says so. (#273)
 
 ### A task adopts a backlog capture, and the merge closes it
 - **`task new --adopts <ref>[,<ref>]`** records the backlog issues a task
