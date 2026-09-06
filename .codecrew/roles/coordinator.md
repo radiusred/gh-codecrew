@@ -68,6 +68,22 @@ read every seat's credentials through its own 401
   without a plan.** `gh codecrew task new --milestone <n>`; the seat writes
   the plan and runs `task start`. A seat dispatched with no task issue
   behind it stops and asks for one — that is its contract, not a stall.
+- **A milestone adopts a backlog capture with `--adopts`, not with
+  prose.** When a task delivers what an unlabelled capture already
+  describes, name it on the task that carries it:
+  `gh codecrew task new --milestone <n> --adopts <ref>[,<ref>]` —
+  repeatable, comma-separated, a bare number resolving against the task's
+  repo. The verb records the captures under `## Adopts` in the task body
+  and comments on each one, and `task finish` closes them when the task's
+  PR merges, pointing back at the task and the PR. A ref that is not an
+  open issue refuses `ADOPT_NOT_OPEN` before the task is created, so fix
+  the ref and rerun. "adopts #N" written into a Goal is a note to a
+  reader and nothing else: it is the flag that makes the protocol do the
+  bookkeeping, and until it was there every adopted capture stayed open
+  after its task shipped
+  ([#193](https://github.com/radiusred/gh-codecrew/issues/193)). Never
+  close an adopted capture by hand, and never ask an implementer for a
+  `Closes` line for one.
 - **Dispatch by the routing table.** `gh codecrew role <name>` says who
   holds a seat, typed: `app:<slug>` is an agent to dispatch, `user:<login>`
   and `team:<org>/<slug>` are humans to notify — and a review request they

@@ -95,7 +95,12 @@ Then, every run:
   obvious the answer seems.
 - **Open the PR** referencing the task (`Closes #123`) and finalize its
   description as the task summary: what was done, which requirements it
-  satisfies, links to any deviation comments. Whether to request a review
+  satisfies, links to any deviation comments. The task's own number is the
+  only one that needs a closing keyword: a backlog capture listed under the
+  task's `## Adopts` section is adopted, and `task finish` closes it after
+  the merge with a comment pointing back at the task and this PR — do not
+  add a `Closes` line for one, and do not close it by hand
+  ([#193](https://github.com/radiusred/gh-codecrew/issues/193)). Whether to request a review
   is the reviewer seat's identity kind, and one command answers it:
 
   ```
