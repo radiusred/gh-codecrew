@@ -301,6 +301,8 @@ type closeFake struct {
 	body      string
 	comments  map[int][]tracker.Comment
 	hasDoc    bool
+	branches  map[string][]string // the stale sweep's per-repo listing
+	ahead     map[string]int
 	writes    []string
 }
 
@@ -324,8 +326,17 @@ func (f *closeFake) RepoInfo(string) (tracker.RepoInfo, error) {
 	return tracker.RepoInfo{DefaultBranch: "main"}, nil
 }
 func (f *closeFake) LinkedBranches(tracker.IssueRef) ([]string, error) { return nil, nil }
+func (f *closeFake) TaskBranches(repo string) ([]string, error)        { return f.branches[repo], nil }
 func (f *closeFake) BranchAhead(_, b string) (int, string, error) {
-	return 0, "", errors.New("no such branch")
+	n, ok := f.ahead[b]
+	if !ok {
+		return 0, "", errors.New("no such branch")
+	}
+	return n, "", nil
+}
+func (f *closeFake) DeleteBranch(_, b string) error {
+	f.writes = append(f.writes, "delete: "+b)
+	return nil
 }
 func (f *closeFake) CloseIssue(_ tracker.IssueRef, c string) error {
 	f.writes = append(f.writes, "close: "+c)
@@ -642,5 +653,71 @@ func TestCloseAdoptedNotesAMergeCommitItCannotName(t *testing.T) {
 	}
 	if len(f.closed) != 1 || strings.Contains(f.closed[0], "merged as") {
 		t.Errorf("closing comment %q", f.closed)
+	}
+}
+
+// A close sweeps the task branches earlier closes left behind as well as
+// its own (#167, M14-R4): a closed task's empty branch goes and is named in
+// the closing comment under its own sentence, a closed task's unmerged work
+// and an open task's branch are named and left, and --dry-run lists all of
+// it beside the milestone's own while writing nothing.
+func TestPlanCloseSweepsStaleBranchesFromEarlierCloses(t *testing.T) {
+	f := &closeFake{
+		milestone: tracker.Milestone{Ref: tracker.IssueRef{Repo: "o/r", Number: 5}, Title: "M2: Two", Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 6}}},
+		tasks: map[int]tracker.Task{
+			6: {Closed: true},  // this milestone's own task
+			7: {Closed: true},  // an earlier milestone's, its branch empty
+			8: {Closed: false}, // still open
+			9: {Closed: true},  // closed, but the branch carries work
+		},
+		body:     "## Goal\nx\n\n## Requirements\n- **M2-R1** — a thing\n",
+		comments: map[int][]tracker.Comment{5: {{Author: "davison", Body: "**M2-R1 — satisfied.** ran it"}}},
+		hasDoc:   true,
+		branches: map[string][]string{"o/r": {"task/7-empty", "task/8-open", "task/9-work"}},
+		ahead:    map[string]int{"task/7-empty": 0, "task/8-open": 0, "task/9-work": 2},
+	}
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self", Roles: map[string]config.Role{"implementer": {}, "reviewer": {}, "qa": {}, "doc-synthesizer": {}}}
+	c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
+
+	var dry bytes.Buffer
+	p, _, err := planClose(c, 2, true, &dry)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("dry run: err %v refusal %v", err, p.refusal)
+	}
+	p.print(&dry)
+	for _, want := range []string{
+		"would delete stale branch task/7-empty (no PR, nothing beyond the default branch)",
+		"would keep stale branch task/8-open (o/r#8 is open)",
+		"would keep stale branch task/9-work (2 commit(s) not on the default branch, no merged PR)",
+		"Swept from earlier closes: task/7-empty.",
+	} {
+		if !strings.Contains(dry.String(), want) {
+			t.Errorf("dry report must contain %q:\n%s", want, dry.String())
+		}
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("the dry run wrote: %v", f.writes)
+	}
+
+	var live bytes.Buffer
+	p, run, err := planClose(c, 2, false, &live)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("live: err %v refusal %v", err, p.refusal)
+	}
+	if err := run(&live); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, want := range []string{
+		"swept from earlier closes:\n",
+		"stale branch task/7-empty: deleted (no PR, nothing beyond the default branch)",
+		"stale branch task/8-open: kept (o/r#8 is open)",
+	} {
+		if !strings.Contains(live.String(), want) {
+			t.Errorf("live output must contain %q:\n%s", want, live.String())
+		}
+	}
+	want := "delete: task/7-empty;close: Closed by `gh codecrew milestone close 2`: all 1 tasks done, milestone document merged. Swept from earlier closes: task/7-empty."
+	if got := strings.Join(f.writes, ";"); got != want {
+		t.Errorf("writes =\n%s\nwant\n%s", got, want)
 	}
 }

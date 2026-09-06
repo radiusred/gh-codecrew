@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -55,28 +57,37 @@ func TestPRByHeadOpenWins(t *testing.T) {
 // need defining; any other call panics, which is the point.
 type fakeTracker struct {
 	tracker.Tracker
-	linked  map[int][]string
-	prs     map[int][]int
-	info    map[int]tracker.PR
-	ahead   map[string]int
-	tips    map[string]string
-	titles  map[int]string
-	deleted []string
-	failDel string
-	repoErr error
+	linked    map[int][]string
+	prs       map[int][]int
+	info      map[int]tracker.PR
+	ahead     map[string]int
+	tips      map[string]string
+	titles    map[int]string
+	closed    map[int]bool
+	branches  map[string][]string
+	calls     []string // every issue and PR lookup, in order, so a bound can be asserted
+	deleted   []string
+	failDel   string
+	repoErr   error
+	branchErr error
 }
 
 func (f *fakeTracker) RepoInfo(string) (tracker.RepoInfo, error) {
 	return tracker.RepoInfo{DefaultBranch: "main"}, f.repoErr
 }
 func (f *fakeTracker) Task(ref tracker.IssueRef) (tracker.Task, error) {
-	return tracker.Task{Title: f.titles[ref.Number]}, nil
+	f.calls = append(f.calls, fmt.Sprintf("task %d", ref.Number))
+	return tracker.Task{Title: f.titles[ref.Number], Closed: f.closed[ref.Number]}, nil
 }
 func (f *fakeTracker) LinkedBranches(ref tracker.IssueRef) ([]string, error) {
 	return f.linked[ref.Number], nil
 }
 func (f *fakeTracker) ClosingPRs(ref tracker.IssueRef, _ bool) ([]int, error) {
+	f.calls = append(f.calls, fmt.Sprintf("prs %d", ref.Number))
 	return f.prs[ref.Number], nil
+}
+func (f *fakeTracker) TaskBranches(repo string) ([]string, error) {
+	return f.branches[repo], f.branchErr
 }
 func (f *fakeTracker) PRInfo(_ string, n int) (tracker.PR, error) { return f.info[n], nil }
 func (f *fakeTracker) BranchAhead(_, b string) (int, string, error) {
@@ -181,5 +192,118 @@ func TestDeleteHeadIsANoteOnFailure(t *testing.T) {
 	deleteHead(&out, ft, tracker.PR{Repo: "o/r"})                                          // no head known: silent
 	if out.String() != "" || len(ft.deleted) != 1 {
 		t.Errorf("fork/empty head produced output or deletion: %q %v", out.String(), ft.deleted)
+	}
+}
+
+func TestTaskNumber(t *testing.T) {
+	cases := map[string]int{
+		"task/273-milestone-close-sweeps-stale": 273,
+		"task/8-cycle-1-milestone-record-m1-r6": 8,
+		"task/9":                                9, // a title that slugged to nothing
+		"main":                                  0,
+		"codecrew-init":                         0,
+		"task/":                                 0,
+		"task/-x":                               0,
+		"task/x-1":                              0,
+		"task/0-zero":                           0,
+		"task/007-padded":                       0, // task start never writes one
+		"feature/task/5-not-ours":               0,
+	}
+	for branch, want := range cases {
+		if got := taskNumber(branch); got != want {
+			t.Errorf("taskNumber(%q) = %d, want %d", branch, got, want)
+		}
+	}
+}
+
+// The second pass reaches the branches earlier closes left behind (#167):
+// a closed task's merged or empty branch goes, a closed task's unmerged
+// work and an open task's branch are named and left, and the closing
+// milestone's own branches belong to the first pass, not this one.
+func TestPlanStaleSweep(t *testing.T) {
+	ft := &fakeTracker{
+		branches: map[string][]string{
+			"o/hub": {
+				"task/1-own",       // the closing milestone's own task: pass one's
+				"task/20-merged",   // closed task, PR merged, tip untouched: swept
+				"task/21-empty",    // closed task, no PR, nothing beyond main: swept
+				"task/22-unmerged", // closed task, work not on main: kept and named
+				"task/23-open",     // task still open: kept and named
+				"task/24-gone",     // vanished between the listing and the check
+				"task/0-nonsense",  // no number task start would have written
+				"main",
+			},
+			"o/spoke": {"task/30-merged"},
+		},
+		closed: map[int]bool{20: true, 21: true, 22: true, 24: true, 30: true},
+		prs:    map[int][]int{20: {200}, 22: {220}, 30: {300}},
+		info: map[int]tracker.PR{
+			200: {HeadRef: "task/20-merged", Merged: true, HeadSHA: "m20"},
+			220: {HeadRef: "task/22-unmerged"},
+			300: {HeadRef: "task/30-merged", Merged: true, HeadSHA: "m30"},
+		},
+		ahead: map[string]int{"task/20-merged": 3, "task/21-empty": 0, "task/22-unmerged": 2, "task/23-open": 0, "task/30-merged": 4},
+		tips:  map[string]string{"task/20-merged": "m20", "task/30-merged": "m30"},
+	}
+	m := &tracker.Milestone{
+		Ref:   tracker.IssueRef{Repo: "o/hub", Number: 9},
+		Tasks: []tracker.IssueRef{{Repo: "o/hub", Number: 1}, {Repo: "o/spoke", Number: 2}},
+	}
+	own := []sweepItem{{Repo: "o/hub", Name: "task/1-own", Delete: true, Reason: "PR merged"}}
+	items := planStaleSweep(ft, m, own)
+	if len(ft.deleted) != 0 {
+		t.Fatalf("planning deleted %v", ft.deleted)
+	}
+	for _, it := range items {
+		if it.Note == "" && !it.Stale {
+			t.Errorf("%s not marked stale: %+v", it.Name, it)
+		}
+	}
+	var out bytes.Buffer
+	deleted := executeSweep(&out, ft, items)
+	if want := "task/20-merged,task/21-empty,task/30-merged"; strings.Join(deleted, ",") != want {
+		t.Errorf("deleted = %v, want %s\n%s", deleted, want, out.String())
+	}
+	for _, line := range []string{
+		"stale branch task/20-merged: deleted (PR merged)",
+		"stale branch task/21-empty: deleted (no PR, nothing beyond the default branch)",
+		"stale branch task/22-unmerged: kept (2 commit(s) not on the default branch, no merged PR)",
+		"stale branch task/23-open: kept (o/hub#23 is open)",
+		"stale branch task/30-merged: deleted (PR merged)",
+	} {
+		if !strings.Contains(out.String(), line) {
+			t.Errorf("output missing %q:\n%s", line, out.String())
+		}
+	}
+	// The closing milestone's own branches, the default branch, a name with
+	// no task number and a branch that went away are none of this pass's.
+	for _, never := range []string{"task/1-own", "main", "task/0-nonsense", "task/24-gone"} {
+		if strings.Contains(out.String(), never) {
+			t.Errorf("%q must not appear:\n%s", never, out.String())
+		}
+	}
+	// Bounded: an open task's branch costs one issue read and stops there;
+	// the milestone's own tasks are never re-read by this pass at all.
+	for _, never := range []string{"prs 23", "task 1", "task 2"} {
+		if slices.Contains(ft.calls, never) {
+			t.Errorf("lookup %q is beyond the bound: %v", never, ft.calls)
+		}
+	}
+	if n := slices.Index(ft.calls, "task 23"); n < 0 || slices.Index(ft.calls[n+1:], "task 23") >= 0 {
+		t.Errorf("open task not read exactly once: %v", ft.calls)
+	}
+}
+
+func TestPlanStaleSweepFailuresAreNotes(t *testing.T) {
+	m := &tracker.Milestone{Ref: tracker.IssueRef{Repo: "o/hub", Number: 9}}
+	for _, ft := range []*fakeTracker{
+		{repoErr: errors.New("api down")},
+		{branchErr: errors.New("api down")},
+	} {
+		items := planStaleSweep(ft, m, nil)
+		var out bytes.Buffer
+		if got := executeSweep(&out, ft, items); len(got) != 0 || !strings.HasPrefix(out.String(), "note: stale branch sweep skipped for o/hub") {
+			t.Errorf("failure not a note: %v %q", got, out.String())
+		}
 	}
 }
