@@ -173,6 +173,7 @@ type taskNewFake struct {
 	open    [][]tracker.Milestone   // successive OpenMilestones answers
 	recent  [][]tracker.TitledIssue // successive RecentIssues answers
 	issues  map[int]tracker.Task    // what Task answers for a hub issue number
+	taskErr error                   // when set, what every Task call fails with
 	oCalls  int
 	rCalls  int
 	created []string
@@ -197,6 +198,9 @@ func (f *taskNewFake) RecentIssues(string) ([]tracker.TitledIssue, error) {
 	return nth(f.recent, f.rCalls-1), nil
 }
 func (f *taskNewFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	if f.taskErr != nil {
+		return tracker.Task{}, f.taskErr
+	}
 	t, ok := f.issues[ref.Number]
 	if !ok {
 		return tracker.Task{}, errors.New("issue not found")
@@ -403,5 +407,25 @@ func TestTaskNewRefusesAnAdoptionThatIsNotOpen(t *testing.T) {
 		if len(f.created) != 0 || len(f.linked) != 0 || len(f.posted) != 0 || out.Len() != 0 {
 			t.Errorf("%s: a refusal created %v, linked %v, posted %v, printed %q", tc.name, f.created, f.linked, f.posted, out.String())
 		}
+	}
+}
+
+// A GitHub nothing reached is named as itself, never folded into the
+// ref's own refusal — SPEC §6's rule, which migrate follows one row away.
+// The caller acts on the code, and "this ref is not an open issue" is not
+// what a dead network says.
+func TestTaskNewAdoptsRefusesUnreachableAsItself(t *testing.T) {
+	f := &taskNewFake{
+		open:    [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}},
+		taskErr: errors.New("gh api: dial tcp 140.82.121.5:443: connect: connection refused"),
+	}
+	var out bytes.Buffer
+	err := runTaskNew(taskNewCtx(f), &out, 11, "o/spoke", "Cut the README", "g", "M11-R1", []string{"193"})
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "GH_UNREACHABLE" {
+		t.Fatalf("err = %v, want refused[GH_UNREACHABLE]", err)
+	}
+	if len(f.created) != 0 {
+		t.Errorf("a refusal created %v", f.created)
 	}
 }

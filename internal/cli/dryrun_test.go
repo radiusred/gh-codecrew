@@ -620,3 +620,27 @@ func TestPlanFinishWithoutAdoptionsClosesNothing(t *testing.T) {
 		t.Errorf("output mentions adoption:\n%s", buf.String())
 	}
 }
+
+// GitHub reports no merge commit for a PR it has only just merged, and
+// returns it as an empty string rather than an error. The closing comments
+// go out without a SHA, and the output says so — the same note a failed
+// read gets, rather than a comment quietly missing half its back-reference.
+func TestCloseAdoptedNotesAMergeCommitItCannotName(t *testing.T) {
+	f := cleanFinish()
+	f.body = "## Adopts\n- #193 — the capture\n\n## Plan\np\n"
+	f.mergeSHA = ""
+	_, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := run(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "note: GitHub reports no merge commit for o/r#9 yet") {
+		t.Errorf("output lacks the note:\n%s", buf.String())
+	}
+	if len(f.closed) != 1 || strings.Contains(f.closed[0], "merged as") {
+		t.Errorf("closing comment %q", f.closed)
+	}
+}
