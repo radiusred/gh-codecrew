@@ -22,6 +22,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   already closed is reported, and one that cannot be closed is a `note:`
   naming it. `--dry-run` lists each capture it would close, and each it
   would skip, beside the branch it would delete.
+- **The section is read strictly**, since what it lists is closed after a
+  merge where nothing can refuse: the heading counts only as a heading, so
+  prose quoting `## Adopts` cannot shadow the real section (a task about
+  this feature quotes it); only the ref at the head of a list line is an
+  adoption, the prose after it being the capture's title; and the body is
+  read through `StripCode`, so a ref inside a code span, a fenced block or
+  an indented one is content, exactly as it is for the verdict scan and the
+  citation walk (M13-R6).
 - The protocol now does the bookkeeping the link already describes: an
   adopted capture stays open exactly as long as the task carrying it, and no
   PR body has to remember a `Closes` line for one. Every hub milestone since
