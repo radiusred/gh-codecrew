@@ -3,16 +3,17 @@
 This repository follows the CodeCrew protocol. If you are an agent dispatched
 to work here:
 
-1. **Find the hub.** Read `.codecrew.yml`; `hub: self` means this repo is the
-   hub, otherwise follow `hub: owner/repo`.
-2. **Load your role contract** from the hub's `roles/` directory — you were
-   dispatched as one of: [implementer](roles/implementer.md),
-   [reviewer](roles/reviewer.md), [qa](roles/qa.md),
-   [doc-synthesizer](roles/doc-synthesizer.md). If no role was named, you are
-   the implementer. Then load the project's extensions to it, in order: the
-   hub's `roles/<role>.local.md`, then the same file in your working repo if
-   it is a spoke — `gh codecrew roles show <role>` prints the whole
-   composition (SPEC §7).
+1. **Find the hub.** Read `.codecrew/config.yml`; `hub: self` means this repo
+   is the hub, otherwise follow `hub: owner/repo`.
+2. **Load your role contract** from the hub's `.codecrew/roles/` directory —
+   you were dispatched as one of:
+   [implementer](.codecrew/roles/implementer.md),
+   [reviewer](.codecrew/roles/reviewer.md), [qa](.codecrew/roles/qa.md),
+   [doc-synthesizer](.codecrew/roles/doc-synthesizer.md). If no role was
+   named, you are the implementer. Then load the project's extensions to it,
+   in order: the hub's `.codecrew/roles/<role>.local.md`, then the same file
+   in your working repo if it is a spoke — `gh codecrew roles show <role>`
+   prints the whole composition (SPEC §7).
 3. **Resolve your identity** per the contract:
    `export GH_TOKEN=$(gh codecrew identity token <slug>)` — the verb reads
    orchestrator-injected env vars (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`,

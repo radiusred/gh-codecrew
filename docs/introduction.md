@@ -45,12 +45,13 @@ per-milestone records of the decisions that shaped the system and why.
 1. **A protocol** ([SPEC.md](../SPEC.md)) — conventions for representing
    milestones, tasks, plans, decisions, deviations, and gates in GitHub, and
    how agents and humans transact over them.
-2. **Role contracts** ([roles/](../roles/)) — harness-neutral prompt files
-   for the implementer, reviewer, qa, and doc-synthesizer roles, and for the
-   coordinator that dispatches them, loadable by any agent (Claude Code,
-   Codex, Gemini CLI, or an orchestrator's company).
+2. **Role contracts** ([.codecrew/roles/](../.codecrew/roles/)) —
+   harness-neutral prompt files for the implementer, reviewer, qa, and
+   doc-synthesizer roles, and for the coordinator that dispatches them,
+   loadable by any agent (Claude Code, Codex, Gemini CLI, or an
+   orchestrator's company).
    A project extends a contract without forking it in
-   `roles/<role>.local.md` (SPEC §7).
+   `.codecrew/roles/<role>.local.md` (SPEC §7).
 3. **A CLI** — `codecrew`, a single static Go binary wrapping `gh`, providing
    the workflow verbs with gates enforced as code.
 
@@ -66,13 +67,13 @@ later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`
-prints a contract with its `roles/<role>.local.md` extensions appended;
-`task finish` deletes the branch it merged and `milestone close` sweeps what
-its tasks left; `milestone new`, `task finish` and `milestone close` take
-`--dry-run` — every gate in order with its outcome, then what the verb would
-do, nothing written, the same refusal code. What changed and when: [CHANGELOG.md](../CHANGELOG.md). Not
-yet here: any backend other than GitHub, and GitHub Enterprise Server —
-github.com only.
+prints a contract with its `.codecrew/roles/<role>.local.md` extensions
+appended; `task finish` deletes the branch it merged and `milestone close`
+sweeps what its tasks left; `milestone new`, `task finish` and `milestone
+close` take `--dry-run` — every gate in order with its outcome, then what the
+verb would do, nothing written, the same refusal code. What changed and when:
+[CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
+and GitHub Enterprise Server — github.com only.
 
 **Who holds a seat.** Every role is always staffed, by exactly one of four
 kinds of principal, named by the routing table's type prefix: the operator
@@ -90,8 +91,8 @@ GitHub's own required-review rules, which makes fully agent-gated merges
 possible ([identities.md](identities.md)).
 
 **The routing table.** Who holds which seat is one `roles:` table in the hub's
-`.codecrew.yml`: a row per seat, naming the typed identity that holds it
-and the harness and model it is dispatched under, with `~` where the
+`.codecrew/config.yml`: a row per seat, naming the typed identity that holds
+it and the harness and model it is dispatched under, with `~` where the
 operator holds it. Two
 worked examples are one click away — this repository's own table, as it stands
 today, in the [README](../README.md#the-routing-table), and an annotated
@@ -99,7 +100,7 @@ generic one on [the home page](https://codecrew.works/#the-crew). SPEC §5 is
 the field-by-field reference.
 
 **How a repo joins.** Every repo in a CodeCrew project carries a
-`.codecrew.yml` pointing at the hub — a spoke's is a two-line pointer
+`.codecrew/config.yml` pointing at the hub — a spoke's is a two-line pointer
 (`init --hub owner/repo`); this repo is its own hub (`hub: self`; SPEC §3
 on choosing yours). The hub's config also routes the five roles — the four
 crew seats and the coordinator, which unrouted is you — and `init` writes
@@ -133,15 +134,22 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-four, by the verb that raises
-them (the source is the catalogue of record — `refuse("CODE"` in
+the agent; the detail is for the human. All thirty-five, by the verb that
+raises them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
-**any verb that loads `.codecrew.yml`**
+**any verb that loads `.codecrew/config.yml`**
 
+- `LAYOUT_LEGACY` — the repo is still on the protocol 1.x layout: a root
+  `.codecrew.yml`, or a root `roles/` holding one of the five contracts,
+  with no `.codecrew/config.yml`. The detail names what was found and
+  `gh codecrew migrate`, the one-shot verb that moves it; nothing reads the
+  old layout. `init` is exempt from the pointer check and raises this one
+  too, rather than writing a second layout beside the first.
 - `PROTOCOL_MISMATCH` — the pointer's protocol major differs from the one
-  this binary implements (SPEC §5); `"0.1"` and a missing field proceed
-  with a note.
+  this binary implements (SPEC §5); a missing field proceeds with a note. A
+  pointer ahead of the binary asks for an extension upgrade, one behind it
+  is told the repo predates this protocol and is moved with `migrate`.
 - `IDENTITY_UNTYPED` — a routing row's `identity` carries no type prefix,
   so it names no kind of principal; the detail names the row and the four
   forms (`~`, `app:<slug>`, `user:<login>`, `team:<org>/<slug>`).

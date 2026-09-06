@@ -1,6 +1,6 @@
 # CodeCrew Protocol Specification
 
-Version 1.0 — 2026-08-26
+Version 2.0 — 2026-09-06
 
 CodeCrew is a lightweight framework for agent-driven software delivery. It keeps
 the auditability and reproducible discipline of heavyweight frameworks like GSD
@@ -81,17 +81,31 @@ where N=1 and the hub *is* the spoke. Representations are identical in both
 cases, so growing from one repo to many requires no migration.
 
 **The hub** holds: the roadmap, milestone tracking issues, synthesized
-milestone documents (`docs/milestones/`), role contracts (`roles/`), and the
-CodeCrew configuration.
+milestone documents (`docs/milestones/`), role contracts
+(`.codecrew/roles/`), and the CodeCrew configuration.
 
 **Spokes** hold: task issues, the PRs that implement them, and their own CI
 gates. Task issues live in the repo whose code they change, so GitHub's native
 traceability (closing keywords, PR linkbacks, CODEOWNERS, repo-scoped
 permissions) works without convention.
 
-**Every repo carries a pointer file, `.codecrew.yml`**, so an agent dropped
-into any repo can find the coordination point. In the hub it declares
-`hub: self`; in a spoke it names the hub (`hub: owner/repo`).
+**Every repo carries a pointer file, `.codecrew/config.yml`**, so an agent
+dropped into any repo can find the coordination point. In the hub it declares
+`hub: self`; in a spoke it names the hub (`hub: owner/repo`). Everything
+CodeCrew owns operationally lives under `.codecrew/` — the pointer and the
+role contracts — so the framework never competes for a name in a project's
+own tree (`roles/` is Ansible's before it is ours). The human-facing record
+does not: `ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and `CLAUDE.md` stay
+where readers and harnesses look for them.
+
+**A spoke belongs to one hub.** The single `hub:` field is permanent — a
+repo is in one delivery stream at a time, and the pointer is the answer to
+"where is my coordination point", not a list. A task created *in* a spoke by
+another hub's milestone is not the exception it looks like: such a task
+resolves its hub through its parent milestone, not through the repo's
+pointer, so the pointer keeps naming the stream the repo belongs to
+([#177](https://github.com/radiusred/gh-codecrew/issues/177) carries the
+resolution itself).
 
 ### Choosing a hub
 
@@ -113,7 +127,8 @@ can serve. The decision ladder:
 Three constraints make every rung workable:
 
 - **One hub per spoke.** The pointer file has a single `hub:` field; a repo
-  belongs to one delivery stream at a time.
+  belongs to one delivery stream at a time. The field is blessed as
+  permanent — see the pointer paragraph above for the cross-hub task.
 - **One milestone number-line per hub.** Milestone numbering scans the hub's
   milestone issues, so a hub is one serialized stream of work. An org running
   several concurrent projects wants a hub per project, not interleaved
@@ -126,15 +141,15 @@ Three constraints make every rung workable:
 **The hub is not the framework's repo.** `radiusred/gh-codecrew` is both the
 distribution point for the CLI (`gh extension install radiusred/gh-codecrew`)
 and this project's own hub — a dogfooding coincidence, not a pattern.
-Adopters install the extension from it and point their `.codecrew.yml` at a
-repo they own; the protocol requires write access to the hub (labels,
+Adopters install the extension from it and point their `.codecrew/config.yml`
+at a repo they own; the protocol requires write access to the hub (labels,
 sub-issue attachment, milestone close), so a hub you don't control is not a
 hub.
 
 ### Growth and restructuring
 
-- **Adding a spoke:** create the repo, add a `.codecrew.yml` naming the hub.
-  Nothing moves, nothing converts.
+- **Adding a spoke:** create the repo, add a `.codecrew/config.yml` naming
+  the hub. Nothing moves, nothing converts.
 - **Cross-repo references** use the qualified form `owner/repo#123`. Short
   `#123` references remain valid forever within their own repo because issues
   never leave it.
@@ -143,7 +158,7 @@ hub.
   inert record that nothing re-reads. So a hub move (splitting a project onto
   its own hub, extracting the hub from a repo that outgrew hub-is-spoke) is:
   close the current milestone in the old hub as normal, repoint each spoke's
-  `.codecrew.yml` in a one-line PR, and start the next milestone in the new
+  `.codecrew/config.yml` in a one-line PR, and start the next milestone in the new
   hub — a fresh number-line. History stays where it happened: closed
   milestone issues, milestone documents, and decision trails are
   point-in-time snapshots, and moving them rewrites the audit trail. Leave a
@@ -321,19 +336,22 @@ same review gate as code.
 
 ## 5. Configuration
 
-`.codecrew.yml` in every repo. Spokes need only the pointer; the hub carries
-the full configuration. The `codecrew` field is the **protocol version** —
-this document's version, naming the conventions the file speaks — and is
-independent of the CLI release: `codecrew version` prints both, as
-`v1.2.0 (protocol 1.0)`. The CLI implements one protocol major and checks
+`.codecrew/config.yml` in every repo. Spokes need only the pointer; the hub
+carries the full configuration. The `codecrew` field is the **protocol
+version** — this document's version, naming the conventions the file speaks
+— and is independent of the CLI release: `codecrew version` prints both, as
+`v2.0.0 (protocol 2.0)`. The CLI implements one protocol major and checks
 the pointer's on every verb that loads it: a different major is refused
-(`refused[PROTOCOL_MISMATCH]`); `"0.1"`, the pre-1.0 form of these same
-conventions, is accepted with a note to update; a missing field is assumed
-current, with a note. Decided at the M6 gate on
+(`refused[PROTOCOL_MISMATCH]`), and the two directions differ — a pointer
+ahead of the binary asks for an extension upgrade, one behind it is told the
+repo predates this protocol and is moved with `codecrew migrate`; neither
+asks anyone to edit the version field, which describes the repo rather than
+choosing for it. A missing field is assumed current, with a note. Decided at
+the M6 gate on
 [#114](https://github.com/radiusred/gh-codecrew/issues/114):
 
 ```yaml
-codecrew: "1.0"
+codecrew: "2.0"
 hub: self                # spokes: owner/repo
 
 # Advisory role routing, read by whoever dispatches agents.
@@ -476,18 +494,18 @@ hub).
 
 | Verb | What it does |
 |------|--------------|
-| `codecrew status` | Where the project is: open milestones, task states, raised gates — on tasks and on milestone issues alike, the latter marked `(milestone)` and on the milestone's own line; notes contract drift and a repo that does not delete branches on merge. With no open milestone it says so in place of the board and the gates section, and the two notes still print: both are local and have nothing to do with milestone state, and the quiet period between milestones is when a `roles/` fork gets reconciled against a new release. |
-| `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release) each with a blank `roles/<role>.local.md` extension beside it (a comment saying what the file is for, pointing at §7 and the upstream examples page; comments-only composes to nothing), and an AGENTS.md entry point; spoke mode writes the two-line pointer. Then it commits exactly the files it wrote — a pathspec commit, so the operator's own staged and unstaged work is untouched — on the current branch, or on `codecrew-bootstrap` cut from the default branch when that branch requires pull requests (asked through `gh`; assumed when it cannot be asked), never pushing; it refuses a subdirectory (the pointer belongs at the root) and leaves a detached HEAD uncommitted with the command to run: the scaffold is the last commit before the protocol starts, and where a ruleset requires it, the scaffold PR is the one merge the operator does by hand, recorded as the pre-milestone gate (§8; #172). Idempotent — existing files are kept and reported, and a rerun that writes nothing commits nothing. Scaffolded contracts carry a provenance stamp naming the release that wrote them. |
+| `codecrew status` | Where the project is: open milestones, task states, raised gates — on tasks and on milestone issues alike, the latter marked `(milestone)` and on the milestone's own line; notes contract drift and a repo that does not delete branches on merge. With no open milestone it says so in place of the board and the gates section, and the two notes still print: both are local and have nothing to do with milestone state, and the quiet period between milestones is when a `.codecrew/roles/` fork gets reconciled against a new release. |
+| `codecrew init [--hub owner/repo]` | Scaffolds a new repo: hub mode writes `.codecrew/config.yml` with the full `~`-routed roles table, the ROADMAP.md seed, the role contracts (embedded at the installed release) under `.codecrew/roles/`, each with a blank `.codecrew/roles/<role>.local.md` extension beside it (a comment saying what the file is for, pointing at §7 and the upstream examples page; comments-only composes to nothing), and an AGENTS.md entry point; spoke mode writes the two-line pointer. Then it commits exactly the files it wrote — a pathspec commit, so the operator's own staged and unstaged work is untouched — on the current branch, or on `codecrew-bootstrap` cut from the default branch when that branch requires pull requests (asked through `gh`; assumed when it cannot be asked), never pushing; it refuses a subdirectory (the pointer belongs at the root) and leaves a detached HEAD uncommitted with the command to run: the scaffold is the last commit before the protocol starts, and where a ruleset requires it, the scaffold PR is the one merge the operator does by hand, recorded as the pre-milestone gate (§8; #172). Idempotent — existing files are kept and reported, and a rerun that writes nothing commits nothing. Scaffolded contracts carry a provenance stamp naming the release that wrote them. `init` reads no pointer, so it is exempt from the protocol check — but not from the layout: a repo still on 1.x refuses `LAYOUT_LEGACY` naming `codecrew migrate`, rather than writing a second layout beside the first. |
 | `codecrew milestone new` | Creates a milestone tracking issue in the hub from the template (`--dry-run` prints the number it would assign, the title and the requirement IDs, and creates nothing — so requirement prose can be written knowing the number); each `--requirement` (repeatable) becomes a bold-ID line under `## Requirements`, numbered M<n>-R1, R2, … in the order given — the section the close gate reads — and the IDs counted are printed; text that brings its own ID is refused. The CLI derives n, twice: before creating, as one past the highest `M<k>:` title across the hub's label-filtered milestone listing and its newest unfiltered issues — either listing alone can lag an issue created seconds earlier ([#195](https://github.com/radiusred/gh-codecrew/issues/195)) — and after creating, when both listings are read again and the number must be the new issue's alone; another issue already carrying the prefix has the new issue renumbered to the next free number, title and `M<n>-R<k>` IDs, printed as a `renumbered:` line (bounded; `refused[MILESTONE_NUMBER_TAKEN]` naming both issues and the hand fix when the repair fails or the number is still taken). A title carrying an `M<k>` prefix that disagrees is refused, one that agrees is stripped. Touches no file: the milestone's ROADMAP.md row is added, Done, by its document PR (§4). |
 | `codecrew task new --milestone <id> --repo <spoke>` | Creates a task issue in the spoke from the template; attaches it to the milestone as a sub-issue. The milestone is resolved by number from the hub's open-milestone listing — and, when that listing lacks it, from the hub's newest issues regardless of label (an open issue titled `M<n>:` carrying `cc:milestone`), then again after a short wait, three reads in all: the label-filtered listing can lag a milestone created seconds earlier ([#234](https://github.com/radiusred/gh-codecrew/issues/234)), and a milestone found by either fallback is noted in the output. `refused[NOT_FOUND]` only after that. |
 | `codecrew task start <ref>` | Verifies a plan is present, posts the `**Started by** @<login>.` record (and assigns the caller where GitHub allows — humans; App identities are not assignable) (refuses to start a planless nontrivial task), creates the working branch — unless the caller's role routing resolves to a role whose contract forbids commits (`qa`, `reviewer`), which get no branch. |
 | `codecrew checkpoint <ref> --question "…"` | Raises a human gate: posts the question as a comment, applies `cc:needs-decision`. The ref is a task, or the milestone issue when the question is about a requirement and no task carries it (§8) — the comment and the receipt say which. |
-| `codecrew identity new <role> --name <app>` | Mints the role's App identity via the GitHub App manifest flow: generates a manifest with the role's minimal permission set, hands the operator a one-click loopback URL, stores the returned private key locally, writes the role's routing into the hub's `.codecrew.yml` in the typed form (`identity: app:<slug>`; `--no-route` opts out, and the instruction printed when the table is not local carries the same form), and prints the remaining manual steps (install — per-account — and optional display polish). Webhooks off by default; `--with-webhook --webhook-url U` opts in for platform receivers (§9), subscribing `pull_request` and `pull_request_review` (`--events` names others, validated against the role's permissions) and, with `--webhook-secret S`, setting the receiver's secret as soon as the App exists — before it is installed anywhere, and repository events reach an App only through an installation, so the creation ping (signed with GitHub's generated secret, rejected by the receiver, harmless) is the only delivery that precedes it. |
+| `codecrew identity new <role> --name <app>` | Mints the role's App identity via the GitHub App manifest flow: generates a manifest with the role's minimal permission set, hands the operator a one-click loopback URL, stores the returned private key locally, writes the role's routing into the hub's `.codecrew/config.yml` in the typed form (`identity: app:<slug>`; `--no-route` opts out, and the instruction printed when the table is not local carries the same form), and prints the remaining manual steps (install — per-account — and optional display polish). Webhooks off by default; `--with-webhook --webhook-url U` opts in for platform receivers (§9), subscribing `pull_request` and `pull_request_review` (`--events` names others, validated against the role's permissions) and, with `--webhook-secret S`, setting the receiver's secret as soon as the App exists — before it is installed anywhere, and repository events reach an App only through an installation, so the creation ping (signed with GitHub's generated secret, rejected by the receiver, harmless) is the only delivery that precedes it. |
 | `codecrew identity webhook <slug> [--show] [--url U] [--secret S \| --rotate-secret]` | An active App hook under the App's own key: prints the URL, content type, whether a secret is set and the subscribed events; sets the URL and secret; rotates the secret and prints it once. An App minted without a webhook has no hook configuration and GitHub's API cannot create one — `refused[NO_WEBHOOK]` names the settings page where it is activated by hand; event subscriptions are not settable after creation either (no endpoint) — the verb prints the page. An App hook covers every repository its installation sees, so a platform needs no repository hooks. |
 | `codecrew identity token [<slug>] [--installation <id>]` | Mints a short-lived installation token as the App: credentials from the environment under the names platforms bind (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/`GITHUB_PEM` as PEM text or a path), else the `~/.config/codecrew/` key and stub for the slug; signs the App JWT, discovers the installation from the App (a hinted id — the flag or `GITHUB_INSTALLATION_ID` — is used only when the App can see it; one installation is taken, several narrow to the hub's owner), and prints the token alone on stdout with a receipt on stderr. Never writes `gh`'s config. Refuses `NO_CREDENTIALS`, `BAD_CREDENTIALS`, `NO_INSTALLATION`, `INSTALLATION_AMBIGUOUS`. Runs from anywhere — it reads no pointer. |
-| `codecrew roles diff <role>` / `codecrew roles show <role> [--latest]` | Contract tooling: `show` prints the contract a dispatched session loads — the hub's `roles/<role>.md` with its local extensions appended in §7 order (hub, then spoke); `show --latest` prints the contract embedded in the installed CLI whole. Drift: `status` reports when a local `roles/` contract differs from the embedded copy (scaffolded contracts carry a provenance stamp naming their release) and `diff` shows the divergence; `roles/<role>.local.md` files are never drift. Contracts are the project's own fork — reconciliation is a judgment routed through a task and PR, never an overwrite. |
+| `codecrew roles diff <role>` / `codecrew roles show <role> [--latest]` | Contract tooling: `show` prints the contract a dispatched session loads — the hub's `.codecrew/roles/<role>.md` with its local extensions appended in §7 order (hub, then spoke); `show --latest` prints the contract embedded in the installed CLI whole. Drift: `status` reports when a local `.codecrew/roles/` contract differs from the embedded copy (scaffolded contracts carry a provenance stamp naming their release) and `diff` shows the divergence; `.codecrew/roles/<role>.local.md` files are never drift. Contracts are the project's own fork — reconciliation is a judgment routed through a task and PR, never an overwrite. |
 | `codecrew role <name> [--login]` | Prints the typed identity holding a role — `app:<slug>`, `user:<login>`, `team:<org>/<slug>`, or `~` for the operator (§5). Script-consumable; resolves from the hub's routing table when run in a spoke. `--login` prints instead the handle GitHub will accept a review request for — the login of a `user:` seat, `<org>/<slug>` for a `team:` seat — and **nothing at all** for an `app:` or `~` seat, neither of which can be requested: the emptiness is the caller's whole decision. The implementer uses it that way at PR creation; App-held seats are dispatched instead, Apps not being requestable (CODEOWNERS-driven requests coexist — requested reviewers union). |
-| *(every verb that reads the working repo's `.codecrew.yml`)* | Refuses `PROTOCOL_MISMATCH` when the pointer's protocol major differs from the one the binary implements (§5), `IDENTITY_UNTYPED` when a routing row's identity carries no type prefix — the detail names the row and the four forms — and `GH_TOO_OLD` when the installed `gh` is below the floor the verbs need (2.50.0, for `gh pr checks --json`) — checked once, up front, so the gate never fails inside `gh`. A hub's routing table fetched from a spoke is advisory and is not checked. |
+| *(every verb that reads the working repo's `.codecrew/config.yml`)* | Refuses `LAYOUT_LEGACY` when the repo is still on the protocol 1.x layout — a root `.codecrew.yml`, or a root `roles/` holding one of the five contracts, with no `.codecrew/config.yml` above it: the detail names what was found and `codecrew migrate`, and nothing reads the old layout. Refuses `PROTOCOL_MISMATCH` when the pointer's protocol major differs from the one the binary implements (§5), `IDENTITY_UNTYPED` when a routing row's identity carries no type prefix — the detail names the row and the four forms — and `GH_TOO_OLD` when the installed `gh` is below the floor the verbs need (2.50.0, for `gh pr checks --json`) — checked once, up front, so the gate never fails inside `gh`. A hub's routing table fetched from a spoke is advisory and is not checked. |
 | *(every verb that reads a milestone's `## Requirements`)* | Refuses `REQUIREMENT_ID_MISMATCH` when an ID declared there is not the milestone's own — `M<milestone>-R<k>` is the grammar (§4) — naming every offending ID and the milestone read; `status` prints it as a line and carries on, reporting rather than gating. |
 | `codecrew task finish <ref> [--dry-run]` | The gatekeeper (`--dry-run` evaluates every gate below in order and prints each — ok, refused with its code, not reached, not applicable — then the comments, merge and head deletion it would perform, writing nothing and exiting with the first refusal's code): refuses while the task carries `cc:needs-decision` (`refused[GATED]`) and, once the label is gone, while a gate raised on it has no answer (`refused[GATE_UNRECORDED]` — both labels are read per paragraph and only a later `**Gate resolved:**` answers, §4 and §8); verifies the caller is the seat that started the task (the `**Started by**` record `task start` posts on every start — accepted only from the login it names — else, for tasks started before the record, the assignee: the same login with the `[bot]` suffix ignored, or the same routed seat — a team-held role is any member; `refused[NOT_OWNER]` otherwise — the operator's own auth is not exempt; handover is `task start` again by the new seat, latest record wins, and `--bypass` is the recorded override for a human operator; a task with no start record is not gated), that a PR exists, CI checks exist and are green (`refused[NO_CHECKS]` when a PR reports zero checks — the deterministic gate cannot be satisfied by absence, and there is no override; `refused[NO_CHECKS_PERMISSION]`, naming the App and the permission, when the caller's installation token cannot read the checks at all — a private repo requires `checks: read` and `actions: read`, granted on the App's settings page and accepted on the installation), an approving review exists from the reviewer role's holder when the role routes to a distinct principal (`refused[NO_HOLDER_REVIEW]` otherwise — other approvals coexist but do not satisfy the gate; any non-doer approval suffices only when the role is operator-held) — then merges (rebase) and closes. When GitHub's own required-review rule is still unmet at that point (`reviewDecision: REVIEW_REQUIRED` — approvals count only from principals with write access: a write-access App's approval counts, a read-only App's and an operator confirmation do not), it refuses with `refused[REVIEW_NOT_COUNTED]` naming the supported paths; `--bypass` performs the ruleset's administrator merge instead, recorded as a PR comment, and only for a human operator the ruleset lists as a bypass actor. Refuses otherwise, with the specific unmet condition. In a solo-tier project (§5) where author and operator are the same principal, the non-doer approval degrades to an explicit operator confirmation, recorded as a PR comment; the confirming identity must be human — crew identities (a `[bot]` suffix, or an `app:`-typed routed role) are refused with `refused[SELF_CONFIRM]`; a `user:`- or `team:`-typed holder is a human and is not. After the merge it deletes the head branch — the counterpart of `task start` creating it; a deletion failure is a note, the merge stands. |
 | `codecrew milestone evidence <n>` | Walks the milestone's record — tracking issue and every sub-issue, bodies and comments — and verifies every citation resolves (github.com references via the API under the caller's auth, everything else by HTTP). A citation is a URL in prose or in a Markdown link outside code; a URL inside an inline code span or a fenced code block is content — a probe target meant to be unreachable, a verbatim command or error string — and is not checked. A github.com citation that does not resolve is `refused[EVIDENCE_UNREACHABLE]`; an external one prints a `warning:` line and does not block, for QA to weigh. It also checks the milestone's own ID grammar before the walk (`refused[REQUIREMENT_ID_MISMATCH]`, §4): the record is read so QA can be dispatched against it, and a requirement belonging to another milestone is not this record's to verdict. Run by the coordination layer before dispatching QA, and by QA as its first act: uncommitted evidence cost M4-R4 its verdict, and the check is deterministic, so it runs as code. The milestone is resolved from the hub's milestone listing regardless of state — a closed one resolves too and is reported as closed before the citation report, link rot in a shipped record being what a maintainer reads the verb for; `refused[NOT_FOUND]` means no milestone carries that number, open or closed. `milestone close` and `status` keep their open-only reads. |
@@ -498,7 +516,7 @@ agents can act on the refusal rather than parse prose.
 
 ## 7. Roles
 
-Role contracts live in the hub under `roles/`, one short markdown file each,
+Role contracts live in the hub under `.codecrew/roles/`, one short markdown file each,
 loadable by any harness (and referenced from `AGENTS.md` for harnesses that
 read it natively). Roles are contracts, not accounts: no GitHub App needs to
 exist for a role to be staffed — every role can act as the human operator
@@ -531,13 +549,13 @@ App creation). v1 roles:
 
 **Local extensions.** A project's own instructions for a role — house
 style, local conventions, what its orchestrator injects — go in
-`roles/<role>.local.md`, never into the contract. The contract is the
+`.codecrew/roles/<role>.local.md`, never into the contract. The contract is the
 project's fork of the framework's (§6, `roles diff`); an extension is
 append-only text loaded *after* it, so reconciling the contract against a
 newer release never has to re-merge project additions, and `status`'s
 drift check never sees them. Load order is fixed: the hub's
-`roles/<role>.md`, then the hub's `roles/<role>.local.md`, then the working
-repo's `roles/<role>.local.md` when it is a spoke. There is no merge
+`.codecrew/roles/<role>.md`, then the hub's `.codecrew/roles/<role>.local.md`,
+then the working repo's `.codecrew/roles/<role>.local.md` when it is a spoke. There is no merge
 language and no precedence beyond that order — an extension that
 contradicts its contract is a review finding, not a resolver's job.
 `codecrew roles show <role>` prints the composition a dispatched session
@@ -601,9 +619,9 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   App's webhook events with one gate and no other operator touch on the
   workflow; #164: a fourth cycle on a fresh repo, driven by a coordinator
   agent from the first event). The platform installs the coordinator as a
-  seat like the others — `roles/coordinator.md` (§7) composed by
+  seat like the others — `.codecrew/roles/coordinator.md` (§7) composed by
   `roles show coordinator`, the platform's wake syntax, ids and tooling in
-  the project's `roles/coordinator.local.md`, its identity minted by
+  the project's `.codecrew/roles/coordinator.local.md`, its identity minted by
   `identity new coordinator` — instead of a hand-written brief, and wires
   each seat's App to the receiver that dispatches it (`identity new
   --with-webhook --webhook-secret`, `identity webhook`; one App hook covers
@@ -614,6 +632,18 @@ ability to run a CLI and read/write GitHub. Supported shapes:
   seams that remain open.
 
 ## 10. The CLI
+
+**What 2.0 broke.** 2.0 is a protocol major, and the break is the layout:
+every CodeCrew-owned operational file moved under `.codecrew/` — the pointer
+from `.codecrew.yml` to `.codecrew/config.yml`, the contracts and their
+extensions from `roles/` to `.codecrew/roles/` — so the framework stops
+competing for names in the root of a repo it does not own. There is no
+compatibility shim and no dual-read: a 2.0 binary meeting a 1.x repo refuses
+`LAYOUT_LEGACY` and names `codecrew migrate`, the one-shot verb that moves
+the files and rewrites the pointer. Nothing else about a 1.x project
+changes — the issues, labels, branches, records and roadmap are untouched,
+and `ROADMAP.md`, `docs/milestones/`, `AGENTS.md` and `CLAUDE.md` stay at
+the root where readers and harnesses expect them.
 
 **What 1.0 promises** (decided at the M6 gate, #114). Within a major release
 series of the CLI: verb names and their flags are additive — nothing is
@@ -630,7 +660,7 @@ protocol major, and the CLI that implements it refuses the old pointer.
   linux/mac/windows. Also installable as a `gh` extension (`gh codecrew …`),
   since a gh extension is just a binary named `gh-codecrew`.
 - **Wraps `gh`** in v1 — authentication comes for free. github.com only in
-  1.0: the URLs the verbs build and recognise are github.com's; GitHub
+  1.0 and 2.0: the URLs the verbs build and recognise are github.com's; GitHub
   Enterprise Server is a non-goal (§12) until it is proven.
 - **Backend interface** is shaped by the workflow verbs (§6), not by GitHub's
   feature set. The GitHub adapter is the only v1 implementation; the interface

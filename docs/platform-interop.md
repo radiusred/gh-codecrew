@@ -23,10 +23,10 @@ section names it rather than rounding it up.
 
 **A note on releases.** This page is written against the 1.1 line. The
 installed release is **v1.0.3**, and six things named below ship in
-**v1.1.0**: the coordinator seat — `roles/coordinator.md`, the `coordinator`
-row in the routing table, and `gh codecrew identity new coordinator`
+**v1.1.0**: the coordinator seat — `.codecrew/roles/coordinator.md`, the
+`coordinator` row in the routing table, and `gh codecrew identity new coordinator`
 ([#169](https://github.com/radiusred/gh-codecrew/pull/169)); `gh codecrew identity token`
-([#171](https://github.com/radiusred/gh-codecrew/pull/171)); the blank `roles/<role>.local.md` that
+([#171](https://github.com/radiusred/gh-codecrew/pull/171)); the blank `.codecrew/roles/<role>.local.md` that
 `gh codecrew init` scaffolds beside each contract
 ([#174](https://github.com/radiusred/gh-codecrew/pull/174)); `task finish` refusing `NOT_OWNER`
 when a seat that did not start a task tries to finish it
@@ -101,8 +101,8 @@ could not write the ROADMAP row the CLI told it to commit
 and learned the gates well enough to route around ever invoking them
 ([finding 36](https://github.com/radiusred/gh-codecrew/issues/119#issuecomment-5453727497)).
 
-So the coordination layer became the fifth seat: `roles/coordinator.md`
-([the contract](../roles/coordinator.md), added in
+So the coordination layer became the fifth seat: `.codecrew/roles/coordinator.md`
+([the contract](../.codecrew/roles/coordinator.md), added in
 [#169](https://github.com/radiusred/gh-codecrew/pull/169)), a
 `coordinator` row in the routing table, and an identity of its own.
 Unrouted (`~`) it is the operator — a solo project has a coordinator too, and
@@ -141,7 +141,7 @@ files.*
 
 So: a distinct agent, whose instruction bundle is
 `gh codecrew roles show coordinator` (the contract plus the project's
-`roles/coordinator.local.md` overlay), whose run loop is a lean router —
+`.codecrew/roles/coordinator.local.md` overlay), whose run loop is a lean router —
 read the wake, `gh codecrew version` / `gh codecrew status`, act by the
 contract, close the execution event, exit — which holds the coordination App
 and is the receiver's assignee. Cycle 4 ran exactly that shape and the
@@ -164,7 +164,7 @@ event table names
 
 ## Mapping agents to roles
 
-The routing table in the hub's `.codecrew.yml` is the map, and it is
+The routing table in the hub's `.codecrew/config.yml` is the map, and it is
 advisory: CodeCrew does not dispatch anything, so the table is a contract for
 whatever does ([SPEC §5](../SPEC.md)).
 
@@ -182,17 +182,19 @@ One platform agent per row. The platform's job is to make each of its agents
 instructions, and nothing else briefing it.
 
 **The bundle is one command.** `gh codecrew roles show <role>` prints the
-composition a dispatched session should load — the hub's `roles/<role>.md`,
-then the hub's `roles/<role>.local.md`, then the spoke's if the working repo
-is one. An onboarding script installs that output as the agent's instruction
+composition a dispatched session should load — the hub's
+`.codecrew/roles/<role>.md`, then the hub's
+`.codecrew/roles/<role>.local.md`, then the spoke's if the working repo is
+one. An onboarding script installs that output as the agent's instruction
 file. Never choose a seat's model, harness or identity by hand when the table
 says otherwise, and never brief a seat past its contract; both are in the
 coordinator's Never list.
 
 **The platform's paragraph is an overlay, never an edit.** What *this*
 platform's wake syntax, agent ids and tool paths are goes in
-`roles/<role>.local.md` — append-only text loaded after the contract, which
-`gh codecrew init` scaffolds blank beside every contract it writes
+`.codecrew/roles/<role>.local.md` — append-only text loaded after the
+contract, which `gh codecrew init` scaffolds blank beside every contract it
+writes
 ([#174](https://github.com/radiusred/gh-codecrew/pull/174)). The worked
 Paperclip overlay, with the ids as placeholders, is in
 [docs/extensions.md](extensions.md); this page's checklist is the rest of
@@ -335,7 +337,8 @@ seat and per deliverable rather than as a slogan. Told *"mention me only if
 you are blocked"*, a qa seat posted its verdicts and closed its ticket —
 verdicts are not a GitHub event, so nothing woke and the milestone stopped
 ([finding 63](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5465324165)).
-The table lives in [`roles/coordinator.md`](../roles/coordinator.md): PR
+The table lives in
+[`.codecrew/roles/coordinator.md`](../.codecrew/roles/coordinator.md): PR
 opened, a fix pushed and a review posted travel by GitHub's event with no
 hand-back; a plan, a set of verdicts and a merged document PR are handed back
 by the platform's own wake path, naming repository and milestone.
@@ -354,7 +357,7 @@ routine or trigger the platform exposes, which is the Paperclip recipe below
 venture's `paperclip-webhook-relay` was the latter: PR opened → the reviewer
 seat, review submitted → the PR author's seat, merge → author, each as a
 ticket *assigned* to the seat, and it is prior art rather than the design
-because its routing was hard-coded rather than read from `.codecrew.yml`
+because its routing was hard-coded rather than read from `.codecrew/config.yml`
 ([#54](https://github.com/radiusred/gh-codecrew/issues/54#issuecomment-5461604709)).
 Either way, one App hook per seat is the delivery mechanism — see
 ["The receiver side"](identities.md) in identities.md for the events per seat
@@ -525,7 +528,8 @@ went public on the first try — plus the platform's own hostname allowlist
 It dropped twice, silently, in cycle 4; the watchdog in checklist row 9 is
 not optional.
 
-**7. The overlay.** Write `roles/<role>.local.md` per seat — the coordinator's
+**7. The overlay.** Write `.codecrew/roles/<role>.local.md` per seat — the
+coordinator's
 name and id, the seats' ids, the mention form, the credential bindings, the
 `gh` path, and the one-wake-path line. The full text as the run used it is
 in [docs/extensions.md](extensions.md).
@@ -554,7 +558,8 @@ page is not read as a finished story.
   recipe can change without touching anyone's scaffold
   ([#174](https://github.com/radiusred/gh-codecrew/pull/174)).
 - **The coordinator contract has not been run as a composed contract on a
-  platform.** Cycle 4 ran on a hand-written brief; `roles/coordinator.md` was
+  platform.** Cycle 4 ran on a hand-written brief;
+  `.codecrew/roles/coordinator.md` was
   written *from* that brief and its findings and shipped afterwards
   ([#169](https://github.com/radiusred/gh-codecrew/pull/169)). Every
   obligation in it traces to a finding, but the contract itself awaits its
@@ -575,7 +580,8 @@ page is not read as a finished story.
   does by hand — recorded, because no milestone exists yet to `checkpoint`
   on, as a `**Gate raised:**` / `**Gate resolved:**` pair on the scaffold PR
   itself ([#164 finding 52](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5463692218);
-  [`roles/coordinator.md`](../roles/coordinator.md)). On a fresh repository
+  [`.codecrew/roles/coordinator.md`](../.codecrew/roles/coordinator.md)). On
+  a fresh repository
   whose org also requires a check that cannot report yet, that hand merge is
   an administrator merge — three repositories have met it
   ([#164 findings 51 and 68](https://github.com/radiusred/gh-codecrew/issues/164#issuecomment-5463692218)) —
@@ -604,9 +610,10 @@ page is not read as a finished story.
 
 - [Identities](identities.md) — minting the Apps, dispatching a role session,
   and "The receiver side": the events per seat and what a receiver does.
-- [Local extensions](extensions.md) — `roles/<role>.local.md`, with the
+- [Local extensions](extensions.md) — `.codecrew/roles/<role>.local.md`, with the
   Paperclip seat overlay as a worked example.
-- [`roles/coordinator.md`](../roles/coordinator.md) — the seat's contract,
+- [`.codecrew/roles/coordinator.md`](../.codecrew/roles/coordinator.md) —
+  the seat's contract,
   which is also the coordinator agent's instruction bundle.
 - [SPEC §9](../SPEC.md) — the environments the protocol supports, of which
   this is the largest.

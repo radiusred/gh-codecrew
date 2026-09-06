@@ -6,9 +6,9 @@ recorded; you do not invent what wasn't.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again; commit as the App's bot user), using the slug
-from `roles.doc-synthesizer.identity` (`app:<slug>`).
+Resolve credentials as in `.codecrew/roles/implementer.md` (mint first, per
+session; a 401 means mint again; commit as the App's bot user), using the
+slug from `roles.doc-synthesizer.identity` (`app:<slug>`).
 
 ## On dispatch, read
 
@@ -67,7 +67,7 @@ from `roles.doc-synthesizer.identity` (`app:<slug>`).
   `task finish`, your task is done: hand back to the coordination layer the
   way your platform wakes it, and never park yourself "until the
   coordinator's next verb". How the platform wakes belongs in
-  `roles/doc-synthesizer.local.md`.
+  `.codecrew/roles/doc-synthesizer.local.md`.
 
 ## Never
 

@@ -27,19 +27,20 @@ than on the site.
 <img src="assets/svg/four-seats.svg" alt="The four seats — implementer, reviewer, qa, doc-synthesizer — each a contract file, each held by exactly one of: you, a colleague by username, a GitHub team, or an App identity." width="720">
 
 Four seats — implementer, reviewer, qa, doc-synthesizer — and a coordinator
-that dispatches them. Each is a contract file under [roles/](roles/), not an
-account, and each is held by one of four kinds of principal, named by the
-identity's type prefix: you (`~`), a named human (`user:<login>`), a GitHub
-team (`team:<org>/<slug>`), or a GitHub App identity (`app:<slug>`). Who
-holds which seat is the `roles:` table in the hub's `.codecrew.yml`.
+that dispatches them. Each is a contract file under
+[.codecrew/roles/](.codecrew/roles/), not an account, and each is held by
+one of four kinds of principal, named by the identity's type prefix: you
+(`~`), a named human (`user:<login>`), a GitHub team (`team:<org>/<slug>`),
+or a GitHub App identity (`app:<slug>`). Who holds which seat is the
+`roles:` table in the hub's `.codecrew/config.yml`.
 
 Here is a worked example: the `roles:` section of this repository's own
-`.codecrew.yml`, as it stands today. Each row is a seat — the identity that
-holds it, and the harness and model it is dispatched under, which can differ
-from row to row. There are five rows because the coordinator, the seat that
-dispatches the other four, is routed too; `~` means a human holds it, here the
-operator who coordinates this hub by hand. Your table will look different, and
-every seat pointing at `~` is a complete one.
+`.codecrew/config.yml`, as it stands today. Each row is a seat — the identity
+that holds it, and the harness and model it is dispatched under, which can
+differ from row to row. There are five rows because the coordinator, the seat
+that dispatches the other four, is routed too; `~` means a human holds it,
+here the operator who coordinates this hub by hand. Your table will look
+different, and every seat pointing at `~` is a complete one.
 
 ```yaml
 roles:
@@ -74,7 +75,7 @@ GitHub's manifest flow and rewrites its row; nothing else changes
 ```sh
 gh extension install radiusred/gh-codecrew
 cd my-project            # any repo on GitHub, brand new or years old
-gh codecrew init         # writes and commits .codecrew.yml, roles/, AGENTS.md, CLAUDE.md, ROADMAP.md
+gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, ROADMAP.md
 ```
 
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
@@ -108,10 +109,10 @@ carries a ten-line one.
 
 Reference documentation, at source in this repository — an agent dispatched
 into a CodeCrew repo starts at [AGENTS.md](AGENTS.md) and its role contract
-under [roles/](roles/):
+under [.codecrew/roles/](.codecrew/roles/):
 
 - [docs/introduction.md](docs/introduction.md) — what CodeCrew is, precisely:
-  the three parts, what is shipped, and all thirty-four refusal codes by the
+  the three parts, what is shipped, and all thirty-five refusal codes by the
   verb that raises each
 - [docs/first-milestone.md](docs/first-milestone.md) — one milestone end to
   end, solo: open it, plan a task, do the work, verdict it, close it
@@ -120,7 +121,7 @@ under [roles/](roles/):
 - [docs/platform-interop.md](docs/platform-interop.md) — hosting the crew on
   an orchestration platform: the coordinator seat, wake paths, onboarding
 - [docs/extensions.md](docs/extensions.md) — extending a role contract in
-  `roles/<role>.local.md` without forking it
+  `.codecrew/roles/<role>.local.md` without forking it
 - [docs/founding-decisions.md](docs/founding-decisions.md) — the trade-offs
   the design was chosen against
 - [docs/milestones/](docs/milestones/) — one record per delivered milestone,

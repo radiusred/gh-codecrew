@@ -13,7 +13,7 @@ export GH_TOKEN=$(gh codecrew identity token <slug>)
 ```
 
 where `<slug>` is the App named by `roles.implementer.identity` in the
-hub's `.codecrew.yml` — the value is typed, so the row reads
+hub's `.codecrew/config.yml` — the value is typed, so the row reads
 `identity: app:myorg-coder` and the slug is what follows `app:`: the full
 name, `myorg-coder`, not `coder`. The
 verb resolves credentials in this order and stops at the first hit:
@@ -55,7 +55,7 @@ Then, every run:
 
 ## On dispatch, read
 
-1. `.codecrew.yml` in your working repo — follow `hub:` to the hub.
+1. `.codecrew/config.yml` in your working repo — follow `hub:` to the hub.
 2. The task issue you were dispatched for, and the milestone issue it links to
    (goal, requirement IDs, gates).
 3. The protocol — https://github.com/radiusred/gh-codecrew/blob/main/SPEC.md — if any convention is unclear.
@@ -122,7 +122,8 @@ Then, every run:
   platform wakes it, and never park yourself "until the coordinator's next
   verb" — the same deadlock stalled three seat pairs in the orchestrator
   run ([#119](https://github.com/radiusred/gh-codecrew/issues/119), findings
-  20, 26, 40). How the platform wakes belongs in `roles/implementer.local.md`.
+  20, 26, 40). How the platform wakes belongs in
+  `.codecrew/roles/implementer.local.md`.
 
 ## Never
 
@@ -130,8 +131,8 @@ Then, every run:
   reviewer role holder's approval end the task — not your self-assessment.
   In pure solo (reviewer `~`, you author as the operator), the strongly
   encouraged form is still a model review: a dispatched clean-context
-  session under roles/reviewer.md — optionally a different harness — whose
-  findings land as a PR comment before `--operator-confirm`.
+  session under .codecrew/roles/reviewer.md — optionally a different
+  harness — whose findings land as a PR comment before `--operator-confirm`.
 - Push directly to the default branch.
 - Finish a task you did not start — `task finish` refuses `NOT_OWNER`;
   hand the owning seat its approval instead.

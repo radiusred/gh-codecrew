@@ -1,15 +1,16 @@
-# Local extensions — `roles/<role>.local.md`
+# Local extensions — `.codecrew/roles/<role>.local.md`
 
-A role contract (`roles/<role>.md`) is the framework's; the project may
-fork it, and `status` reports the drift. What a project *adds* to a
-contract — without forking it — goes in `roles/<role>.local.md`, the local
-extension (SPEC §7). `gh codecrew init` scaffolds a blank one beside every
-contract, holding only a comment that points here.
+A role contract (`.codecrew/roles/<role>.md`) is the framework's; the project
+may fork it, and `status` reports the drift. What a project *adds* to a
+contract — without forking it — goes in `.codecrew/roles/<role>.local.md`,
+the local extension (SPEC §7). `gh codecrew init` scaffolds a blank one
+beside every contract, holding only a comment that points here.
 
 **The rules, in one paragraph.** An extension is append-only text loaded
-*after* its contract, in a fixed order: the hub's `roles/<role>.md`, then
-the hub's `roles/<role>.local.md`, then — when the working repo is a
-spoke — the spoke's own `roles/<role>.local.md`. There is no merge language
+*after* its contract, in a fixed order: the hub's
+`.codecrew/roles/<role>.md`, then the hub's
+`.codecrew/roles/<role>.local.md`, then — when the working repo is a spoke —
+the spoke's own `.codecrew/roles/<role>.local.md`. There is no merge language
 and no precedence beyond that order: an extension that contradicts its
 contract is a review finding, not something a resolver decides.
 `gh codecrew roles show <role>` prints the composition a dispatched session
@@ -22,7 +23,7 @@ Write into it when you have something local to say. Some things projects
 have said, each dated and named against the CLI release it was written
 for; the verbs it names exist from that release.
 
-## House style (this hub, `roles/doc-synthesizer.local.md`, 2026-08-24, v1.0.0)
+## House style (this hub, `.codecrew/roles/doc-synthesizer.local.md`, 2026-08-24, v1.0.0)
 
 An editorial voice for outward-facing writing. It extends the
 doc-synthesizer without loosening the contract's rule that milestone
@@ -42,7 +43,7 @@ for milestone documents, which stay synthesis from the record.
 * Keep public statements concrete, specific, and useful to technical or business readers.
 ```
 
-## A repository convention (`roles/implementer.local.md`, 2026-08-30, v1.1.0)
+## A repository convention (`.codecrew/roles/implementer.local.md`, 2026-08-30, v1.1.0)
 
 What the implementer must do here that the contract cannot know — the
 things CI enforces, stated once so no agent discovers them by a red check:
@@ -59,7 +60,7 @@ things CI enforces, stated once so no agent discovers them by a red check:
   release".
 ```
 
-## A platform (`roles/<role>.local.md`, one per seat, 2026-08-29, v1.0.3 → v1.1.0)
+## A platform (`.codecrew/roles/<role>.local.md`, one per seat, 2026-08-29, v1.0.3 → v1.1.0)
 
 The orchestrator run's overlay for a crew hosted on
 [Paperclip](https://github.com/paperclipai/paperclip), written for the
@@ -118,7 +119,7 @@ contracts now say for every platform, so it needs no overlay line.
 ## What does not belong here
 
 - Anything that changes what the contract requires — that is a fork of the
-  contract (`roles/<role>.md`), and `status` will say so.
+  contract (`.codecrew/roles/<role>.md`), and `status` will say so.
 - Credentials, ids you would not commit, or a token. The overlay is in the
   repo.
 - The milestone number in requirement prose, or anything else the protocol

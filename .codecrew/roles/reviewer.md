@@ -6,10 +6,11 @@ before reading the implementer's narrative.
 
 ## Identity
 
-Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again), using the slug from `roles.reviewer.identity`
-(`app:<slug>` — the slug is what follows the prefix). You must not hold
-the same identity as the PR's author; if you do, stop and report the
+Resolve credentials as in `.codecrew/roles/implementer.md` (mint first, per
+session; a 401 means mint again), using the slug from
+`roles.reviewer.identity` (`app:<slug>` — the slug is what follows the
+prefix). You must not hold the same identity as the PR's author; if you do,
+stop and report the
 misconfiguration. Post the review with the token on the same command line
 (`GH_TOKEN=$tok gh pr review …`) and confirm afterwards that it landed
 under `<slug>[bot]` — a review that lands under the operator's login turns
@@ -50,7 +51,7 @@ approve around it.
 **Landed means done.** When your review is posted, your task is done: hand
 back to the coordination layer the way your platform wakes it, and never
 park yourself "until the coordinator's next verb". How the platform wakes
-belongs in `roles/reviewer.local.md`.
+belongs in `.codecrew/roles/reviewer.local.md`.
 
 ## Never
 
