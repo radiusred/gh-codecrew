@@ -46,6 +46,11 @@ const roadmapScaffold = `# Roadmap
 |-----------|------|----------------|--------|
 `
 
+// agentsScaffold is the CodeCrew instructions themselves, written to
+// .codecrew/AGENTS.md in hub and spoke alike: CodeCrew's file, under
+// CodeCrew's directory, so a later init or migrate rewrites it whole
+// without touching a line the project wrote. The root AGENTS.md an adopter
+// owns only points at it (entryPointLines).
 const agentsScaffold = `# Agents
 
 This repository is part of a CodeCrew project — coordination state lives in
@@ -56,8 +61,8 @@ GitHub issues and PRs, per the protocol at
   holds the role contracts. Read the contract for the role you were
   dispatched as before doing anything else — ` + "`gh codecrew roles show <role>`" + `
   prints it with this project's ` + "`.codecrew/roles/<role>.local.md`" + ` extension
-  appended (blank until the project writes one; the file says what belongs
-  there).
+  appended (blank until the project writes one; in a hub ` + "`init`" + ` scaffolds the
+  file with a comment saying what belongs there).
 - ` + "`gh codecrew status`" + ` shows where the project is; ` + "`gh codecrew help`" + `
   lists the workflow verbs. Blocked gates refuse with
   ` + "`refused[CODE]: detail`" + ` — act on the code, don't work around it.
@@ -82,6 +87,30 @@ GitHub issues and PRs, per the protocol at
   belongs to its coordination layer (platform, orchestrating session, or
   operator) — and never chooses or briefs its own judge.
 `
+
+// entryPointLines connects a repository's root entry point to the CodeCrew
+// instructions in .codecrew/AGENTS.md, and carries both forms because
+// neither alone reaches every harness: the sentence is what a harness
+// reading plain markdown follows, and the bare @-import is what Claude Code
+// resolves — transitively, through CLAUDE.md's @AGENTS.md — which is why it
+// must not be wrapped in backticks, read there as literal text. This block
+// is the whole of the root AGENTS.md scaffold and, verbatim, what init
+// prints when a root entry point already exists and is kept.
+const entryPointLines = "This repository is a CodeCrew project — the instructions for an agent\n" +
+	"dispatched here are in `" + config.AgentsFile + "`; read that file first.\n" +
+	"\n" +
+	"@" + config.AgentsFile + "\n"
+
+// agentsPointerScaffold is the root AGENTS.md init writes: a heading and the
+// pointer, nothing else. Everything that can change with a release lives in
+// .codecrew/AGENTS.md, so the file an adopter edits stays two lines long.
+const agentsPointerScaffold = `# Agents
+
+` + entryPointLines
+
+// rootEntryPoints are the two root files a harness discovers on its own.
+// init never overwrites one; when it keeps one it prints the lines to add.
+var rootEntryPoints = []string{"AGENTS.md", "CLAUDE.md"}
 
 // claudeScaffold bridges Claude Code to the harness-neutral entry point:
 // Claude Code loads CLAUDE.md, never AGENTS.md (code.claude.com/docs/en/memory),
@@ -114,21 +143,24 @@ Protocol: ` + U + `/SPEC.md (section 7)
 -->
 `
 
-// scaffold writes the greenfield files into dir. Hub mode (hub == "self")
-// writes the full set; spoke mode writes only the pointer. Existing files
-// are never touched — they are reported as skipped.
+// scaffold writes the greenfield files into dir. Both modes get the pointer
+// and the entry point — .codecrew/AGENTS.md and the two root files that
+// point at it — because an agent is dispatched into a spoke exactly as into
+// a hub; hub mode adds the roadmap, the contracts and their extensions.
+// Existing files are never touched — they are reported as skipped.
 func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err error) {
 	pointer := filepath.FromSlash(config.Pointer)
 	rolesDir := filepath.FromSlash(config.RolesDir)
 	files := map[string]string{
-		pointer: fmt.Sprintf(hubConfigScaffold, protocolVersion),
+		pointer:                               fmt.Sprintf(hubConfigScaffold, protocolVersion),
+		filepath.FromSlash(config.AgentsFile): agentsScaffold,
+		"AGENTS.md":                           agentsPointerScaffold,
+		"CLAUDE.md":                           claudeScaffold,
 	}
 	if hub != "self" {
 		files[pointer] = fmt.Sprintf("codecrew: \"%s\" # protocol version (SPEC.md §5): a different major is refused; not the CLI release\nhub: %s\n", protocolVersion, hub)
 	} else {
 		files["ROADMAP.md"] = roadmapScaffold
-		files["AGENTS.md"] = agentsScaffold
-		files["CLAUDE.md"] = claudeScaffold
 		entries, err := fs.ReadDir(contracts, config.RolesDir)
 		if err != nil {
 			return nil, nil, err
@@ -179,8 +211,8 @@ func sameDir(a, b string) bool {
 }
 
 // initCmd scaffolds a new CodeCrew repo: hub mode by default, spoke mode
-// with --hub owner/repo (pointer only — contracts and roadmap live in the
-// hub).
+// with --hub owner/repo (pointer and entry point only — the contracts and
+// the roadmap live in the hub).
 func initCmd(w io.Writer, args []string) error {
 	flags := flag.NewFlagSet("init", flag.ContinueOnError)
 	hub := flags.String("hub", "self", "hub repo this spoke points at (default: this repo is the hub)")
@@ -214,6 +246,21 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	for _, f := range skipped {
 		fmt.Fprintf(w, "kept existing %s\n", f)
+	}
+	// A kept AGENTS.md or CLAUDE.md is the one skip that leaves the project
+	// disconnected: the instructions are on disk and nothing reaches them.
+	// Reporting the skip is not enough — print the lines to paste.
+	var kept []string
+	for _, f := range rootEntryPoints {
+		if slices.Contains(skipped, f) {
+			kept = append(kept, f)
+		}
+	}
+	if len(kept) > 0 {
+		fmt.Fprintf(w, "\naction needed — a kept entry point does not reach CodeCrew's instructions.\n")
+		fmt.Fprintf(w, "Kept: %s\n", strings.Join(kept, ", "))
+		fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
+		fmt.Fprint(w, entryPointLines)
 	}
 	if repoRoot(".") == "" {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")

@@ -148,13 +148,16 @@ func (e *UntypedIdentityError) Error() string {
 	return fmt.Sprintf("roles.%s.identity: %q names no kind of principal — a routing identity is `~` (the operator), `app:<slug>` (a GitHub App), `user:<login>` (a named human) or `team:<org>/<slug>` (any member of the team); `gh codecrew migrate` rewrites a 1.0 table (SPEC §5)", e.Role, e.Value)
 }
 
-// Pointer and RolesDir are the protocol 2.0 layout, relative to a repo's
-// root: every CodeCrew-owned operational file lives under .codecrew/
-// (SPEC §3), so nothing the framework writes collides with a project's own
-// tree. Spelled once, here, and used everywhere the layout is named.
+// Pointer, RolesDir and AgentsFile are the protocol 2.0 layout, relative to
+// a repo's root: every CodeCrew-owned operational file lives under
+// .codecrew/ (SPEC §3), so nothing the framework writes collides with a
+// project's own tree. AgentsFile holds the instructions a dispatched agent
+// reads; the root AGENTS.md an adopter already owns only points at it.
+// Spelled once, here, and used everywhere the layout is named.
 const (
-	Pointer  = ".codecrew/config.yml"
-	RolesDir = ".codecrew/roles"
+	Pointer    = ".codecrew/config.yml"
+	RolesDir   = ".codecrew/roles"
+	AgentsFile = ".codecrew/AGENTS.md"
 )
 
 // legacyPointer and legacyRolesDir are the 1.x layout: recognised only to
