@@ -14,7 +14,7 @@ the spoke's own `.codecrew/roles/<role>.local.md`. There is no merge language
 and no precedence beyond that order: an extension that contradicts its
 contract is a review finding, not something a resolver decides.
 `gh codecrew roles show <role>` prints the composition a dispatched session
-loads; a harness that reads `AGENTS.md` natively follows the same order by
+loads; a harness that reads the entry point natively follows the same order by
 hand. The drift check never sees extensions, so reconciling a contract
 against a newer release never re-merges your additions. An extension that
 is only comments — the scaffold as written — composes to nothing.

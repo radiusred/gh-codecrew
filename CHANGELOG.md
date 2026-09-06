@@ -6,6 +6,32 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The entry point stands on its own
+- **Breaking.** The CodeCrew instructions move out of the root `AGENTS.md`
+  and into `.codecrew/AGENTS.md` — CodeCrew's file, in CodeCrew's directory,
+  which a later `init` or `migrate` rewrites whole without touching a line
+  the project wrote. The root `AGENTS.md` `init` scaffolds is now a two-part
+  pointer at it: one sentence naming the path, for a harness that reads
+  plain markdown, and a bare `@.codecrew/AGENTS.md` import, which Claude Code
+  resolves transitively through `CLAUDE.md`'s `@AGENTS.md`. Neither form
+  alone reaches every harness, so the scaffold carries both. `CLAUDE.md`
+  imports `AGENTS.md` as before.
+- **A spoke gets the entry point too** — `.codecrew/AGENTS.md`, the root
+  pointer and `CLAUDE.md` — because an agent is dispatched into a spoke
+  exactly as into a hub and needs the same file to land on. What stays
+  hub-only is what the hub owns: the roadmap, the contracts and their
+  extensions.
+- **A kept `AGENTS.md` or `CLAUDE.md` is no longer only reported.** `init`
+  keeps an existing root entry point untouched, as it keeps every existing
+  file, and then prints the exact lines to paste into it — byte for byte the
+  ones its own pointer carries — under an `action needed` heading naming
+  each file it kept. Instructions on disk that nothing reaches were the one
+  skip that left a project incomplete.
+- This hub's own entry point follows the same shape, and SPEC §3, §6, §7 and
+  §10, the README, `CONTRIBUTING.md`, `docs/first-milestone.md`,
+  `docs/introduction.md`, `docs/identities.md` and `docs/extensions.md`
+  follow. (#257)
+
 ### Protocol 2.0: the .codecrew/ layout
 - **Breaking.** Every CodeCrew-owned operational file moves under
   `.codecrew/`: the pointer from `.codecrew.yml` to `.codecrew/config.yml`,

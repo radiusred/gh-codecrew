@@ -76,12 +76,15 @@ GitHub's manifest flow and rewrites its row; nothing else changes
 gh extension install radiusred/gh-codecrew
 cd my-project            # any repo on GitHub, brand new or years old
 gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, ROADMAP.md
+                         # (an AGENTS.md or CLAUDE.md you already have is kept,
+                         #  with the lines to add to it printed)
 ```
 
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
 are run by the coding agent rather than by the person driving it:
-[AGENTS.md](AGENTS.md) tells an agent dispatched into the repo where the hub
-and the contracts are, and `gh codecrew roles show <role>` prints the contract
+[.codecrew/AGENTS.md](.codecrew/AGENTS.md) tells an agent dispatched into the
+repo where the hub and the contracts are — the root
+[AGENTS.md](AGENTS.md) points at it, and `CLAUDE.md` imports the root — and `gh codecrew roles show <role>` prints the contract
 it works to, local extensions included.
 
 ```sh
@@ -108,7 +111,7 @@ carries a ten-line one.
 ## Read next
 
 Reference documentation, at source in this repository — an agent dispatched
-into a CodeCrew repo starts at [AGENTS.md](AGENTS.md) and its role contract
+into a CodeCrew repo starts at [.codecrew/AGENTS.md](.codecrew/AGENTS.md) and its role contract
 under [.codecrew/roles/](.codecrew/roles/):
 
 - [docs/introduction.md](docs/introduction.md) — what CodeCrew is, precisely:
