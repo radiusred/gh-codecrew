@@ -512,6 +512,47 @@ query($owner: String!, $repo: String!, $num: Int!) {
 	return names, nil
 }
 
+// taskBranchPrefix is the ref prefix the sweep lists under. GitHub returns
+// each node's name with the prefix removed, so the branch names are rebuilt
+// from it too — one constant, so the two can never drift.
+const taskBranchPrefix = "task/"
+
+func (GitHub) TaskBranches(repo string) ([]string, error) {
+	owner, name, ok := strings.Cut(repo, "/")
+	if !ok {
+		return nil, fmt.Errorf("bad repo ref %q", repo)
+	}
+	var resp struct {
+		Data struct {
+			Repository struct {
+				Refs struct {
+					Nodes []struct {
+						Name string `json:"name"`
+					} `json:"nodes"`
+				} `json:"refs"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+	query := `
+query($owner: String!, $repo: String!, $prefix: String!) {
+  repository(owner: $owner, name: $repo) {
+    refs(refPrefix: $prefix, first: 100) { nodes { name } }
+  }
+}`
+	if err := gh.JSON(&resp, "api", "graphql", "-f", "query="+query,
+		"-f", "owner="+owner, "-f", "repo="+name,
+		"-f", "prefix=refs/heads/"+taskBranchPrefix); err != nil {
+		return nil, err
+	}
+	var branches []string
+	for _, n := range resp.Data.Repository.Refs.Nodes {
+		if n.Name != "" {
+			branches = append(branches, taskBranchPrefix+n.Name)
+		}
+	}
+	return branches, nil
+}
+
 func (g GitHub) BranchAhead(repo, branch string) (int, string, error) {
 	info, err := g.RepoInfo(repo)
 	if err != nil {
