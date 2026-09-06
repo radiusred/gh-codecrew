@@ -44,7 +44,10 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - **What it refuses.** `BOTH_LAYOUTS` when the two layouts overlap — a 2.0
   pointer beside the 1.x one, or a 2.0 file already sitting where a 1.x one
   would move — naming what it found; `MIGRATION_UNSUPPORTED` when the
-  pointer's protocol major is not 1, naming the version; the two above; and
+  pointer's protocol major is not 1, naming the version; `SPOKE_ROUTING`
+  when a 1.x spoke's pointer carries a `roles:` block — 1.0 allowed the
+  shape, 2.0 does not, and the rows are the operator's routing to move or
+  delete rather than migrate's to drop; the two above; and
   `GH_UNREACHABLE` when the identity lookup could not reach GitHub at all,
   never folded into the value's own refusal. Every refusal is raised before
   anything is written, and the one rename that may skip `git mv` is a
