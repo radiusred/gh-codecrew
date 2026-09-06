@@ -18,8 +18,8 @@ func teamCtx(t *testing.T) *ctx {
 codecrew: "0.1"
 hub: self
 roles:
-  implementer: { identity: myorg-coder }
-  reviewer: { identity: myorg/review-crew }
+  implementer: { identity: app:myorg-coder }
+  reviewer: { identity: "team:myorg/review-crew" }
   qa: { identity: ~ }
 `))
 	if err != nil {
@@ -41,26 +41,6 @@ func stubTeams(t *testing.T, members map[string]bool) *int {
 	}
 	t.Cleanup(func() { teamMembers = orig })
 	return &calls
-}
-
-func TestTeamIdentityParsing(t *testing.T) {
-	for _, tc := range []struct {
-		in      string
-		org, tm string
-		ok      bool
-	}{
-		{"myorg/review-crew", "myorg", "review-crew", true},
-		{"alice", "", "", false},
-		{"myorg-coder", "", "", false},
-		{"/team", "", "", false},
-		{"org/", "", "", false},
-		{"", "", "", false},
-	} {
-		org, tm, ok := config.TeamIdentity(tc.in)
-		if org != tc.org || tm != tc.tm || ok != tc.ok {
-			t.Errorf("TeamIdentity(%q) = %q,%q,%v", tc.in, org, tm, ok)
-		}
-	}
 }
 
 func TestTeamHeldRole(t *testing.T) {
@@ -137,6 +117,39 @@ func TestLoadConfigChecksProtocol(t *testing.T) {
 		got := errors.As(err, &r) && r.Code == "PROTOCOL_MISMATCH"
 		if got != c.refused || (err != nil && !c.refused) {
 			t.Errorf("%q: err = %v, refused = %v, want refused %v", c.yml, err, got, c.refused)
+		}
+	}
+}
+
+// A 1.0 routing table read by a 2.0 binary refuses at load, naming the row
+// and the four forms — the same split as PROTOCOL_MISMATCH: config detects
+// it, the CLI gives it its code (M13-R4).
+func TestLoadConfigRefusesUntypedIdentity(t *testing.T) {
+	for _, c := range []struct {
+		yml     string
+		refused bool
+	}{
+		{"hub: self\nroles:\n  reviewer: { identity: myorg-reviewy }\n", true},
+		{"hub: self\nroles:\n  reviewer: { identity: myorg/review-crew }\n", true},
+		{"hub: self\nroles:\n  reviewer: { identity: app:myorg-reviewy }\n", false},
+		{"hub: self\nroles:\n  reviewer: { identity: user:alice }\n", false},
+		{"hub: self\nroles:\n  reviewer: { identity: \"team:myorg/review-crew\" }\n", false},
+		{"hub: self\nroles:\n  reviewer: { identity: ~ }\n", false},
+		{"hub: self\n", false}, // a pointer-only spoke declares no table
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte(c.yml), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		var notes bytes.Buffer
+		_, err := loadConfig(dir, &notes)
+		var r refusal
+		got := errors.As(err, &r) && r.Code == "IDENTITY_UNTYPED"
+		if got != c.refused {
+			t.Errorf("%q: err = %v, want IDENTITY_UNTYPED %v", c.yml, err, c.refused)
+		}
+		if c.refused && !strings.Contains(r.Detail, "roles.reviewer.identity") {
+			t.Errorf("%q: detail does not name the row: %s", c.yml, r.Detail)
 		}
 	}
 }

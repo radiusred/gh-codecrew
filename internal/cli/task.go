@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -312,12 +313,32 @@ func taskFinish(w io.Writer, args []string) error {
 	return run(w)
 }
 
+// crewIdentity reports whether a login is a crew identity — an agent
+// acting as itself, which can never waive review or bypass a merge
+// (SPEC §6). That is the App-typed holders and nothing else: a `[bot]`
+// login is an App by construction, and a routed seat is crew only when
+// its row says `app:`. A `user:`- or `team:`-typed holder is a human who
+// happens to hold a seat, and keeps --operator-confirm and --bypass; a
+// 1.0 table could not say which, so every routed login was called crew.
+func crewIdentity(c *ctx) func(login string) bool {
+	return func(login string) bool {
+		if strings.HasSuffix(login, "[bot]") {
+			return true
+		}
+		role := c.roleFor(login)
+		if role == "" {
+			return false
+		}
+		return c.rolesConfig().Roles[role].Identity.Kind == config.KindApp
+	}
+}
+
 // planFinish evaluates task finish's gates in order and decides its
 // actions without writing anything; run performs them. A non-gate error
 // (the API) is returned as such — it is not a refusal.
 func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*plan, func(io.Writer) error, error) {
 	p := &plan{}
-	crew := func(login string) bool { return strings.HasSuffix(login, "[bot]") || c.roleFor(login) != "" }
+	crew := crewIdentity(c)
 	task, err := c.t.Task(ref)
 	if err != nil {
 		return nil, nil, err
@@ -419,7 +440,7 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	// other approvals coexist but do not satisfy it, and the solo
 	// confirmation cannot stand in for a holder that exists.
 	e = nil
-	if reviewerHolder, err := holder(c.rolesConfig().Roles, "reviewer"); err == nil && reviewerHolder != "~" {
+	if reviewerHolder, err := holder(c.rolesConfig().Roles, "reviewer"); err == nil && !reviewerHolder.Operator() {
 		if !holderReviewed(pr.ApprovedBy, func(login string) bool { return c.holdsRole(login, "reviewer") }) {
 			e = refuse("NO_HOLDER_REVIEW", "PR #%d has no approving review from the reviewer role's holder (%s) — the role defines whose review counts; dispatch the reviewer (docs/identities.md)", pr.Number, reviewerHolder)
 		}

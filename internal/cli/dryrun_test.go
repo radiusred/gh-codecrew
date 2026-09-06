@@ -50,8 +50,8 @@ func finishCtx(f *finishFake, roles map[string]config.Role) *ctx {
 }
 
 var crewRoles = map[string]config.Role{
-	"implementer":     {Identity: "myorg-coder"},
-	"reviewer":        {Identity: "myorg-reviewy"},
+	"implementer":     {Identity: config.Identity{Kind: config.KindApp, Value: "myorg-coder"}},
+	"reviewer":        {Identity: config.Identity{Kind: config.KindApp, Value: "myorg-reviewy"}},
 	"qa":              {},
 	"doc-synthesizer": {},
 }
@@ -434,5 +434,60 @@ func TestPlanFinishNoChecksPermissionNamesAppAndPermission(t *testing.T) {
 	// A human's token meeting the same failure is named by login.
 	if got := seatName("davison"); got != "@davison" {
 		t.Errorf("seatName(human) = %q", got)
+	}
+}
+
+// A `user:`-typed holder is a human who happens to hold a seat: the
+// operator's acts stay open to them. A 1.0 table could not say which kind
+// of principal a routed login was, so every one of them was refused as a
+// crew identity — the bug M13-R4 exists to fix (#254, Claude scan
+// finding 4).
+func TestHumanSeatHolderIsNotCrew(t *testing.T) {
+	humanReviewer := map[string]config.Role{
+		"implementer": {Identity: config.ParseIdentity("app:myorg-coder")},
+		"reviewer":    {Identity: config.ParseIdentity("user:alice")},
+		"qa":          {Identity: config.ParseIdentity("team:myorg/qa-crew")},
+	}
+	// --bypass: alice holds the reviewer seat and is still an operator.
+	f := cleanFinish()
+	f.viewer = "alice"
+	f.pr.ReviewDecision = "REVIEW_REQUIRED"
+	f.pr.ApprovedBy = []string{"alice"}
+	p, _, err := planFinish(finishCtx(f, humanReviewer), f.task.Ref, false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.refusal != nil {
+		t.Errorf("a user:-typed holder was refused --bypass: %v", p.refusal)
+	}
+	// The App-typed holder is still crew, on the same table.
+	f = cleanFinish()
+	f.viewer = "myorg-coder[bot]"
+	f.pr.ReviewDecision = "REVIEW_REQUIRED"
+	f.pr.ApprovedBy = []string{"alice"}
+	p, _, _ = planFinish(finishCtx(f, humanReviewer), f.task.Ref, false, true)
+	var r refusal
+	if !errors.As(p.refusal, &r) || r.Code != "CREW_BYPASS" {
+		t.Errorf("app:-typed holder's bypass = %v, want CREW_BYPASS", p.refusal)
+	}
+	// --operator-confirm: the same split on the confirmation gate, with
+	// the reviewer seat unrouted so the solo path is the one under test.
+	soloReview := map[string]config.Role{
+		"implementer": {Identity: config.ParseIdentity("app:myorg-coder")},
+		"reviewer":    {},
+		"qa":          {Identity: config.ParseIdentity("user:alice")},
+	}
+	f = cleanFinish()
+	f.viewer, f.pr.Author, f.pr.ApprovedBy, f.pr.ReviewDecision = "alice", "alice", nil, ""
+	f.comments = []tracker.Comment{{Author: "alice", Body: tracker.StartRecord("alice")}}
+	p, _, _ = planFinish(finishCtx(f, soloReview), f.task.Ref, true, false)
+	if p.refusal != nil {
+		t.Errorf("a user:-typed holder was refused --operator-confirm: %v", p.refusal)
+	}
+	f.viewer, f.pr.Author = "myorg-coder[bot]", "myorg-coder[bot]"
+	f.comments = []tracker.Comment{{Author: "myorg-coder[bot]", Body: tracker.StartRecord("myorg-coder[bot]")}}
+	p, _, _ = planFinish(finishCtx(f, soloReview), f.task.Ref, true, false)
+	if !errors.As(p.refusal, &r) || r.Code != "SELF_CONFIRM" {
+		t.Errorf("app:-typed holder's confirmation = %v, want SELF_CONFIRM", p.refusal)
 	}
 }
