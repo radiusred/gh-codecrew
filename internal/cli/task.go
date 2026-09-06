@@ -71,7 +71,7 @@ func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements st
 		return err
 	}
 	body := fmt.Sprintf(taskTemplate, goal, requirements, tracker.AdoptsBlock(target, adopted), tracker.PlanPlaceholder)
-	ref, err := c.t.CreateIssue(target, title, body, []string{"cc:task"})
+	ref, err := c.t.CreateIssue(target, title, body, []string{tracker.LabelTask})
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func taskStart(w io.Writer, args []string) error {
 	if task.Closed {
 		return refuse("CLOSED", "%s is already closed", ref)
 	}
-	if !tracker.HasLabel(task, "cc:task") {
+	if !tracker.HasLabel(task, tracker.LabelTask) {
 		return refuse("NOT_A_TASK", "%s is not labeled cc:task", ref)
 	}
 	body, err := c.t.IssueBody(ref)
@@ -318,6 +318,13 @@ func raiseGate(w io.Writer, c *ctx, ref tracker.IssueRef, question string) error
 	if err := c.t.Comment(ref, msg); err != nil {
 		return err
 	}
+	// The label is defined before it is applied. Applying one GitHub does
+	// not know creates it implicitly, with a generated colour and no
+	// description, which is how the first gate in a repository used to
+	// look (#267) — so the first gate defines it properly instead. A
+	// failure here is a note: the implicit creation still happens on the
+	// line below, and the gate is raised either way.
+	ensureLabels(w, c.t, ref.Repo, needsDecisionLabel())
 	if err := c.t.AddLabel(ref, tracker.LabelNeedsDecision); err != nil {
 		return err
 	}

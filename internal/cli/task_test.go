@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -111,8 +112,11 @@ func TestSameSeat(t *testing.T) {
 type gateFake struct {
 	tracker.Tracker
 	labels   []string
+	defined  []string // the label names the repository already defines
+	defErr   error    // what reading them fails with, if it does
 	comments []string
 	added    []string
+	created  []tracker.Label
 }
 
 func (f *gateFake) IssueLabels(tracker.IssueRef) ([]string, error) { return f.labels, nil }
@@ -122,6 +126,12 @@ func (f *gateFake) Comment(_ tracker.IssueRef, body string) error {
 }
 func (f *gateFake) AddLabel(_ tracker.IssueRef, label string) error {
 	f.added = append(f.added, label)
+	return nil
+}
+func (f *gateFake) Labels(string) ([]string, error) { return f.defined, f.defErr }
+func (f *gateFake) CreateLabel(_ string, l tracker.Label) error {
+	f.created = append(f.created, l)
+	f.defined = append(f.defined, l.Name)
 	return nil
 }
 
@@ -143,7 +153,7 @@ func TestRaiseGateWordingByTarget(t *testing.T) {
 		{"pull request", nil, "`task finish` refuses while the label is present", "gate raised on o/r#6 — blocked until a human removes cc:needs-decision\n", "(milestone issue)"},
 		{"milestone", []string{tracker.LabelMilestone}, "`status` lists this gate beside the tasks' gates and `milestone close` refuses while the label is present", "gate raised on o/r#6 (milestone issue) — status lists it and milestone close refuses until a human removes cc:needs-decision\n", "`task finish` refuses"},
 	} {
-		f := &gateFake{labels: tc.labels}
+		f := &gateFake{labels: tc.labels, defined: []string{tracker.LabelNeedsDecision}}
 		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
 		c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
 		var out bytes.Buffer
@@ -161,6 +171,62 @@ func TestRaiseGateWordingByTarget(t *testing.T) {
 		}
 		if len(f.added) != 1 || f.added[0] != tracker.LabelNeedsDecision {
 			t.Errorf("%s: labels added = %q", tc.name, f.added)
+		}
+		if len(f.created) != 0 {
+			t.Errorf("%s: a label the repository already defines was recreated: %v", tc.name, f.created)
+		}
+	}
+}
+
+// The first gate in a repository defines cc:needs-decision before applying
+// it, so the label carries the protocol's colour and description rather
+// than whatever GitHub generates for an implicit creation (#267). It
+// defines that one label and no other: raising a gate is no reason to
+// create labels the repository may never see. When the definition fails
+// the gate is still raised — applying an unknown label creates it
+// implicitly, exactly as before — so the failure is a note, not a refusal.
+func TestRaiseGateDefinesTheLabelBeforeApplyingIt(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		fake    *gateFake
+		created []string
+		note    string
+	}{
+		{"the repository has no cc: labels", &gateFake{labels: []string{tracker.LabelTask}}, []string{tracker.LabelNeedsDecision}, ""},
+		{"the label already exists", &gateFake{labels: []string{tracker.LabelTask}, defined: []string{"CC:Needs-Decision"}}, nil, ""},
+		{"the labels cannot be read", &gateFake{labels: []string{tracker.LabelTask}, defErr: errors.New("403")}, nil, "note: could not read o/r's labels (403)"},
+	} {
+		cfg := &config.Config{Codecrew: "1.0", Hub: "self"}
+		c := &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: tc.fake}
+		var out bytes.Buffer
+		if err := raiseGate(&out, c, tracker.IssueRef{Repo: "o/r", Number: 6}, "which way?"); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		var got []string
+		for _, l := range tc.fake.created {
+			got = append(got, l.Name)
+		}
+		if !slices.Equal(got, tc.created) {
+			t.Errorf("%s: created %v, want %v", tc.name, got, tc.created)
+		}
+		// Whatever happened above, the gate is raised.
+		if len(tc.fake.added) != 1 || tc.fake.added[0] != tracker.LabelNeedsDecision {
+			t.Errorf("%s: labels added = %q", tc.name, tc.fake.added)
+		}
+		if !strings.Contains(out.String(), "gate raised on o/r#6") {
+			t.Errorf("%s: no receipt:\n%s", tc.name, out.String())
+		}
+		if tc.note != "" && !strings.Contains(out.String(), tc.note) {
+			t.Errorf("%s: output missing %q:\n%s", tc.name, tc.note, out.String())
+		}
+		if len(tc.created) > 0 {
+			want, _ := tracker.ProtocolLabel(tracker.LabelNeedsDecision)
+			if tc.fake.created[0] != want {
+				t.Errorf("%s: created %+v, want %+v", tc.name, tc.fake.created[0], want)
+			}
+			if !strings.Contains(out.String(), "created label "+want.Name+" (#"+want.Color+")") {
+				t.Errorf("%s: the creation was not reported:\n%s", tc.name, out.String())
+			}
 		}
 	}
 }

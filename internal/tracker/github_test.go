@@ -171,3 +171,59 @@ func TestOpenPRsForBranch(t *testing.T) {
 		t.Error("a repo ref with no owner must refuse before the API call")
 	}
 }
+
+// recordGH stands a gh behind gh.Command that records the arguments and
+// answers with stdout, so a call's shape can be asserted without a
+// GitHub. The command is `true`, which succeeds and prints nothing, with
+// the answer piped in through the helper binary only where one is needed.
+func recordGH(t *testing.T, stdout string) *[][]string {
+	t.Helper()
+	orig := gh.Command
+	var calls [][]string
+	gh.Command = func(_ string, args ...string) *exec.Cmd {
+		calls = append(calls, args)
+		return exec.Command("printf", "%s", stdout)
+	}
+	t.Cleanup(func() { gh.Command = orig })
+	return &calls
+}
+
+// The two label calls are pass-throughs, so what is asserted is their
+// shape: the listing is paginated, because a repository with more than a
+// page of labels must not read as missing the protocol's, and the colour
+// goes to the API as six hex digits with no leading "#", which the API
+// rejects.
+func TestLabelCalls(t *testing.T) {
+	calls := recordGH(t, `[{"name":"bug"},{"name":"cc:task"}]`)
+	got, err := GitHub{}.Labels("o/r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "bug,cc:task" {
+		t.Errorf("Labels = %v", got)
+	}
+	if len(*calls) != 1 {
+		t.Fatalf("calls = %v", *calls)
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, want := range []string{"--paginate", "repos/o/r/labels?per_page=100"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the listing call %q is missing %q", line, want)
+		}
+	}
+
+	calls = recordGH(t, "")
+	l, _ := ProtocolLabel(LabelNeedsDecision)
+	if err := (GitHub{}).CreateLabel("o/r", l); err != nil {
+		t.Fatal(err)
+	}
+	line = strings.Join((*calls)[0], " ")
+	for _, want := range []string{"-X POST", "repos/o/r/labels", "name=" + l.Name, "color=" + l.Color, "description=" + l.Description} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the create call %q is missing %q", line, want)
+		}
+	}
+	if strings.Contains(line, "color=#") {
+		t.Errorf("the colour reached the API with a leading #: %q", line)
+	}
+}

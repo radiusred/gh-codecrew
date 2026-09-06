@@ -162,6 +162,28 @@ func (GitHub) AddLabel(ref IssueRef, label string) error {
 	return err
 }
 
+// Labels lists the label names repo defines, paginated: a repository with
+// more than a page of labels must not read as missing the protocol's.
+func (GitHub) Labels(repo string) ([]string, error) {
+	var items []struct {
+		Name string `json:"name"`
+	}
+	if err := gh.JSON(&items, "api", "--paginate", fmt.Sprintf("repos/%s/labels?per_page=100", repo)); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(items))
+	for _, l := range items {
+		names = append(names, l.Name)
+	}
+	return names, nil
+}
+
+func (GitHub) CreateLabel(repo string, label Label) error {
+	_, err := gh.Run("api", "-X", "POST", fmt.Sprintf("repos/%s/labels", repo),
+		"-f", "name="+label.Name, "-f", "color="+label.Color, "-f", "description="+label.Description)
+	return err
+}
+
 func (GitHub) Assign(ref IssueRef, login string) error {
 	_, err := gh.Run("api", "-X", "POST",
 		fmt.Sprintf("repos/%s/issues/%d/assignees", ref.Repo, ref.Number), "-f", "assignees[]="+login)
