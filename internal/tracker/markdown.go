@@ -7,7 +7,7 @@ import "strings"
 // as CommonMark reads them), fenced blocks (a line opening with three or
 // more backticks or tildes, closed by a fence of the same character at
 // least as long) and indented blocks (a run of lines indented four columns
-// or more, opening after a blank line or at the start of the text). An
+// or more, opening wherever it would not interrupt a paragraph). An
 // unclosed fence runs to the end of the text; an unclosed backtick run is
 // literal text. A span is replaced with a space so the words on either side
 // do not fuse; a block's lines are dropped.
@@ -19,50 +19,108 @@ import "strings"
 // internal/cli beside the citation walk until the verdict scan needed it.
 func StripCode(text string) string {
 	var out strings.Builder
-	var fence string   // the opening fence of the block being skipped
-	indented := false  // inside an indented code block
-	afterBlank := true // the start of the text opens a block like a blank line
+	var fence string  // the opening fence of the block being skipped
+	indented := false // inside an indented code block
+	// canOpen: the line just read is one no paragraph can hold, so an
+	// indented block may open on the next. CommonMark 4.4 restricts
+	// indented code in one way only — it may not interrupt a paragraph —
+	// so a heading, a thematic break or a fence needs no blank line after
+	// it, and the start of the text opens like a blank line (#288).
+	canOpen := true
 	for _, line := range strings.SplitAfter(text, "\n") {
 		trimmed := strings.TrimLeft(line, " \t")
 		if fence != "" {
 			if strings.HasPrefix(trimmed, fence) && strings.Trim(trimmed, fence[:1]+" \t\r\n") == "" {
 				fence = ""
 			}
-			afterBlank = true // whatever follows a fence starts its own block
+			canOpen = true // no line of a fenced block is a paragraph's
 			continue
 		}
 		blank := strings.TrimRight(line, " \t\r\n") == ""
 		if indented {
-			// Blank lines inside the run belong to the block, and dropping
-			// them parts no paragraphs: the blank that opened the block was
-			// written before it, so the break on either side survives.
+			// Blank lines inside the run belong to the block. Dropping them
+			// costs at most an empty line: whatever opened the block — a
+			// blank line, a heading, a thematic break, a fence — was
+			// written before it, so the newline parting what follows from
+			// what precedes survives, and nothing downstream reads
+			// paragraph structure out of this output.
 			if blank || indentWidth(line) >= 4 {
 				continue
 			}
 			indented = false
 		}
 		// Tested before the fence, as CommonMark orders them: four columns
-		// after a blank line is an indented block whatever it holds.
-		if !blank && afterBlank && indentWidth(line) >= 4 {
+		// where a block may open is an indented block whatever it holds.
+		if !blank && canOpen && indentWidth(line) >= 4 {
 			indented = true
 			continue
 		}
 		if f := fenceOpener(trimmed); f != "" {
 			fence = f
+			canOpen = true
 			continue
 		}
-		afterBlank = blank
+		canOpen = blank || notParagraph(line, trimmed)
 		out.WriteString(stripSpans(line))
 	}
 	return out.String()
 }
 
+// notParagraph reports whether a line is one no paragraph can hold, so an
+// indented code block may open on the line after it: an ATX heading or a
+// thematic break. The scanner recognises the other two such lines itself —
+// a blank line, and any line of a fenced block. Four columns of
+// indentation or more disqualifies both, as CommonMark disqualifies them:
+// at four columns a line is code where a block may open, and a paragraph's
+// lazy continuation where one may not, but never a heading or a break.
+func notParagraph(line, trimmed string) bool {
+	if indentWidth(line) >= 4 {
+		return false
+	}
+	return atxHeading(trimmed) || thematicBreak(trimmed)
+}
+
+// atxHeading: one to six #, then a space, a tab, or the line's end.
+func atxHeading(s string) bool {
+	n := 0
+	for n < len(s) && s[n] == '#' {
+		n++
+	}
+	if n == 0 || n > 6 {
+		return false
+	}
+	rest := strings.TrimRight(s[n:], "\r\n")
+	return rest == "" || rest[0] == ' ' || rest[0] == '\t'
+}
+
+// thematicBreak: three or more of *, - or _, the same character
+// throughout, spaces and tabs allowed between them and nothing else on the
+// line. A --- closing a paragraph is a setext heading underline rather
+// than a break, and opens a block either way: neither is a paragraph.
+func thematicBreak(s string) bool {
+	s = strings.TrimRight(s, " \t\r\n")
+	if s == "" || (s[0] != '*' && s[0] != '-' && s[0] != '_') {
+		return false
+	}
+	c, n := s[0], 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case c:
+			n++
+		case ' ', '\t':
+		default:
+			return false
+		}
+	}
+	return n >= 3
+}
+
 // indentWidth is a line's indentation in columns, a tab advancing to the
 // next multiple of four as CommonMark expands one. Four or more opens an
-// indented code block after a blank line; a line that continues a paragraph
-// or a list item is measured too, but never opens one, because the line
-// above it is not blank. The measure is from column 0: a list item's own
-// content column is not tracked (#285).
+// indented code block where one may open; a line that continues a paragraph
+// or a list item is measured too, but never opens one, because a paragraph
+// is already open. The measure is from column 0: a list item's own content
+// column is not tracked (#285).
 func indentWidth(line string) int {
 	n := 0
 	for i := 0; i < len(line); i++ {

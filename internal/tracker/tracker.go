@@ -457,9 +457,9 @@ type Verdict struct {
 // ParseVerdicts scans comments in order for verdict lines, at most one per
 // requirement ID per comment — the first match in the comment — with all
 // three Markdown code forms stripped first (StripCode: spans, fenced blocks
-// and blocks indented four columns after a blank line), so a verdict quoted
-// back inside code is content, not a verdict, exactly as a URL in code is
-// not a citation.
+// and blocks indented four columns anywhere they do not continue a
+// paragraph), so a verdict quoted back inside code is content, not a
+// verdict, exactly as a URL in code is not a citation.
 //
 // Supersession is therefore per comment: callers filter by author role and
 // take the last entry per ID, which now means "the latest comment carrying

@@ -36,10 +36,11 @@ slug from `roles.doc-synthesizer.identity` (`app:<slug>`).
   that is not evidence — a probe target that is unreachable by design, a
   hostname in a verbatim command or error string — goes inside code, in any
   of its three forms: a code span, a fenced block, or a block indented four
-  columns after a blank line. The verb reads none of them; the record keeps
-  the hostname, and nobody edits a comment to hide it from the scanner
-  ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Quote
-  such URLs the same way in the milestone document.
+  columns anywhere it does not continue a paragraph. The verb reads none of
+  them; the record keeps the hostname, and nobody edits a comment to hide it
+  from the scanner
+  ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Quote such
+  URLs the same way in the milestone document.
 - **Requirement outcomes:** a short table of requirement IDs with their final
   status, drawn from QA verdicts and task closure.
 - **Add the ROADMAP row.** The document PR appends the milestone's row to
