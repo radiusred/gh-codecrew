@@ -328,10 +328,13 @@ func TestApplyLabelsRestyles(t *testing.T) {
 		{
 			// The colour matches, case aside, and the description does
 			// not — a label styled by hand before the defaults existed.
+			// The restyle is addressed by the name the repository spells
+			// the label with — restyling is not renaming — while the
+			// receipt names the protocol's own spelling.
 			name:     "the colour matches and the description does not",
 			defined:  []tracker.Label{{Name: "CC:Task", Color: "92EDFF", Description: "tasks"}},
 			created:  []string{tracker.LabelMilestone, tracker.LabelNeedsDecision},
-			restyled: []string{tracker.LabelTask},
+			restyled: []string{"CC:Task"},
 			lines:    []string{"restyled label cc:task (#92EDFF -> #92edff)"},
 		},
 		{
@@ -361,11 +364,20 @@ func TestApplyLabelsRestyles(t *testing.T) {
 				t.Errorf("%s: output must not contain %q:\n%s", tc.name, never, out.String())
 			}
 		}
-		// A restyle carries the protocol's colour and description, and the
-		// protocol's spelling of the name is what addresses it.
+		// A restyle carries the protocol's colour and description, and is
+		// addressed by the name the repository spells the label with — the
+		// one the listing returned, never the protocol's own spelling.
 		for _, l := range f.restyled {
-			if want, _ := tracker.ProtocolLabel(l.Name); l != want {
-				t.Errorf("%s: restyled to %+v, want %+v", tc.name, l, want)
+			want, ok := tracker.ProtocolLabel(l.Name)
+			if !ok {
+				t.Errorf("%s: restyled %q, which is not a protocol label", tc.name, l.Name)
+				continue
+			}
+			if l.Color != want.Color || l.Description != want.Description {
+				t.Errorf("%s: restyled to %+v, want the defaults %+v", tc.name, l, want)
+			}
+			if had, _ := tracker.FindLabel(tc.defined, l.Name); had.Name != l.Name {
+				t.Errorf("%s: restyle addressed %q, want the repository's own %q", tc.name, l.Name, had.Name)
 			}
 		}
 

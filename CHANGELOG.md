@@ -36,15 +36,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   asymmetry is deliberate: `migrate` runs once, on a repository whose
   labels nobody chose; `init` reruns, on one whose labels somebody may
   have.
-- **A GitHub failure never reaches the local work.** `init`'s label step is
-  the only thing it does after the commit, and `migrate`'s likewise, so an
-  unreadable label listing, a refused write, a `gh` that cannot name the
-  repository, or a directory that is not a git repository yet is a `note:`
-  line and nothing more — the files are written, the scaffold or the move
-  is committed, and neither verb ever refuses over a label.
+- **A GitHub failure never reaches the local work, and a rerun finishes
+  it.** An unreadable label listing, a refused write, a `gh` that cannot
+  name the repository, or a directory that is not a git repository yet is a
+  `note:` line and nothing more — the files are written, the scaffold or
+  the move is committed, and no verb ever refuses over a label.
   `checkpoint` degrades the same way: a creation that fails still raises
   the gate, since applying an unknown label creates it implicitly as
-  before. (#283, #267)
+  before. What that leaves behind is recoverable rather than permanent:
+  `migrate` on a repo already on 2.0 moves nothing and still runs the label
+  step, and it runs on the two paths where the commit never happens — a
+  detached HEAD, and a commit `git` refused — so "the files moved" and "the
+  labels were done" are never two different answers.
+  (#283, #267)
 
 ### A close sweeps the branches earlier closes left behind
 - **`milestone close` no longer walks past a stale task branch.** The sweep
@@ -269,7 +273,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   never folded into the value's own refusal. Every refusal is raised before
   anything is written, and the one rename that may skip `git mv` is a
   source git does not track. A repo already on
-  2.0 says so, writes nothing and exits 0, so a rerun is safe.
+  2.0 says so, moves nothing, commits nothing and exits 0, so a rerun is
+  safe — from #283 it still runs the label step there, so the rerun is
+  also the recovery when that step could not reach GitHub.
 - SPEC §6 carries the verb's row and §10 names it; `docs/introduction.md`
   gains the four codes (thirty-eight → forty-two, with the README's count).
   (#256)
@@ -397,7 +403,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   created where missing, restyled where a 1.x repo had them from implicit
   creation — reported after the commit and listed by `--dry-run`. It needs
   GitHub, and a repo it cannot reach gets a `note:` and the migration
-  stands; rerun `migrate` (or set the colours by hand) once it can (#283).
+  stands. Rerunning `migrate` is then the recovery: a repo already on 2.0
+  moves nothing and still does the labels, printing `labels already at the
+  protocol defaults` when there is nothing left to do (#283).
 
   `migrate` is described in its own entry above. (#256)
 
