@@ -6,6 +6,56 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The 1.0 shims deleted, and the machine contract written down
+- **Breaking (protocol 2.0).** Three pieces of 1.0 scar tissue are gone,
+  each of them a behaviour an adopter could have depended on, which is why
+  they go at a major and not later (#254, the Claude scan's findings 1, 9
+  and 10; the Codex scan's finding 4).
+- **`codecrew: "0.1"` is no longer accepted.** A 1.x binary took the
+  pre-1.0 form of the same conventions with a note to update the field. It
+  is two majors back now, and its repo is on the 1.x layout, so it meets
+  the same `gh codecrew migrate` refusal every older pointer meets. A
+  pointer with no `codecrew:` field is still assumed current, with a note —
+  kept deliberately, not by omission: under 2.0 the pointer lives at
+  `.codecrew/config.yml`, so the file's own path is proof of the layout it
+  speaks, and a 1.x repo has no such file to reach the check with.
+- **A declared routing table names every seat.** `role coordinator`
+  resolved to `~` when a declared table had no such row, because the row
+  arrived after 1.0 hubs had scaffolded their tables. `init` scaffolds it
+  and `migrate` writes it into a 1.x table, so the special case's only
+  remaining effect was to infer a holder for a seat the table does not
+  name; it now errors as any other missing role does. A table that declares
+  nothing at all is unaffected — every seat, coordinator included, is the
+  operator's.
+- **An assignee is not a start record.** `StartedBy` fell back to a task's
+  first assignee "for tasks started before the record existed", giving
+  every assigned-but-never-started task an implicit owner for the ownership
+  gate. Deleted — and with it the gate's old reading of an empty owner as
+  "nobody to hold anyone to": `task finish` on a task with no
+  `**Started by**` record now refuses `refused[NOT_OWNER]`, its detail
+  naming `gh codecrew task start`. `--bypass` still overrides, recorded
+  with wording that says there was no start rather than naming a starter
+  that does not exist.
+- **The exit-code contract, in SPEC §6.** Every failure exits 1 — a
+  refused gate, a bad flag, an unreachable GitHub — and no exit-code
+  taxonomy is coming within this major, because a status finer than
+  "this did not happen" would break every caller already asserting on 1 the
+  day it arrived. The machine channel is the `refused[CODE]: detail` line
+  on stderr: the code is the branch point, the detail is prose for a human
+  that nothing should parse, and a `note:` line is advisory. Written down
+  because silence is what makes a later change breaking.
+- **Every refusal code in one table, in SPEC §10.** All forty-two — the
+  code, the verbs that raise it, one line of meaning — under the stability
+  promise that already lived there. `docs/introduction.md` carried a second
+  catalogue of the same codes and now points at the table instead: three
+  tasks in this milestone alone had to edit both, which is the drift a
+  single list exists to prevent. A test holds the table, the count SPEC
+  states, and the `refuse("CODE"` sites in `internal/cli/` to the same set,
+  so a verb cannot add a code without its row.
+- SPEC §6's `task finish` row also gains `--operator-confirm`, which was in
+  the usage string and load-bearing for the solo tier but missing from its
+  signature. (#261)
+
 ### `gh codecrew migrate`: the one-shot move to the 2.0 layout
 - The verb that moves a protocol 1.0 repo — hub or spoke — to the 2.0
   layout, once, in one local commit it never pushes. It reads no pointer,
