@@ -159,8 +159,8 @@ type SpokeRoutingError struct {
 }
 
 func (e *SpokeRoutingError) Error() string {
-	return fmt.Sprintf("%s names the hub %s and carries a roles: block (%s) — the hub carries the routing table for the whole project, and a spoke's copy would outrank it while going stale; delete the block here and declare the routing in %s's %s (SPEC §5)",
-		Pointer, e.Hub, strings.Join(e.Roles, ", "), e.Hub, Pointer)
+	return fmt.Sprintf("%s names the hub %s and carries a roles: block (%s) — the hub carries the routing table for the whole project, and a spoke's copy would outrank it while going stale; if this repo is itself %s, say hub: self, because a hub's own pointer is where the table belongs; otherwise delete the block here and declare the routing in %s's %s (SPEC §5)",
+		Pointer, e.Hub, strings.Join(e.Roles, ", "), e.Hub, e.Hub, Pointer)
 }
 
 // Pointer, RolesDir and AgentsFile are the protocol 2.0 layout, relative to
@@ -225,7 +225,11 @@ func isFile(path string) bool {
 	return err == nil && info.Mode().IsRegular()
 }
 
-// Role is one entry of the advisory role routing table.
+// Role is one entry of the routing table: which principal holds a seat,
+// and the harness and model an orchestrator should dispatch it on. The
+// dispatch fields are advisory — CodeCrew dispatches nothing — but the
+// identity is read by the gates, so the table is fetched and checked
+// (SPEC §5, §6).
 type Role struct {
 	Harness  string   `yaml:"harness"`
 	Model    string   `yaml:"model"`
