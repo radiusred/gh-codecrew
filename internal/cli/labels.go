@@ -58,13 +58,21 @@ func planLabels(existing, want []tracker.Label, restyle bool) []labelStep {
 //     offline, not on GitHub yet, or held by a token without
 //     `issues: write` gets a `note:` line and the verb carries on. It
 //     returns nothing, so no caller can treat it as fatal.
-func applyLabels(w io.Writer, t tracker.Tracker, repo string, want []tracker.Label, restyle, dryRun bool) {
+//
+// It returns what it planned and whether it got to read the listing at
+// all — never an error, so no caller can turn a GitHub refusal into a
+// failure. The pair is enough for a caller to say "nothing to do", which
+// only the rerun path needs (migrateLabelsRerun): planned is what the
+// comparison asked for, not what succeeded, so a refused write leaves the
+// note standing rather than reading as an empty plan.
+func applyLabels(w io.Writer, t tracker.Tracker, repo string, want []tracker.Label, restyle, dryRun bool) (planned int, read bool) {
 	existing, err := t.Labels(repo)
 	if err != nil {
 		fmt.Fprintf(w, "note: could not read %s's labels (%v) — the protocol's labels are created on first use instead, with GitHub's own colour\n", repo, err)
-		return
+		return 0, false
 	}
-	for _, s := range planLabels(existing, want, restyle) {
+	steps := planLabels(existing, want, restyle)
+	for _, s := range steps {
 		verb := "created"
 		if dryRun {
 			verb = "would create"
@@ -76,11 +84,16 @@ func applyLabels(w io.Writer, t tracker.Tracker, repo string, want []tracker.Lab
 			}
 		}
 		if !dryRun {
-			write := t.CreateLabel
+			// A restyle addresses the label by the name the repository
+			// spells it with — a recased `CC:Task` is the same label to
+			// GitHub, and restyling is not renaming — carrying the
+			// protocol's colour and description. A creation uses the
+			// protocol's own spelling, there being nothing else.
+			write, l := t.CreateLabel, s.label
 			if s.restyle {
-				write = t.UpdateLabel
+				write, l = t.UpdateLabel, tracker.Label{Name: s.was.Name, Color: s.label.Color, Description: s.label.Description}
 			}
-			if err := write(repo, s.label); err != nil {
+			if err := write(repo, l); err != nil {
 				what := "create"
 				if s.restyle {
 					what = "restyle"
@@ -95,6 +108,7 @@ func applyLabels(w io.Writer, t tracker.Tracker, repo string, want []tracker.Lab
 		}
 		fmt.Fprintf(w, "%s label %s (#%s) — %s\n", verb, s.label.Name, s.label.Color, s.label.Description)
 	}
+	return len(steps), true
 }
 
 // ensureLabels creates the labels in want that repo does not already
@@ -137,11 +151,31 @@ func initLabels(w io.Writer, dir string) {
 // the rest, because the migration's whole promise is a repository that
 // looks like a fresh 2.0 scaffold, and a 1.x repo's labels were all
 // created implicitly with a random colour and no description. Like every
-// other part of the step it is a note when GitHub says no, and it runs
-// after the commit so nothing it meets can reach the move.
+// other part of the step it is a note when GitHub says no.
+//
+// It runs on every path where the move reached disk — committed, detached,
+// or the commit refused — so "the files moved" and "the labels were done"
+// are never two different answers (the Decision on #283, from checky's
+// finding 2 on PR #291).
 func migrateLabels(w io.Writer, dryRun bool) {
 	withLabelTarget(w, func(t tracker.Tracker, repo string) {
 		applyLabels(w, t, repo, tracker.ProtocolLabels, true, dryRun)
+	})
+}
+
+// migrateLabelsRerun is the same step on a repository already on the 2.0
+// layout, and it exists because a rerun is the documented recovery from a
+// label step that could not reach GitHub. Without it `migrate` returned at
+// the idempotence check and that repository stayed on 2.0 wearing GitHub's
+// grey with nothing in the tool that would ever fix it — the exact state
+// M14-R5 exists to end (checky's finding 1 on PR #291). It says so when
+// there is nothing to do, because on this path silence would be
+// indistinguishable from the step not having run.
+func migrateLabelsRerun(w io.Writer, dryRun bool) {
+	withLabelTarget(w, func(t tracker.Tracker, repo string) {
+		if planned, read := applyLabels(w, t, repo, tracker.ProtocolLabels, true, dryRun); read && planned == 0 {
+			fmt.Fprintln(w, "labels already at the protocol defaults")
+		}
 	})
 }
 

@@ -228,11 +228,13 @@ func TestLabelCalls(t *testing.T) {
 		t.Errorf("the colour reached the API with a leading #: %q", line)
 	}
 
-	// A restyle addresses the label by the name the repository spells it
-	// with — GitHub matches names case-insensitively, so a recased label is
-	// the same label — and sends no new_name: restyling is not renaming.
+	// A restyle is the shape the call site builds: the name as the
+	// repository spells it, carrying the protocol's colour and
+	// description. It goes in the path segment and no new_name is sent,
+	// so the label keeps its spelling — restyling is not renaming.
 	calls = recordGH(t, "")
-	if err := (GitHub{}).UpdateLabel("o/r", Label{"CC:Needs-Decision", l.Color, l.Description}); err != nil {
+	repoSpelling := Label{Name: "CC:Needs-Decision", Color: l.Color, Description: l.Description}
+	if err := (GitHub{}).UpdateLabel("o/r", repoSpelling); err != nil {
 		t.Fatal(err)
 	}
 	line = strings.Join((*calls)[0], " ")

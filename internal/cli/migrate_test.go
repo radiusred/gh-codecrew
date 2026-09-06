@@ -465,8 +465,8 @@ func TestMigrateSpokeWithAnEmptyRolesKey(t *testing.T) {
 	}
 }
 
-// A repo already on 2.0 is a no-op: it says so, writes nothing and exits 0,
-// so a rerun is safe.
+// A repo already on 2.0 moves nothing: it says so, commits nothing and
+// exits 0, so a rerun is safe.
 func TestMigrateAlreadyCurrent(t *testing.T) {
 	dir := legacyRepo(t, "", map[string]string{
 		config.Pointer: "codecrew: \"2.0\"\nhub: self\n",
@@ -783,5 +783,125 @@ func TestMigrateDryRunListsTheLabelsAndWritesNothing(t *testing.T) {
 		if committed := strings.Contains(out.String(), "committed "); committed == dryRun {
 			t.Errorf("dryRun=%v: committed = %v", dryRun, committed)
 		}
+	}
+}
+
+// A rerun on a repository already on 2.0 is the documented recovery from a
+// label step that could not reach GitHub, so it has to actually do the
+// labels: migrate is idempotent in what it moves, not in what it does.
+// Without this the first run's transient `gh` failure left the repository
+// on 2.0 wearing GitHub's grey with nothing in the tool that would ever
+// fix it (checky's finding 1 on PR #291).
+func TestMigrateRerunDoesTheLabelsAndNothingElse(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		fake    *labelFake
+		dryRun  bool
+		created []string
+		lines   []string
+		absent  []string
+	}{
+		{
+			// The state finding 1 describes: the move landed, the labels
+			// did not.
+			name:    "the first run could not reach GitHub",
+			fake:    &labelFake{},
+			created: []string{tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision},
+			lines:   []string{"already on the protocol 2.0 layout", "created label cc:milestone (#01d4ff)", "created label cc:needs-decision (#f0aeff)"},
+			absent:  []string{"labels already at the protocol defaults", "would create"},
+		},
+		{
+			// Nothing to do, and it says so: on this path silence is
+			// indistinguishable from the step never having run.
+			name:   "a second rerun, with the labels already right",
+			fake:   &labelFake{defined: defaults(tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision)},
+			lines:  []string{"labels already at the protocol defaults"},
+			absent: []string{"created label", "restyled label"},
+		},
+		{
+			// --dry-run previews the recovery and writes none of it.
+			name:   "the dry run previews it",
+			fake:   &labelFake{defined: []tracker.Label{implicit(tracker.LabelTask)}},
+			dryRun: true,
+			lines:  []string{"would restyle label cc:task (#ededed -> #92edff)", "would create label cc:milestone", "dry run: nothing written"},
+			absent: []string{"labels already at the protocol defaults"},
+		},
+		{
+			// And a GitHub that still will not answer is still a note.
+			name:   "GitHub is still unreachable",
+			fake:   &labelFake{readErr: errors.New("403")},
+			lines:  []string{"note: could not read o/r's labels (403)"},
+			absent: []string{"labels already at the protocol defaults", "created label"},
+		},
+	} {
+		dir := legacyRepo(t, "", map[string]string{config.Pointer: "codecrew: \"2.0\"\nhub: self\n"})
+		stubLabelTarget(t, tc.fake, "o/r", nil)
+		before := headSubject(t, dir)
+
+		var out bytes.Buffer
+		if err := migrate(&out, dir, tc.dryRun); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := names(tc.fake.created); !slices.Equal(got, tc.created) {
+			t.Errorf("%s: created %v, want %v", tc.name, got, tc.created)
+		}
+		for _, want := range tc.lines {
+			if !strings.Contains(out.String(), want) {
+				t.Errorf("%s: output missing %q:\n%s", tc.name, want, out.String())
+			}
+		}
+		for _, never := range tc.absent {
+			if strings.Contains(out.String(), never) {
+				t.Errorf("%s: output must not contain %q:\n%s", tc.name, never, out.String())
+			}
+		}
+		// Nothing else happens on this path: no commit, no file moved or
+		// written, and the 1.x layout was never there to remove.
+		if headSubject(t, dir) != before {
+			t.Errorf("%s: the rerun committed", tc.name)
+		}
+		if st, _ := git(dir, "status", "--porcelain"); st != "" {
+			t.Errorf("%s: the rerun wrote to disk: %q", tc.name, st)
+		}
+		for _, never := range []string{"moved ", "would move ", "wrote ", "rewrote ", "committed "} {
+			if strings.Contains(out.String(), never) {
+				t.Errorf("%s: the rerun reported %q:\n%s", tc.name, never, out.String())
+			}
+		}
+	}
+}
+
+// The move is on disk before the commit is attempted, so the labels run on
+// the two paths that never reach it: a detached HEAD, and a commit git
+// refused. Otherwise the operator is told to finish the commit by hand and
+// has no reason to suspect the labels were skipped (checky's finding 2).
+func TestMigrateDoesTheLabelsWhenTheCommitDoesNotHappen(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+	f := &labelFake{defined: []tracker.Label{implicit(tracker.LabelTask)}}
+	stubLabelTarget(t, f, "o/r", nil)
+	// Detach: the moves still apply, the commit cannot.
+	if _, err := git(dir, "checkout", "-q", "--detach"); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(f.restyled); !slices.Equal(got, []string{tracker.LabelTask}) {
+		t.Errorf("restyled %v", got)
+	}
+	if got := names(f.created); !slices.Equal(got, []string{tracker.LabelMilestone, tracker.LabelNeedsDecision}) {
+		t.Errorf("created %v", got)
+	}
+	if !exists(t, dir, config.Pointer) {
+		t.Error("the moves did not apply")
+	}
+	// The act asked of a human is still the last thing on screen.
+	label := strings.Index(out.String(), "restyled label")
+	note := strings.Index(out.String(), "note: HEAD is detached")
+	if label < 0 || note < 0 || label > note {
+		t.Errorf("the labels must be reported before the detached-HEAD note:\n%s", out.String())
 	}
 }

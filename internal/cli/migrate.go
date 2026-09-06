@@ -66,7 +66,16 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		return refuse("BOTH_LAYOUTS", "%s holds both layouts — the protocol 1.x files (%s) and %s — and migrate will not choose between them: keep whichever the project uses, remove the other, then rerun",
 			root, strings.Join(legacy, ", "), config.Pointer)
 	case current:
-		fmt.Fprintf(w, "already on the protocol %s layout (%s) — nothing to migrate\n", protocolVersion, config.Pointer)
+		// The files are where they belong; the labels may not be. A rerun
+		// is the documented recovery from a label step that could not
+		// reach GitHub, and it only works if this path does it (checky's
+		// finding 1 on PR #291), so migrate is idempotent in what it
+		// moves rather than in what it does.
+		fmt.Fprintf(w, "already on the protocol %s layout (%s) — nothing to move\n", protocolVersion, config.Pointer)
+		migrateLabelsRerun(w, dryRun)
+		if dryRun {
+			fmt.Fprintln(w, "dry run: nothing written")
+		}
 		return nil
 	case len(legacy) == 0:
 		return fmt.Errorf("%s holds no %s and no protocol 1.x layout (not a CodeCrew repo?)", root, config.Pointer)
@@ -174,11 +183,21 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 
 	stage, paths := commitPaths(moves, written)
 	if branch == "" {
+		// The moves are already on disk, so the labels are done here too —
+		// one rule, "once the move reached disk the labels run", rather
+		// than a path on which the operator is told to finish the commit
+		// by hand and has no reason to suspect the labels were skipped
+		// (checky's finding 2). The note stays last: it is the act asked
+		// of a human.
+		migrateLabels(w, false)
 		fmt.Fprintf(w, "note: HEAD is detached — the files are moved but not committed; switch to a branch and run: %s\n", commitByHand(migrateSubject, paths))
 		return nil
 	}
 	sha, ok := pathspecCommit(w, root, migrateSubject, "the migration", stage, paths)
 	if !ok {
+		// Same rule: the move is on disk, so the labels run — after
+		// pathspecCommit's own note, which named the command to run.
+		migrateLabels(w, false)
 		return nil
 	}
 	fmt.Fprintf(w, "committed %s on %s: %q — the migration only; your other changes are as they were\n", sha, branch, migrateSubject)
