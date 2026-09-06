@@ -401,6 +401,61 @@ func TestMigrateSpoke(t *testing.T) {
 	if !exists(t, dir, config.RolesDir+"/implementer"+localSuffix) {
 		t.Error("the spoke's extension did not move")
 	}
+	// The end state is a pointer this binary reads: a one-shot move that
+	// leaves the next verb refusing has not landed.
+	if _, err := config.Load(dir); err != nil {
+		t.Errorf("the migrated spoke does not load: %v", err)
+	}
+}
+
+// Protocol 1.0 let a spoke carry a routing table and 2.0 does not, so
+// migrating one forward would write a pointer this same binary refuses on
+// the next verb. The block is the operator's routing, not migrate's to
+// drop, so the move stops before it starts (checky's second-round finding
+// on PR #280).
+func TestMigrateRefusesASpokeCarryingRouting(t *testing.T) {
+	dir := legacyRepo(t, "codecrew: \"1.0\"\nhub: myorg/hub\nroles:\n  reviewer: { identity: myorg-checky }\n  qa: { identity: alice }\n", map[string]string{
+		"roles/implementer" + localSuffix: "<!-- ours -->\n",
+	})
+	stubAccounts(t, map[string]string{"myorg-checky[bot]": "Bot", "alice": "User"})
+	before := headSubject(t, dir)
+
+	var out bytes.Buffer
+	err := migrate(&out, dir, false)
+	if code := refusalCode(t, err); code != "SPOKE_ROUTING" {
+		t.Fatalf("code = %s, want SPOKE_ROUTING (%v)", code, err)
+	}
+	for _, want := range []string{"myorg/hub", "qa, reviewer"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %q: %v", want, err)
+		}
+	}
+	if exists(t, dir, config.Pointer) || exists(t, dir, config.AgentsFile) || !exists(t, dir, config.LegacyPointer) {
+		t.Error("a refused migration wrote something")
+	}
+	if headSubject(t, dir) != before {
+		t.Error("a refused migration committed")
+	}
+	status, err2 := git(dir, "status", "--short")
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if status != "" {
+		t.Errorf("a refused migration touched the tree: %q", status)
+	}
+}
+
+// A spoke with no table migrates as before, and one whose `roles:` key is
+// empty is not carrying a table at all — the reading config.Parse takes.
+func TestMigrateSpokeWithAnEmptyRolesKey(t *testing.T) {
+	dir := legacyRepo(t, "codecrew: \"1.0\"\nhub: myorg/hub\nroles:\n", nil)
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.Load(dir); err != nil {
+		t.Errorf("the migrated spoke does not load: %v", err)
+	}
 }
 
 // A repo already on 2.0 is a no-op: it says so, writes nothing and exits 0,

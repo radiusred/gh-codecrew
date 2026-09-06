@@ -214,6 +214,11 @@ when absent, as part of the migration commit. The codes:
   `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun.
   (A bare value that is already an App slug is found at `<slug>[bot]`, so
   the common 1.0 table types itself.)
+- `SPOKE_ROUTING` (above) — the 1.x pointer names a hub *and* carries a
+  `roles:` block. Protocol 1.0 allowed that shape and 2.0 does not, so
+  migrating it forward would write a pointer every verb then refuses. The
+  rows are routing the operator wrote: move them into the hub's
+  `.codecrew/config.yml`, or delete them, then rerun.
 - `GH_UNREACHABLE` (above) — the lookup could not reach GitHub at all.
   Typing an identity is a question only GitHub can answer, so migrate names
   the network rather than the value.

@@ -88,6 +88,9 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 	if err := checkMigratable(doc); err != nil {
 		return err
 	}
+	if err := checkSpokeRouting(doc); err != nil {
+		return err
+	}
 	roleMoves, err := rolesMoves(root)
 	if err != nil {
 		return err
@@ -425,6 +428,33 @@ func checkMigratable(root *yaml.Node) error {
 	}
 	return refuse("MIGRATION_UNSUPPORTED", "%s says protocol %q; migrate moves a protocol 1.x repo to %s and nothing else — a pointer below 1.0 predates the conventions it assumes (SPEC §5)",
 		config.LegacyPointer, v.Value, protocolVersion)
+}
+
+// checkSpokeRouting refuses a 1.x spoke pointer that carries a routing
+// table. Protocol 1.0 allowed the shape and 2.0 does not (M13-R5, #259),
+// so migrating it faithfully would write a .codecrew/config.yml that this
+// same binary refuses SPOKE_ROUTING on the very next verb — a one-shot
+// move that has not landed. The block is not dropped on the operator's
+// behalf: it is routing they wrote, and where it belongs is theirs to say
+// (checky's second-round finding on PR #280). The rows are named in sorted
+// order, as config.Parse names them, so the refusal does not move between
+// runs.
+func checkSpokeRouting(root *yaml.Node) error {
+	hub := mapValue(root, "hub")
+	if hub == nil || hub.Value == "" || hub.Value == "self" {
+		return nil
+	}
+	roles := mapValue(root, "roles")
+	if roles == nil || roles.Kind != yaml.MappingNode || len(roles.Content) == 0 {
+		return nil // an empty table is not a table, exactly as Parse reads it
+	}
+	names := make([]string, 0, len(roles.Content)/2)
+	for i := 0; i+1 < len(roles.Content); i += 2 {
+		names = append(names, roles.Content[i].Value)
+	}
+	slices.Sort(names)
+	return refuse("SPOKE_ROUTING", "%s names the hub %s and carries a roles: block (%s), which protocol 1.0 allowed and 2.0 does not — the hub carries the one routing table for the project (SPEC §5), so migrating this table forward would write a %s that every verb then refuses. Migrate will not drop routing you wrote: move these rows into %s's %s, or delete them here, then rerun",
+		config.LegacyPointer, hub.Value, strings.Join(names, ", "), config.Pointer, hub.Value, config.Pointer)
 }
 
 // rewritePointer edits the pointer in place into its 2.0 form and returns
