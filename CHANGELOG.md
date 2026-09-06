@@ -47,7 +47,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   `migrate` on a repo already on 2.0 moves nothing and still runs the label
   step, and it runs on the two paths where the commit never happens — a
   detached HEAD, and a commit `git` refused — so "the files moved" and "the
-  labels were done" are never two different answers.
+  labels were done" are never two different answers. SPEC §6 says the
+  *move* runs once and a rerun repeats the label step alone, and §4 accepts
+  what follows: a `cc:` label restyled deliberately after the migration is
+  set back to the defaults by the next `migrate`, previewed by `--dry-run`
+  and named in the receipts, with `init` — which never touches an existing
+  label — as the verb a project reruns instead.
   (#283, #267)
 
 ### A close sweeps the branches earlier closes left behind
