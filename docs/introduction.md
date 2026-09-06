@@ -137,223 +137,30 @@ go build -o gh-codecrew ./cmd/codecrew
 
 ## Refusal codes
 
-A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All forty-two, by the verb that
-raises them (the source is the catalogue of record — `refuse("CODE"` in
-`internal/cli/`):
+A blocked gate exits 1 — every failure does, and there is no exit-code
+taxonomy — with one line on stderr:
 
-**any verb that loads `.codecrew/config.yml`**
+```
+codecrew: refused[CODE]: detail
+```
 
-- `LAYOUT_LEGACY` — the repo is still on the protocol 1.x layout: a root
-  `.codecrew.yml`, or a root `roles/` holding one of the five contracts,
-  with no `.codecrew/config.yml`. The detail names what was found and
-  `gh codecrew migrate`, the one-shot verb that moves it; nothing reads the
-  old layout. `init` is exempt from the pointer check and raises this one
-  too, rather than writing a second layout beside the first.
-- `PROTOCOL_MISMATCH` — a protocol major differs from the one this binary
-  implements (SPEC §5); a missing field proceeds with a note. A pointer
-  ahead of the binary asks for an extension upgrade, one behind it is told
-  the repo predates this protocol and is moved with `migrate`. The check is
-  topology-wide: a spoke reads the hub's pointer to resolve roles and
-  applies it there too, naming both sides — one project speaks one protocol
-  major.
-- `IDENTITY_UNTYPED` — a routing row's `identity` carries no type prefix,
-  so it names no kind of principal; the detail names the row and the four
-  forms (`~`, `app:<slug>`, `user:<login>`, `team:<org>/<slug>`).
-- `SPOKE_ROUTING` — a spoke's pointer carries a `roles:` block. The hub
-  carries the one routing table for the project (SPEC §5); a copy in a
-  spoke either silently outranks it or goes stale, and the protocol will
-  not pick a winner. The detail names the hub and the rows found.
-- `HUB_UNREADABLE` — this repo is a spoke and the hub's
-  `.codecrew/config.yml` could not be fetched or parsed, so no role can be
-  resolved. Routing fails closed: before 2.0 the verb fell back to the
-  spoke's own empty table, which resolves every seat to `~` — turning
-  `task finish`'s holder-review gate into "any non-author approved" and
-  `milestone close`'s verdict count into "anyone commented". A hub that
-  reads fine and declares no table is a different thing entirely and is
-  legitimately `~` everywhere. A hub still on the 1.x layout has no such
-  file, and the detail names `gh codecrew migrate`.
-- `GH_UNREACHABLE` — `gh` never reached GitHub: no route, no DNS, or no
-  credentials at all. Never reported as a missing hub table, and never a
-  bare `gh` error. `codecrew version`, `codecrew help`, and
-  `roles show`/`roles diff` in a hub need no network, so they keep working;
-  from a spoke `roles show` needs the hub and raises this.
-- `GH_TOO_OLD` — the installed `gh` is older than 2.50.0, the floor
-  `task finish` and the close's branch sweep need (`gh pr checks --json`);
-  the detail names both versions. A `gh --version` banner the CLI cannot
-  parse proceeds with a note.
+The **code** is for the agent: a fixed vocabulary whose meanings are stable
+within a protocol major, so an orchestrator branches on it. The **detail**
+is for the human, and is free to be reworded in any release; nothing should
+parse it. A `note:` line on the same stream is advisory and not a failure.
 
-**`migrate`**
+**The catalogue is [SPEC §10](../SPEC.md#10-the-cli)** — every code, the
+verbs that raise it and what it means, in one table. It is the single list:
+this page carried a second one until protocol 2.0, and keeping two in step
+across a milestone's worth of new codes proved to be exactly the drift the
+table exists to prevent. The source of record behind both is `refuse("CODE"`
+in `internal/cli/`, and a test fails the build when the table and the source
+disagree.
 
-Not a refusal, but the one thing the verb leaves for a human: a root
-`AGENTS.md` or `CLAUDE.md` that does not reach `.codecrew/AGENTS.md` — a
-1.x repo's root file holds the old instructions — is named under an
-`action needed` heading with the exact lines to paste. The root file is the
-project's and is never rewritten; `.codecrew/AGENTS.md` itself is written
-when absent, as part of the migration commit. The codes:
-
-- `BOTH_LAYOUTS` — the two layouts overlap: the repo carries
-  `.codecrew/config.yml` *and* a protocol 1.x pointer or contracts, or a
-  2.0 file already sits where a 1.x one would move (`.codecrew/roles/qa.md`
-  beside a `roles/qa.md`). The detail names what it found, and migrate will
-  not overwrite the newer file to reach the older one. Keep whichever the
-  project uses, remove the other, and rerun.
-- `FOREIGN_ROLES_DIR` — a root `roles/` that holds CodeCrew's own files
-  also holds entries it does not recognise; the detail names both sets.
-  Migrate moves the five role contracts and their `<role>.local.md`
-  extensions and nothing else, so it stops rather than guessing about an
-  eleventh name. Move or remove them, then rerun. A `roles/` with no
-  CodeCrew file in it is a project's own and is never read.
-- `MIGRATION_UNSUPPORTED` — the pointer's protocol major is not 1: below
-  1.0 predates the conventions the move assumes, and above it is not a 1.x
-  repo whatever the files beside it look like. The detail names the version
-  read.
-- `IDENTITY_UNRESOLVED` — GitHub answered and the answer did not settle it:
-  a bare 1.0 identity that nothing answers to, that both a user and an App
-  answer to, or that is an organization. Write the row as `~`,
-  `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun.
-  (A bare value that is already an App slug is found at `<slug>[bot]`, so
-  the common 1.0 table types itself.)
-- `SPOKE_ROUTING` (above) — the 1.x pointer names a hub *and* carries a
-  `roles:` block. Protocol 1.0 allowed that shape and 2.0 does not, so
-  migrating it forward would write a pointer every verb then refuses. The
-  rows are routing the operator wrote: move them into the hub's
-  `.codecrew/config.yml`, or delete them, then rerun.
-- `GH_UNREACHABLE` (above) — the lookup could not reach GitHub at all.
-  Typing an identity is a question only GitHub can answer, so migrate names
-  the network rather than the value.
-
-**any verb that reads a milestone's `## Requirements`**
-
-- `REQUIREMENT_ID_MISMATCH` — an ID declared under `## Requirements` is not
-  the milestone's own: the grammar is `M<milestone>-R<k>` (SPEC §4), so
-  M12-R3 under M13 is refused before any verdict is counted against it. The
-  detail names every offending ID and the milestone read; the fix is a hand
-  edit of the issue body. `milestone close` and `milestone evidence` refuse;
-  `status` prints the same condition as a line and carries on, because it
-  reports the board rather than gating it.
-
-**`task new`**
-
-- `NOT_FOUND` — no open milestone with that number in the hub, after the
-  verb has also read the hub's newest issues and retried for a few seconds:
-  the listing can lag a milestone created seconds earlier.
-
-**`task start`**
-
-- `NOT_A_TASK` — the issue is not labelled `cc:task`.
-- `CLOSED` — the task is already closed.
-- `NO_PLAN` — the Plan section is empty; plans come before work (SPEC §4).
-
-**`task finish`** (in the order the gates are checked)
-
-- `CLOSED` — the task is already closed.
-- `GATED` — a `cc:needs-decision` gate is raised; a human resolves it and
-  removes the label.
-- `GATE_UNRECORDED` — a gate was raised and the label removed, but no
-  `**Gate resolved:**` comment records the decision (SPEC §8). Both labels
-  are read per paragraph, anywhere in a comment; only `**Gate resolved:**`
-  answers, and it answers every gate still open before it, never one raised
-  after it.
-- `NOT_OWNER` — the task was started by another seat (the `**Started by**`
-  record `task start` posts on every start, accepted only from the login
-  it names; the assignee for tasks that predate it; the same seat is the
-  same login or the same routed role — any member of a team-held role). The seat that
-  started a task finishes it — dispatch it; hand it over by running
-  `task start` as the new seat (the latest record wins — the path when the
-  starter has left); or a human operator overrides on the record with
-  `--bypass`. A task with no start record is not gated.
-- `NO_PR` — no open PR closes the task.
-- `NO_CHECKS_PERMISSION` — the installation token cannot read the PR's
-  checks at all: on a private repo the App needs `checks: read` (the status
-  check rollup) and `actions: read` (the workflow run behind each suite);
-  the detail names the App and the missing one, and the fix is the App's
-  settings page followed by the installation's acceptance
-  (docs/identities.md).
-- `NO_CHECKS` — the PR reports no CI checks at all; absence cannot satisfy
-  the deterministic gate, and there is no override.
-- `CHECKS_PENDING` — checks are still running.
-- `CHECKS_FAILING` — a check failed.
-- `NO_HOLDER_REVIEW` — the reviewer role is routed to someone, and that
-  holder has not approved; the role defines whose review counts.
-- `NO_NONDOER_APPROVAL` — the reviewer role is unrouted and no non-author
-  has approved (solo: rerun with `--operator-confirm`).
-- `REVIEW_NOT_COUNTED` — the protocol's review gate passed, but GitHub's
-  own required-review rule is still unmet (an App's approval without write
-  access); a non-author human approves on the reviewer's recommendation,
-  the App gets write access, or `--bypass` where the ruleset allows it.
-- `SELF_CONFIRM` — `--operator-confirm` was given by a crew identity (a
-  `[bot]` login or an `app:`-typed seat holder); only a human operator can
-  waive review, and a `user:`- or `team:`-typed holder is one.
-- `CREW_BYPASS` — `--bypass` was given by a crew identity; a bypass is an
-  operator's act.
-
-**`milestone new`**
-
-- `MILESTONE_NUMBER_TAKEN` — the issue was created, but another milestone
-  already carries its `M<n>:` prefix (the listing the number came from
-  lagged) and the verb's own renumbering failed or found the next number
-  taken too; the detail names both issues and the fix: retitle the new one
-  to the next free number and rewrite its `M<n>-R<k>` IDs. A repair that
-  succeeds is not a refusal — it prints a `renumbered:` line.
-
-**`milestone close`** (in the order the gates are checked)
-
-- `NOT_FOUND` — no open milestone with that number.
-- `MILESTONE_GATED` — the milestone issue itself carries `cc:needs-decision`:
-  a requirement-level question raised there by `checkpoint`; a human
-  resolves it with a `**Gate resolved:**` comment and removes the label.
-- `OPEN_TASKS` — tasks are still open, listed with their inferred state.
-- `NO_REQUIREMENTS` — the milestone's `## Requirements` section yields no
-  bold IDs, so there is nothing to verdict; IDs written elsewhere in the
-  body do not count (`new`, `status` and `evidence` note this first).
-- `REQUIREMENT_ID_MISMATCH` — the section declares an ID belonging to
-  another milestone (above); the same gate, checked next.
-- `VERDICT_MISSING` — a requirement has no QA verdict from the qa holder.
-  A verdict written inside a code span or a fenced block is content, not a
-  verdict.
-- `VERDICT_UNSATISFIED` — the latest verdict on a requirement is not
-  `satisfied` — the latest *comment* carrying one for that ID, and the
-  first verdict for the ID inside it.
-- `DOC_MISSING` — `docs/milestones/<n>-*.md` is not on the default branch;
-  the gathered records are printed above the refusal for the
-  doc-synthesizer, which delivers the document as a task (plan, `task
-  start`, a PR with `Closes #<task>`, `task finish`).
-
-**`milestone evidence`**
-
-- `NOT_FOUND` — no milestone with that number, open or closed. A closed
-  milestone resolves and is reported as closed before the report: a record's
-  citations are worth checking after the close as before it.
-- `REQUIREMENT_ID_MISMATCH` — the milestone declares a requirement ID that
-  is not its own (above); checked before the walk.
-- `EVIDENCE_UNREACHABLE` — github.com links the milestone's record cites
-  do not resolve; repair them before dispatching QA. A URL inside a code
-  span or a fenced block is content, not a citation, and is not checked;
-  an external citation that does not resolve is a `warning:` line, not a
-  refusal.
-
-**`identity token`**
-
-- `NO_CREDENTIALS` — nothing to sign with: no App id and key bound in the
-  environment (`GITHUB_APP_ID`/`GITHUB_CLIENT_ID`, `GITHUB_PRIVATE_KEY`/
-  `GITHUB_PEM`), and no key and stub under `~/.config/codecrew/` for the
-  slug; the detail says what was looked for and how to write the stub.
-- `BAD_CREDENTIALS` — GitHub rejected the App JWT (401), or knows no App
-  by the id it was signed as (404 "Integration not found"): the key and
-  the id do not belong to the same App, or the key was revoked. Retrying
-  will not help; check the id against `gh api /apps/<slug> --jq .id`.
-- `NO_INSTALLATION` — the App is installed on no account the key can see;
-  install it (identities.md, step 4).
-- `INSTALLATION_AMBIGUOUS` — the App is installed on several accounts and
-  neither a hint nor the hub's owner selects one; the detail lists them,
-  and `--installation <id>` (or `GITHUB_INSTALLATION_ID`) chooses.
-
-**`identity webhook`** (and `NO_CREDENTIALS`/`BAD_CREDENTIALS` as above)
-
-- `NO_WEBHOOK` — the App was minted without a webhook; GitHub keeps no
-  hook configuration for it and its API cannot create one. Activate the
-  webhook on the App's settings page (the detail names it) with the
-  receiver's URL, then `--secret` sets the receiver's secret.
+The fix for a refusal is in the detail line the CLI prints, which names the
+condition met and the way out — read it before reaching for a code table.
+[Your first milestone](first-milestone.md) walks through the ones a new
+project meets first: `NO_PLAN`, `NO_CHECKS`, `VERDICT_MISSING`,
+`DOC_MISSING`.
 
 Licensed under [Apache 2.0](../LICENSE).
