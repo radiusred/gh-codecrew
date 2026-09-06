@@ -330,6 +330,22 @@ func (GitHub) MergePRBypass(repo string, number int) error {
 	return err
 }
 
+// MergeCommit reads the commit a merge left on the base branch. GitHub
+// reports it for every merge method, the rebase included, where it is the
+// last commit replayed onto the base — not the PR's head, which the rebase
+// rewrote.
+func (GitHub) MergeCommit(repo string, number int) (string, error) {
+	var view struct {
+		MergeCommit struct {
+			OID string `json:"oid"`
+		} `json:"mergeCommit"`
+	}
+	if err := gh.JSON(&view, "pr", "view", fmt.Sprint(number), "--repo", repo, "--json", "mergeCommit"); err != nil {
+		return "", err
+	}
+	return view.MergeCommit.OID, nil
+}
+
 func (GitHub) CloseIssue(ref IssueRef, comment string) error {
 	_, err := gh.Run("issue", "close", fmt.Sprint(ref.Number),
 		"--repo", ref.Repo, "--comment", comment)
