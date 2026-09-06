@@ -25,8 +25,10 @@ verbs:
                                              link warns; URLs inside code are content, not citations (M2 → 2)
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
+           [--adopts <ref>[,<ref>]]          (repeatable: the backlog captures this task takes up —
+                                             recorded under ## Adopts and closed by task finish)
   task start <ref>                           assign, verify plan, create linked branch
-  task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge; deletes the head branch and tidies this clone
+  task finish <ref> [--operator-confirm]     enforce gates, rebase-merge, close the adopted captures; deletes the head branch and tidies this clone
            [--bypass]                        (recorded admin merge when GitHub won't count the approval)
            [--dry-run]                       (print every gate and what it would do; write nothing)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)

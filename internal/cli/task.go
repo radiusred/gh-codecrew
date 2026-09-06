@@ -16,7 +16,7 @@ const taskTemplate = `## Goal
 
 ## Requirements
 %s
-
+%s
 ## Plan
 %s
 
@@ -31,6 +31,8 @@ func taskNew(w io.Writer, args []string) error {
 	goal := fs.String("goal", "_To be written._", "what this task delivers")
 	requirements := fs.String("requirements", "None directly.", "comma-separated requirement IDs")
 	repo := fs.String("repo", "", "spoke repo for the task (default: current repo)")
+	var adopts multiFlag
+	fs.Var(&adopts, "adopts", "a backlog issue this task adopts and closes at finish: <ref>[,<ref>]; repeatable")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -49,17 +51,26 @@ func taskNew(w io.Writer, args []string) error {
 	if target == "" {
 		target = c.current
 	}
-	return runTaskNew(c, w, n, target, *title, *goal, *requirements)
+	return runTaskNew(c, w, n, target, *title, *goal, *requirements, adopts)
 }
 
-// runTaskNew creates the task issue in target and attaches it to milestone
-// M<n> as a sub-issue.
-func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements string) error {
+// runTaskNew creates the task issue in target, attaches it to milestone
+// M<n> as a sub-issue, and records the backlog issues it adopts: the
+// ## Adopts section in its body, and a comment on each capture naming the
+// task. Adoption is checked before anything is created — a refused verb
+// leaves no half-adopted task behind — and recorded on the captures after,
+// where a comment that fails is a note: the task exists and its body
+// carries the link (#193).
+func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements string, adopts []string) error {
 	milestone, err := resolveMilestone(c, w, n)
 	if err != nil {
 		return err
 	}
-	body := fmt.Sprintf(taskTemplate, goal, requirements, tracker.PlanPlaceholder)
+	adopted, err := resolveAdoptions(c, target, adopts)
+	if err != nil {
+		return err
+	}
+	body := fmt.Sprintf(taskTemplate, goal, requirements, tracker.AdoptsBlock(target, adopted), tracker.PlanPlaceholder)
 	ref, err := c.t.CreateIssue(target, title, body, []string{"cc:task"})
 	if err != nil {
 		return err
@@ -68,7 +79,50 @@ func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements st
 		return err
 	}
 	fmt.Fprintf(w, "created task %s as a sub-issue of %s\n", ref, milestone.Ref)
+	for _, a := range adopted {
+		if err := c.t.Comment(a.Ref, tracker.AdoptionRecord(ref)); err != nil {
+			fmt.Fprintf(w, "note: could not comment on %s (%v); the adoption stands in the task body\n", a.Ref, err)
+			continue
+		}
+		fmt.Fprintf(w, "adopts %s — recorded on the capture\n", a.Ref)
+	}
 	return nil
+}
+
+// resolveAdoptions reads the --adopts values — repeatable, and each one a
+// comma-separated list — against the task's own repo, and checks every ref
+// is an open issue. One code covers both ways a ref is not one: it cannot
+// be read (no such issue, or none this token can see) or it is closed. The
+// check runs before the task is created, so nothing is half-adopted;
+// duplicates collapse, order is kept.
+func resolveAdoptions(c *ctx, target string, vals []string) ([]tracker.Adoption, error) {
+	var adopted []tracker.Adoption
+	seen := map[tracker.IssueRef]bool{}
+	for _, v := range vals {
+		for _, field := range strings.Split(v, ",") {
+			field = strings.TrimSpace(field)
+			if field == "" {
+				continue
+			}
+			ref, err := tracker.ParseRef(field, target)
+			if err != nil {
+				return nil, fmt.Errorf("task new: --adopts %q: %v", field, err)
+			}
+			if seen[ref] {
+				continue
+			}
+			seen[ref] = true
+			issue, err := c.t.Task(ref)
+			if err != nil {
+				return nil, refuse("ADOPT_NOT_OPEN", "--adopts %s could not be read (%v) — a task adopts an open backlog issue in its own repo, or one named owner/repo#n", ref, err)
+			}
+			if issue.Closed {
+				return nil, refuse("ADOPT_NOT_OPEN", "--adopts %s is closed — a task adopts an open backlog issue, and task finish is what closes the capture it adopted", ref)
+			}
+			adopted = append(adopted, tracker.Adoption{Ref: ref, Title: issue.Title})
+		}
+	}
+	return adopted, nil
 }
 
 // milestoneLookupAttempts bounds how many times task new reads the listings
@@ -462,6 +516,12 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	}
 
 	prRef := tracker.IssueRef{Repo: pr.Repo, Number: pr.Number}
+	// The captures this task adopted, read once every gate has passed so a
+	// refused finish pays for none of it.
+	adopted, err := planAdoptions(c.t, ref)
+	if err != nil {
+		return nil, nil, err
+	}
 	var posts []string
 	if ownerBypass {
 		// Recorded before any merge path: the override is the fact, whatever
@@ -522,6 +582,13 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	} else {
 		p.would("merge PR #%d (rebase); %s closes via its closing keyword", pr.Number, ref)
 	}
+	for _, it := range adopted {
+		if it.Close {
+			p.would("close %s (adopted)", it.Ref)
+		} else {
+			p.would("skip %s: already closed (adopted)", it.Ref)
+		}
+	}
 	if pr.HeadRef != "" {
 		p.would("delete head %s", pr.HeadRef)
 	}
@@ -547,11 +614,68 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 			}
 			fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
 		}
+		closeAdopted(w, c.t, ref, prRef, adopted)
 		deleteHead(w, c.t, pr)
 		planClone(c.t, pr, c.current, true).run(w)
 		return nil
 	}
 	return p, run, nil
+}
+
+// adoptItem is one capture a task adopted and what the finish does with
+// it after the merge: close it, or report that it is already closed.
+type adoptItem struct {
+	Ref   tracker.IssueRef
+	Close bool
+}
+
+// planAdoptions reads the task body's ## Adopts section and decides,
+// writing nothing, what becomes of each capture — the plan the dry run
+// prints and the live finish executes. A capture whose state cannot be
+// read is planned as a close: the attempt costs one call, and its failure
+// is a note after a merge that has already happened, where a refusal would
+// be a lie. Only reading the task body itself is an error, and it is
+// raised before the merge.
+func planAdoptions(t tracker.Tracker, task tracker.IssueRef) ([]adoptItem, error) {
+	body, err := t.IssueBody(task)
+	if err != nil {
+		return nil, err
+	}
+	var items []adoptItem
+	for _, ref := range tracker.AdoptedRefs(body, task.Repo) {
+		item := adoptItem{Ref: ref, Close: true}
+		if issue, err := t.Task(ref); err == nil && issue.Closed {
+			item.Close = false
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+// closeAdopted closes the captures the task adopted, after the merge has
+// happened and been reported. Nothing here refuses: the merge is done, so
+// an already-closed capture and one that cannot be closed are both `note:`
+// lines naming what a human would have to do (#193). The closing comment
+// names the commit the merge left where it can be read.
+func closeAdopted(w io.Writer, t tracker.Tracker, task, pr tracker.IssueRef, items []adoptItem) {
+	if len(items) == 0 {
+		return
+	}
+	sha, err := t.MergeCommit(pr.Repo, pr.Number)
+	if err != nil {
+		fmt.Fprintf(w, "note: could not read %s's merge commit (%v)\n", pr, err)
+	}
+	for _, it := range items {
+		if !it.Close {
+			fmt.Fprintf(w, "note: %s was already closed (adopted by %s)\n", it.Ref, task)
+			continue
+		}
+		if err := t.CloseIssue(it.Ref, tracker.AdoptionClose(task, pr, sha)); err != nil {
+			fmt.Fprintf(w, "note: could not close %s (%v); close it by hand\n", it.Ref, err)
+			continue
+		}
+		fmt.Fprintf(w, "closed %s (adopted by %s)\n", it.Ref, task)
+	}
 }
 
 // seatName names the identity a refusal is about: the App behind a
