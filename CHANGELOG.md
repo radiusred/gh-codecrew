@@ -36,9 +36,11 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - **What it refuses.** `BOTH_LAYOUTS` when the two layouts overlap — a 2.0
   pointer beside the 1.x one, or a 2.0 file already sitting where a 1.x one
   would move — naming what it found; `MIGRATION_UNSUPPORTED` when the
-  pointer's protocol major is not 1, naming the version; and the two above.
-  Every refusal is raised before anything is written, and the one rename
-  that may skip `git mv` is a source git does not track. A repo already on
+  pointer's protocol major is not 1, naming the version; the two above; and
+  `GH_UNREACHABLE` when the identity lookup could not reach GitHub at all,
+  never folded into the value's own refusal. Every refusal is raised before
+  anything is written, and the one rename that may skip `git mv` is a
+  source git does not track. A repo already on
   2.0 says so, writes nothing and exits 0, so a rerun is safe.
 - SPEC §6 carries the verb's row and §10 names it; `docs/introduction.md`
   gains the four codes (thirty-eight → forty-two, with the README's count).

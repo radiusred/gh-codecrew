@@ -497,10 +497,16 @@ var lookupAccount = func(login string) (accountType string, found bool, err erro
 func resolveIdentity(role, value string) (string, error) {
 	ask := func(login string) (string, bool, error) {
 		kind, found, err := lookupAccount(login)
-		if err != nil {
-			return "", false, refuse("IDENTITY_UNRESOLVED", "roles.%s.identity: could not ask GitHub what %q is (%v) — the value has to be typed before the table can be read, so fix the access or write `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun", role, value, err)
+		if err == nil {
+			return kind, found, nil
 		}
-		return kind, found, nil
+		// GitHub out of reach is its own condition, named by its own code
+		// (SPEC §6) — never folded into "this value cannot be typed",
+		// which says the API answered and the answer did not settle it.
+		if unreachable := unreachable(err); unreachable != nil {
+			return "", false, unreachable
+		}
+		return "", false, refuse("IDENTITY_UNRESOLVED", "roles.%s.identity: GitHub would not say what %q is (%v) — the value has to be typed before the table can be read, so fix the access or write `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun", role, value, err)
 	}
 	slug := strings.TrimSuffix(value, "[bot]")
 	kind, found, err := ask(value)

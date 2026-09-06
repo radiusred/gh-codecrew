@@ -201,12 +201,15 @@ raises them (the source is the catalogue of record — `refuse("CODE"` in
   1.0 predates the conventions the move assumes, and above it is not a 1.x
   repo whatever the files beside it look like. The detail names the version
   read.
-- `IDENTITY_UNRESOLVED` — a bare 1.0 identity could not be typed to exactly
-  one GitHub principal: nothing answers to it, both a user and an App do, it
-  is an organization, or GitHub could not be asked. Write the row as `~`,
+- `IDENTITY_UNRESOLVED` — GitHub answered and the answer did not settle it:
+  a bare 1.0 identity that nothing answers to, that both a user and an App
+  answer to, or that is an organization. Write the row as `~`,
   `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun.
   (A bare value that is already an App slug is found at `<slug>[bot]`, so
   the common 1.0 table types itself.)
+- `GH_UNREACHABLE` (above) — the lookup could not reach GitHub at all.
+  Typing an identity is a question only GitHub can answer, so migrate names
+  the network rather than the value.
 
 **any verb that reads a milestone's `## Requirements`**
 
