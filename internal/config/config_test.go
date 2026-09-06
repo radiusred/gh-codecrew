@@ -116,7 +116,7 @@ func TestLoadRefusesTheLegacyLayout(t *testing.T) {
 			os.WriteFile(filepath.Join(dir, "roles", "qa.md"), []byte("# Role: qa\n"), 0o644)
 		}, "roles/qa.md"},
 	} {
-		dir := t.TempDir()
+		dir := repoDir(t)
 		c.write(dir)
 		_, err := Load(dir)
 		var legacy *LegacyLayoutError
@@ -144,7 +144,7 @@ func TestLoadRefusesTheLegacyLayout(t *testing.T) {
 // caller is missing. A roles/ that holds none of the contracts — Ansible's,
 // say — is not the 1.x layout.
 func TestLoadWithoutEitherLayout(t *testing.T) {
-	dir := t.TempDir()
+	dir := repoDir(t)
 	os.MkdirAll(filepath.Join(dir, "roles", "webserver"), 0o755)
 	os.WriteFile(filepath.Join(dir, "roles", "webserver", "main.yml"), []byte("- name: x\n"), 0o644)
 	_, err := Load(dir)
@@ -155,6 +155,21 @@ func TestLoadWithoutEitherLayout(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), Pointer) {
 		t.Errorf("err = %v, want it to name %s", err, Pointer)
 	}
+}
+
+// repoDir is a temp directory that reads as a repository root. Load judges
+// the 1.x layout at the nearest ancestor holding a .git entry, so without
+// one of its own a temp directory inherits whatever sits above the
+// machine's temp root — a stray /tmp/.git made these tests pass or fail by
+// machine (checky's finding on PR #280). A directory is all gitRoot stats
+// for, so no git subprocess is needed.
+func repoDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }
 
 func writePointer(t *testing.T, dir, yml string) {
