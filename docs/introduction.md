@@ -76,6 +76,16 @@ verb would do, nothing written, the same refusal code. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
 
+**On `main` and not yet released:** protocol 2.0 — the `.codecrew/` layout
+this page describes throughout, the typed identity grammar, routing that
+refuses rather than degrading, and `gh codecrew migrate`, which moves a repo
+still on the 1.x layout. A 2.0 binary refuses a 1.x repo and names that verb;
+there is no dual read. The released v1.2.0 extension implements none of it.
+The release is [M14](https://github.com/radiusred/gh-codecrew/issues/269);
+what 2.0 broke and how to migrate is in
+[CHANGELOG.md](../CHANGELOG.md) and
+[the M13 record](milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md).
+
 **Who holds a seat.** Every role is always staffed, by exactly one of four
 kinds of principal, named by the routing table's type prefix: the operator
 themselves (`identity: ~`), a named human (`user:<login>`), a GitHub team

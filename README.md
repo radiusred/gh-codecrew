@@ -80,6 +80,16 @@ gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, 
                          #  with the lines to add to it printed)
 ```
 
+**On `main` and not yet released:** the `.codecrew/` layout the block above
+and the rest of this page describe is protocol 2.0, which no released version
+implements — the current release, v1.2.0, scaffolds `.codecrew.yml` and
+`roles/` at the repository root instead, and in a repo already on the 2.0
+layout it finds no pointer at all and stops. `gh codecrew migrate` moves a
+repo still on the 1.x layout. The release is
+[M14](https://github.com/radiusred/gh-codecrew/issues/269); what 2.0 broke is
+in [CHANGELOG.md](CHANGELOG.md) and
+[the M13 record](docs/milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md).
+
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
 are run by the coding agent rather than by the person driving it:
 [.codecrew/AGENTS.md](.codecrew/AGENTS.md) tells an agent dispatched into the

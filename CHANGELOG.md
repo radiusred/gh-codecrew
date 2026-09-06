@@ -6,6 +6,26 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M13 record
+- `docs/milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md`
+  — the milestone document for "Protocol 2.0: the .codecrew/ layout and what
+  rides with it": the layout move and the two fresh-context scans that decided
+  what rode with it, the operator's Decision adopting seven findings into
+  requirements and blessing four surfaces permanent, and the release struck out
+  to M14 (#269) seven minutes after the milestone opened, so nothing shipped
+  here. Then the eight requirements as delivered — `.codecrew/` everywhere and
+  `LAYOUT_LEGACY`, `gh codecrew migrate`, the entry point standing on its own,
+  typed identities, routing that fails closed, the tightened record grammar,
+  the 1.0 shims removed with the exit-code contract and the forty-two-code
+  table in SPEC, and the two captures that rode along — with the twelve change
+  requests behind them, the approval a rebase dismissed, the reviewer seat's
+  harness deviation, the two review bodies that reached GitHub as an
+  unexpanded file reference, and the three QA rounds in which M13-R6 was
+  verdicted `not satisfied` twice and remedied twice before it stood. The
+  ROADMAP row is added Done, and the boundary refresh names what is on `main`
+  and unreleased in both `README.md` and `docs/introduction.md`, while the
+  introduction's shipped-release claim stays v1.2.0. Docs only. (#284)
+
 ### An indented code block opens wherever it would not interrupt a paragraph
 - **A verdict quoted under a heading is content too.** `StripCode` opened an
   indented code block only after a blank line or at the start of the text,
