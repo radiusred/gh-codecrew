@@ -6,12 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-### The hub carries the `CLAUDE.md` its own `init` writes
+### The hub carries the root entry points its own `init` writes
 - Claude Code loads `CLAUDE.md` and never `AGENTS.md`, so the root pointer
   #257 added had nothing to reach it from in the harness this project is
   developed with: the hub had no `CLAUDE.md` at all. It now carries the
-  file byte for byte as `init` scaffolds it, and a test reads it back and
-  compares it against the constant, so the two cannot drift. (#299)
+  file byte for byte as `init` scaffolds it.
+- **Both root entry points are guarded.** A test reads the hub's own
+  `AGENTS.md` and `CLAUDE.md` back off disk and compares each against the
+  constant that writes it, so neither can drift from its scaffold in either
+  direction — and the table is checked against `rootEntryPoints` both ways,
+  so a third root file cannot arrive unguarded. (#299)
 
 ## [2.0.0] — 2026-09-06
 
