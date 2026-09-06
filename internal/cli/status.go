@@ -32,11 +32,40 @@ func statusReport(w io.Writer, c *ctx) error {
 	if err != nil {
 		return err
 	}
+	// No open milestone replaces the board, not the report: the two checks
+	// below are local and have nothing to do with milestone state, and the
+	// quiet period between milestones is exactly when an operator
+	// reconciles a roles/ fork against a new release (#253).
 	if len(milestones) == 0 {
 		fmt.Fprintf(w, "no open milestones in %s\n", c.hub)
-		return nil
+	} else if err := milestoneBoard(w, c, milestones); err != nil {
+		return err
 	}
 
+	// The repo's own branch hygiene setting: advisory, like routing — the
+	// verbs clean up regardless (task finish deletes the merged head,
+	// milestone close sweeps), so an unreadable setting is skipped.
+	if info, err := c.t.RepoInfo(c.current); err == nil && !info.DeleteBranchOnMerge {
+		fmt.Fprintf(w, "note: %s does not delete branches on merge (GitHub setting) — task finish and milestone close clean up task branches; enable it for other PRs\n", c.current)
+	}
+
+	// Contract drift: purely local — the embedded contracts ride the
+	// binary, so status can say when a hub's roles/ fork has diverged
+	// from the installed release without touching the network.
+	if drifted, err := contractDrift(c.cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
+		fmt.Fprintln(w)
+		for _, role := range drifted {
+			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — gh codecrew roles diff %s\n", role, version, role)
+		}
+	}
+
+	return nil
+}
+
+// milestoneBoard prints the board itself — every open milestone with its
+// tasks, then the gates raised across them. It is the part of status that
+// a hub between milestones has nothing to say for.
+func milestoneBoard(w io.Writer, c *ctx, milestones []tracker.Milestone) error {
 	var gated []gate
 	for _, m := range milestones {
 		// The milestone issue's own labels: task states never reflect a
@@ -90,23 +119,6 @@ func statusReport(w io.Writer, c *ctx) error {
 				mark = " (milestone)"
 			}
 			fmt.Fprintf(w, "  %s — %s%s\n", g.ref, g.title, mark)
-		}
-	}
-
-	// The repo's own branch hygiene setting: advisory, like routing — the
-	// verbs clean up regardless (task finish deletes the merged head,
-	// milestone close sweeps), so an unreadable setting is skipped.
-	if info, err := c.t.RepoInfo(c.current); err == nil && !info.DeleteBranchOnMerge {
-		fmt.Fprintf(w, "note: %s does not delete branches on merge (GitHub setting) — task finish and milestone close clean up task branches; enable it for other PRs\n", c.current)
-	}
-
-	// Contract drift: purely local — the embedded contracts ride the
-	// binary, so status can say when a hub's roles/ fork has diverged
-	// from the installed release without touching the network.
-	if drifted, err := contractDrift(c.cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
-		fmt.Fprintln(w)
-		for _, role := range drifted {
-			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — gh codecrew roles diff %s\n", role, version, role)
 		}
 	}
 
