@@ -34,24 +34,41 @@ func holder(roles map[string]config.Role, name string) (config.Identity, error) 
 // output is empty (SPEC §6; the implementer contract). Script-consumable,
 // and correct from a pointer-only spoke because resolution falls back to
 // the hub's routing table.
-func roleHolder(w io.Writer, args []string) error {
+// parseRoleArgs reads `<name> [--login]` in either order. The role name
+// leads in practice, and Go's flag package stops at the first non-flag
+// argument, so the name comes off the front the way task's ref does.
+func parseRoleArgs(args []string) (name string, login bool, err error) {
+	name, args = splitLeadingRef(args)
 	fs := flag.NewFlagSet("role", flag.ContinueOnError)
-	login := fs.Bool("login", false, "print the review-requestable handle, or nothing for an App or the operator")
+	fs.SetOutput(io.Discard)
+	flagLogin := fs.Bool("login", false, "print the review-requestable handle, or nothing for an App or the operator")
 	if err := fs.Parse(args); err != nil {
-		return err
+		return "", false, err
 	}
-	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: gh codecrew role <name> [--login]")
+	rest := fs.NArg()
+	if name == "" && rest == 1 {
+		name, rest = fs.Arg(0), 0
+	}
+	if name == "" || rest > 0 {
+		return "", false, fmt.Errorf("usage: gh codecrew role <name> [--login]")
+	}
+	return name, *flagLogin, nil
+}
+
+func roleHolder(w io.Writer, args []string) error {
+	name, login, err := parseRoleArgs(args)
+	if err != nil {
+		return err
 	}
 	c, err := load()
 	if err != nil {
 		return err
 	}
-	id, err := holder(c.rolesConfig().Roles, fs.Arg(0))
+	id, err := holder(c.rolesConfig().Roles, name)
 	if err != nil {
 		return err
 	}
-	printHolder(w, id, *login)
+	printHolder(w, id, login)
 	return nil
 }
 

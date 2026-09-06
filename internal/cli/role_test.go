@@ -90,3 +90,29 @@ func TestRoleHolderOutput(t *testing.T) {
 		}
 	}
 }
+
+// --login after the role name is the shape the contract types; Go's flag
+// package stops at the first positional, so it is handled explicitly.
+func TestParseRoleArgs(t *testing.T) {
+	cases := []struct {
+		args    []string
+		name    string
+		login   bool
+		wantErr bool
+	}{
+		{[]string{"reviewer"}, "reviewer", false, false},
+		{[]string{"reviewer", "--login"}, "reviewer", true, false},
+		{[]string{"--login", "reviewer"}, "reviewer", true, false},
+		{[]string{"reviewer", "-login"}, "reviewer", true, false},
+		{nil, "", false, true},
+		{[]string{"--login"}, "", false, true},
+		{[]string{"reviewer", "qa"}, "", false, true},
+		{[]string{"reviewer", "--nonesuch"}, "", false, true},
+	}
+	for _, c := range cases {
+		name, login, err := parseRoleArgs(c.args)
+		if (err != nil) != c.wantErr || name != c.name || login != c.login {
+			t.Errorf("parseRoleArgs(%q) = %q, %v, %v", c.args, name, login, err)
+		}
+	}
+}
