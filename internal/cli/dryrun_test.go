@@ -145,6 +145,48 @@ func TestPlanFinishRefusalStopsInOrder(t *testing.T) {
 	}
 }
 
+// A task nobody started. Until 2.0 StartedBy fell back to the first
+// assignee and, failing that, an empty owner waved the gate through — so
+// an assigned-but-never-started task could be finished by anyone. The
+// shim is gone (M13-R7): the gate refuses NOT_OWNER, and its detail names
+// task start rather than an owner that does not exist. --bypass still
+// overrides it, and its record says there was no start rather than naming
+// a phantom starter.
+func TestPlanFinishRefusesATaskNobodyStarted(t *testing.T) {
+	f := cleanFinish()
+	f.task.Assignees = []string{"davison"} // an assignee is not a start record
+	f.comments = []tracker.Comment{{Author: "davison", Body: "Plan looks right, picking this up."}}
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || run != nil {
+		t.Fatalf("err %v, run %v", err, run != nil)
+	}
+	var r refusal
+	if !errors.As(p.refusal, &r) || r.Code != "NOT_OWNER" {
+		t.Fatalf("refusal = %v", p.refusal)
+	}
+	for _, want := range []string{"nothing records a start on o/r#7", "gh codecrew task start 7"} {
+		if !strings.Contains(r.Detail, want) {
+			t.Errorf("detail %q lacks %q", r.Detail, want)
+		}
+	}
+	if strings.Contains(r.Detail, "@davison") {
+		t.Errorf("the refusal named the assignee as an owner: %q", r.Detail)
+	}
+
+	// The operator's override: recorded, and worded for a task with no
+	// start record.
+	f.viewer = "davison"
+	p, _, err = planFinish(finishCtx(f, crewRoles), f.task.Ref, false, true)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("bypass: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	p.print(&buf)
+	if want := "would comment on PR #9: **Owner bypass:** nothing records a start on o/r#7; finished by @davison"; !strings.Contains(buf.String(), want) {
+		t.Errorf("lacks %q:\n%s", want, buf.String())
+	}
+}
+
 // --bypass previewed by an operator on another seat's task: the owner
 // bypass comment is an action, the merge path follows GitHub's decision.
 func TestPlanFinishPreviewsBypassAndConfirmation(t *testing.T) {
