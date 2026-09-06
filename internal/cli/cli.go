@@ -26,7 +26,7 @@ verbs:
   task new --milestone N --title T           create a task issue, linked into the milestone
            [--repo owner/repo] [--goal G] [--requirements IDs]
   task start <ref>                           assign, verify plan, create linked branch
-  task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge
+  task finish <ref> [--operator-confirm]     enforce gates, then rebase-merge; deletes the head branch and tidies this clone
            [--bypass]                        (recorded admin merge when GitHub won't count the approval)
            [--dry-run]                       (print every gate and what it would do; write nothing)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
