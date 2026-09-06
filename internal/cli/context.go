@@ -30,12 +30,18 @@ type ctx struct {
 // loadConfig reads the pointer and checks its protocol version against the
 // one this binary implements: a different major refuses
 // (PROTOCOL_MISMATCH); "0.1" and a missing field proceed with a note on
-// stderr (SPEC §5). A routing row whose identity carries no kind refuses
-// IDENTITY_UNTYPED — config detects the condition, the CLI names it, as
-// with the protocol check.
+// stderr (SPEC §5). A repo still on the protocol 1.x layout refuses
+// LAYOUT_LEGACY — this binary does not read that layout, it names the verb
+// that moves it forward. A routing row whose identity carries no kind
+// refuses IDENTITY_UNTYPED — config detects each condition, the CLI names
+// it, as with the protocol check.
 func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 	cfg, err := config.Load(dir)
 	if err != nil {
+		var legacy *config.LegacyLayoutError
+		if errors.As(err, &legacy) {
+			return nil, refuseLegacyLayout(legacy.Dir, legacy.Found, "run gh codecrew migrate to move it to the "+protocolVersion+" layout")
+		}
 		var untyped *config.UntypedIdentityError
 		if errors.As(err, &untyped) {
 			return nil, refuse("IDENTITY_UNTYPED", "%v", untyped)
@@ -50,6 +56,17 @@ func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 		fmt.Fprintln(notes, note)
 	}
 	return cfg, nil
+}
+
+// refuseLegacyLayout is the one wording for a protocol 1.x repo met by a
+// 2.0 binary, raised from the pointer walk and from init alike: what was
+// found, what this binary speaks, and the verb that moves the repo — never
+// a hand edit, and never a read of the old layout. fix completes the
+// sentence, because the two callers are in different positions: one was
+// looking for a pointer, the other was about to write one.
+func refuseLegacyLayout(dir string, found []string, fix string) error {
+	return refuse("LAYOUT_LEGACY", "%s holds the protocol 1.x layout (%s); this codecrew implements protocol %s — %s (SPEC §3, §5)",
+		dir, strings.Join(found, ", "), protocolVersion, fix)
 }
 
 // ghFloor is the oldest gh the verbs work with: `gh pr checks --json`
@@ -78,7 +95,7 @@ func checkGH(notes io.Writer) error {
 }
 
 // loadPointer is the one path every verb that reads the working repo's
-// .codecrew.yml takes: the pointer, then the gh floor. status and roles
+// .codecrew/config.yml takes: the pointer, then the gh floor. status and roles
 // read the pointer without building a ctx, so the check lives here, not in
 // load() — the reviewer of #153 found it bypassed there.
 func loadPointer(notes io.Writer) (*config.Config, error) {
@@ -111,16 +128,16 @@ func load() (*ctx, error) {
 
 // rolesConfig returns the config whose routing table governs role
 // resolution. Spokes carry only the pointer config (SPEC §5), so when the
-// local file has no roles the hub's .codecrew.yml is fetched (memoized); an
-// unreadable hub config degrades to the local one rather than failing the
-// verb — routing is advisory.
+// local file has no roles the hub's .codecrew/config.yml is fetched
+// (memoized); an unreadable hub config degrades to the local one rather
+// than failing the verb — routing is advisory.
 func (c *ctx) rolesConfig() *config.Config {
 	if c.roles != nil {
 		return c.roles
 	}
 	c.roles = c.cfg
 	if len(c.cfg.Roles) == 0 {
-		if data, err := c.t.FileContent(c.hub, ".codecrew.yml"); err == nil {
+		if data, err := c.t.FileContent(c.hub, config.Pointer); err == nil {
 			if hubCfg, err := config.Parse(data); err == nil {
 				c.roles = hubCfg
 			}

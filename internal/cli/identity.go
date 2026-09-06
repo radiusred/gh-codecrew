@@ -261,9 +261,10 @@ func serveFlow(l net.Listener, manifestJSON []byte, target string, timeout time.
 	}
 }
 
-// routeRole rewrites role's identity to the App slug in the .codecrew.yml
-// at path, in the typed `app:<slug>` form the grammar requires (SPEC §5),
-// by line surgery so the file's comments and layout survive. Both table
+// routeRole rewrites role's identity to the App slug in the
+// .codecrew/config.yml at path, in the typed `app:<slug>` form the grammar
+// requires (SPEC §5), by line surgery so the file's comments and layout
+// survive. Both table
 // shapes are handled: the scaffold's inline `role: { identity: ~ }` and a
 // nested `identity:` line under the role key (whose trailing comment, if
 // any, is dropped — it described the old routing). The result must
@@ -393,7 +394,7 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	role, args := splitLeadingRef(args)
 	name := fs.String("name", "", "App name — a crew member (myorg-coder), not a role (required)")
 	owner := fs.String("owner", "", "account to own the App (default: the hub's owner)")
-	noRoute := fs.Bool("no-route", false, "print the routing step instead of writing it into the hub's .codecrew.yml")
+	noRoute := fs.Bool("no-route", false, "print the routing step instead of writing it into the hub's "+config.Pointer)
 	withWebhook := fs.Bool("with-webhook", false, "subscribe the App to protocol-traffic events (platform users)")
 	webhookURL := fs.String("webhook-url", "", "receiver for --with-webhook deliveries")
 	withApproval := fs.Bool("with-approval-permission", false, "reviewer only: grant contents: write so the App's approvals satisfy required-review rules")
@@ -488,13 +489,13 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	fmt.Fprintln(w, "     (installations are per-account — repeat for any other account it must reach)")
 	routed := false
 	if !*noRoute && hubDir != "" {
-		routed = routeRole(filepath.Join(hubDir, ".codecrew.yml"), role, creds.Slug) == nil
+		routed = routeRole(filepath.Join(hubDir, filepath.FromSlash(config.Pointer)), role, creds.Slug) == nil
 	}
 	typed := config.Identity{Kind: config.KindApp, Value: creds.Slug}
 	if routed {
-		fmt.Fprintf(w, "  2. routed %s → %s in .codecrew.yml — commit it via your next PR (--no-route to skip)\n", role, typed)
+		fmt.Fprintf(w, "  2. routed %s → %s in %s — commit it via your next PR (--no-route to skip)\n", role, typed, config.Pointer)
 	} else {
-		fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, typed)
+		fmt.Fprintf(w, "  2. route the role in the hub's %s: roles.%s.identity: %s\n", config.Pointer, role, typed)
 	}
 	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, ownerType, creds.Slug))
 	return nil

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/radiusred/gh-codecrew/internal/config"
 )
 
 func gitRepo(t *testing.T) string {
@@ -192,7 +194,7 @@ func TestCommitScaffoldFailureIsANote(t *testing.T) {
 	if !strings.Contains(out.String(), "note: could not commit the scaffold") || !strings.Contains(out.String(), "commit it by hand") {
 		t.Errorf("output:\n%s", out.String())
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".codecrew.yml")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(config.Pointer))); err != nil {
 		t.Error("scaffold lost")
 	}
 	if _, err := git(dir, "rev-parse", "--verify", "HEAD"); err == nil {
@@ -228,7 +230,7 @@ func TestCommitScaffoldDetachedHead(t *testing.T) {
 	if h, _ := git(dir, "rev-parse", "HEAD"); h != sha {
 		t.Error("a commit was made on a detached HEAD")
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".codecrew.yml")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(config.Pointer))); err != nil {
 		t.Error("scaffold lost")
 	}
 }
@@ -251,7 +253,7 @@ func TestInitRefusesASubdirectory(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "repository root") {
 		t.Errorf("err = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(nested, ".codecrew.yml")); err == nil {
+	if _, err := os.Stat(filepath.Join(nested, filepath.FromSlash(config.Pointer))); err == nil {
 		t.Error("init wrote into the subdirectory")
 	}
 }

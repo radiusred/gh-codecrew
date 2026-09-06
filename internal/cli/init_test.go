@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,8 +15,14 @@ import (
 )
 
 var fakeContracts = fstest.MapFS{
-	"roles/implementer.md": {Data: []byte("# Role: implementer\n")},
-	"roles/qa.md":          {Data: []byte("# Role: qa\n")},
+	config.RolesDir + "/implementer.md": {Data: []byte("# Role: implementer\n")},
+	config.RolesDir + "/qa.md":          {Data: []byte("# Role: qa\n")},
+}
+
+// rolesPath names a file in the scaffolded contracts directory the way the
+// scaffold's own keys do — host separators, under .codecrew/roles/.
+func rolesPath(name string) string {
+	return filepath.Join(filepath.FromSlash(config.RolesDir), name)
 }
 
 func TestScaffoldHub(t *testing.T) {
@@ -26,7 +34,7 @@ func TestScaffoldHub(t *testing.T) {
 	if len(skipped) != 0 {
 		t.Errorf("fresh dir skipped %v", skipped)
 	}
-	for _, want := range []string{".codecrew.yml", "ROADMAP.md", "AGENTS.md", "CLAUDE.md", filepath.Join("roles", "qa.md"), filepath.Join("roles", "qa"+localSuffix), filepath.Join("roles", "implementer"+localSuffix)} {
+	for _, want := range []string{filepath.FromSlash(config.Pointer), "ROADMAP.md", "AGENTS.md", "CLAUDE.md", rolesPath("qa.md"), rolesPath("qa" + localSuffix), rolesPath("implementer" + localSuffix)} {
 		if !slices.Contains(written, want) {
 			t.Errorf("missing %s from written %v", want, written)
 		}
@@ -34,7 +42,7 @@ func TestScaffoldHub(t *testing.T) {
 			t.Errorf("%s not on disk: %v", want, err)
 		}
 	}
-	cfg, err := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+	cfg, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,10 +59,10 @@ func TestScaffoldSpoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(written) != 1 || written[0] != ".codecrew.yml" {
+	if len(written) != 1 || written[0] != filepath.FromSlash(config.Pointer) {
 		t.Fatalf("spoke mode wrote %v, want only the pointer", written)
 	}
-	cfg, _ := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+	cfg, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)))
 	if !strings.Contains(string(cfg), "hub: org/hub") {
 		t.Errorf("pointer = %q", cfg)
 	}
@@ -131,7 +139,7 @@ func TestScaffoldsCarryProtocolVersion(t *testing.T) {
 		if _, _, err := scaffold(dir, hub, fakeContracts); err != nil {
 			t.Fatal(err)
 		}
-		data, _ := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+		data, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)))
 		if !strings.HasPrefix(string(data), "codecrew: \""+protocolVersion+"\"") {
 			t.Errorf("hub=%s: pointer starts %q, want codecrew: %q", hub, strings.SplitN(string(data), "\n", 2)[0], protocolVersion)
 		}
@@ -147,7 +155,7 @@ func TestScaffoldedRoutingTeachesTypedIdentities(t *testing.T) {
 	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,12 +296,12 @@ func TestScaffoldWritesBlankExtensions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, role := range []string{"implementer", "qa"} {
-		data, err := os.ReadFile(filepath.Join(dir, "roles", role+localSuffix))
+		data, err := os.ReadFile(filepath.Join(dir, rolesPath(role+localSuffix)))
 		if err != nil {
 			t.Fatalf("no blank extension for %s: %v", role, err)
 		}
 		s := string(data)
-		for _, want := range []string{"roles/" + role + ".local.md", "roles/" + role + ".md", "gh codecrew roles show " + role, U + "/docs/extensions.md", U + "/SPEC.md"} {
+		for _, want := range []string{extensionPath(role), contractPath(role), "gh codecrew roles show " + role, U + "/docs/extensions.md", U + "/SPEC.md"} {
 			if !strings.Contains(s, want) {
 				t.Errorf("%s extension lacks %q", role, want)
 			}
@@ -303,13 +311,13 @@ func TestScaffoldWritesBlankExtensions(t *testing.T) {
 		}
 	}
 	// Rerunning init keeps a written extension and reports it.
-	p := filepath.Join(dir, "roles", "qa"+localSuffix)
+	p := filepath.Join(dir, rolesPath("qa"+localSuffix))
 	os.WriteFile(p, []byte("- House style.\n"), 0o644)
 	written, skipped, err := scaffold(dir, "self", fakeContracts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(written) != 0 || !slices.Contains(skipped, filepath.Join("roles", "qa"+localSuffix)) {
+	if len(written) != 0 || !slices.Contains(skipped, rolesPath("qa"+localSuffix)) {
 		t.Errorf("rerun wrote %v, skipped %v", written, skipped)
 	}
 	if data, _ := os.ReadFile(p); string(data) != "- House style.\n" {
@@ -320,6 +328,52 @@ func TestScaffoldWritesBlankExtensions(t *testing.T) {
 	for _, w := range written {
 		if strings.HasSuffix(w, localSuffix) {
 			t.Errorf("spoke scaffold wrote an extension: %s", w)
+		}
+	}
+}
+
+// init scaffolds rather than loading a pointer, so it never meets the
+// pointer check — but a repo on the 1.x layout is still refused: a second
+// layout written beside the first is the one outcome nobody can migrate
+// from (M13-R1).
+func TestInitRefusesTheLegacyLayout(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		write func(dir string)
+		found string
+	}{
+		{"the 1.x pointer", func(dir string) {
+			os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644)
+		}, ".codecrew.yml"},
+		{"a 1.x roles/", func(dir string) {
+			os.MkdirAll(filepath.Join(dir, "roles"), 0o755)
+			os.WriteFile(filepath.Join(dir, "roles", "implementer.md"), []byte("# Role: implementer\n"), 0o644)
+		}, "roles/implementer.md"},
+	} {
+		dir := t.TempDir()
+		c.write(dir)
+		wd, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		err := initCmd(&out, nil)
+		os.Chdir(wd)
+
+		var r refusal
+		if !errors.As(err, &r) || r.Code != "LAYOUT_LEGACY" {
+			t.Fatalf("%s: err = %v, want refused[LAYOUT_LEGACY]", c.name, err)
+		}
+		for _, want := range []string{c.found, "gh codecrew migrate"} {
+			if !strings.Contains(r.Detail, want) {
+				t.Errorf("%s: detail %q does not name %q", c.name, r.Detail, want)
+			}
+		}
+		if out.Len() != 0 {
+			t.Errorf("%s: a refused init printed %q", c.name, out.String())
+		}
+		if _, err := os.Stat(filepath.Join(dir, ".codecrew")); err == nil {
+			t.Errorf("%s: a refused init wrote a second layout", c.name)
 		}
 	}
 }

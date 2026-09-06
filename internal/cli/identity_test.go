@@ -205,7 +205,7 @@ roles:
 
 func writeTemp(t *testing.T, content string) string {
 	t.Helper()
-	p := filepath.Join(t.TempDir(), ".codecrew.yml")
+	p := filepath.Join(t.TempDir(), "config.yml")
 	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}

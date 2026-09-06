@@ -1,5 +1,5 @@
-// Package config locates and parses the .codecrew.yml pointer file that
-// every repo in a CodeCrew project carries (SPEC.md §3, §5).
+// Package config locates and parses the .codecrew/config.yml pointer file
+// that every repo in a CodeCrew project carries (SPEC.md §3, §5).
 package config
 
 import (
@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -147,6 +148,63 @@ func (e *UntypedIdentityError) Error() string {
 	return fmt.Sprintf("roles.%s.identity: %q names no kind of principal — a routing identity is `~` (the operator), `app:<slug>` (a GitHub App), `user:<login>` (a named human) or `team:<org>/<slug>` (any member of the team); `gh codecrew migrate` rewrites a 1.0 table (SPEC §5)", e.Role, e.Value)
 }
 
+// Pointer and RolesDir are the protocol 2.0 layout, relative to a repo's
+// root: every CodeCrew-owned operational file lives under .codecrew/
+// (SPEC §3), so nothing the framework writes collides with a project's own
+// tree. Spelled once, here, and used everywhere the layout is named.
+const (
+	Pointer  = ".codecrew/config.yml"
+	RolesDir = ".codecrew/roles"
+)
+
+// legacyPointer and legacyRolesDir are the 1.x layout: recognised only to
+// refuse it. Nothing reads them.
+const (
+	legacyPointer  = ".codecrew.yml"
+	legacyRolesDir = "roles"
+)
+
+// contractNames are the five role contracts (SPEC §7). A 1.x roles/
+// directory is identified by holding at least one of them — a project's own
+// roles/ (Ansible's, say) is not the layout this binary refuses.
+var contractNames = []string{"implementer.md", "reviewer.md", "qa.md", "doc-synthesizer.md", "coordinator.md"}
+
+// LegacyLayoutError reports a protocol 1.x layout found where the 2.0
+// pointer should be. The CLI turns it into refused[LAYOUT_LEGACY]; there is
+// no dual-read — a 1.x repo is migrated (`gh codecrew migrate`), never
+// interpreted.
+type LegacyLayoutError struct {
+	Dir   string   // the directory the 1.x files sit in
+	Found []string // their paths, relative to Dir
+}
+
+func (e *LegacyLayoutError) Error() string {
+	return fmt.Sprintf("%s holds the protocol 1.x layout (%s) and no %s", e.Dir, strings.Join(e.Found, ", "), Pointer)
+}
+
+// LegacyLayout reports the 1.x files present directly in dir: the root
+// pointer, and each of the five contracts sitting in a root roles/. An
+// empty result means dir carries no 1.x layout. init calls it too — it
+// scaffolds rather than loading a pointer, so its refusal cannot come
+// through Load.
+func LegacyLayout(dir string) []string {
+	var found []string
+	if isFile(filepath.Join(dir, legacyPointer)) {
+		found = append(found, legacyPointer)
+	}
+	for _, name := range contractNames {
+		if isFile(filepath.Join(dir, legacyRolesDir, name)) {
+			found = append(found, legacyRolesDir+"/"+name)
+		}
+	}
+	return found
+}
+
+func isFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
 // Role is one entry of the advisory role routing table.
 type Role struct {
 	Harness  string   `yaml:"harness"`
@@ -154,7 +212,7 @@ type Role struct {
 	Identity Identity `yaml:"identity"`
 }
 
-// Config is the parsed .codecrew.yml.
+// Config is the parsed .codecrew/config.yml.
 type Config struct {
 	Codecrew string          `yaml:"codecrew"`
 	Hub      string          `yaml:"hub"`
@@ -164,14 +222,19 @@ type Config struct {
 	Dir string `yaml:"-"`
 }
 
-// Load walks upward from dir until it finds a .codecrew.yml and parses it.
+// Load walks upward from dir until it finds a .codecrew/config.yml and
+// parses it. Dir is set to the directory that *contains* .codecrew/ — the
+// repo root — so everything downstream keeps reading paths from the root.
+// A level that carries no 2.0 pointer but does carry the 1.x layout stops
+// the walk with a *LegacyLayoutError: this binary implements protocol 2.0
+// and does not read 1.x.
 func Load(dir string) (*Config, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
 	for {
-		path := filepath.Join(dir, ".codecrew.yml")
+		path := filepath.Join(dir, filepath.FromSlash(Pointer))
 		if data, err := os.ReadFile(path); err == nil {
 			cfg, err := Parse(data)
 			if err != nil {
@@ -180,9 +243,12 @@ func Load(dir string) (*Config, error) {
 			cfg.Dir = dir
 			return cfg, nil
 		}
+		if legacy := LegacyLayout(dir); len(legacy) > 0 {
+			return nil, &LegacyLayoutError{Dir: dir, Found: legacy}
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, fmt.Errorf("no .codecrew.yml found (not a CodeCrew repo?)")
+			return nil, fmt.Errorf("no %s found (not a CodeCrew repo?)", Pointer)
 		}
 		dir = parent
 	}
@@ -192,19 +258,27 @@ func Load(dir string) (*Config, error) {
 // binary implements (SPEC §5). Same major: compatible. "0.1" — the
 // pre-1.0 form of the same conventions — is compatible with a 1.x binary,
 // with a note to update. A missing field is compatible with a note. Any
-// other major is an error: the pointer speaks conventions this binary does
-// not.
+// other major is an error, and the two directions read differently: a
+// pointer ahead of the binary is met with "upgrade the extension", one
+// behind it with the migration that moves the repo forward. Neither ever
+// suggests editing the version field by hand.
 func Compatible(pointer, implemented string) (note string, err error) {
 	implMajor := major(implemented)
 	switch {
 	case pointer == "":
-		return fmt.Sprintf("note: .codecrew.yml has no codecrew: protocol version — assuming %s; add codecrew: \"%s\" (SPEC §5)", implemented, implemented), nil
+		return fmt.Sprintf("note: %s has no codecrew: protocol version — assuming %s; add codecrew: \"%s\" (SPEC §5)", Pointer, implemented, implemented), nil
 	case pointer == "0.1" && implMajor == "1":
-		return fmt.Sprintf("note: .codecrew.yml says protocol 0.1, the pre-1.0 form of 1.0 — update it to codecrew: \"%s\" (SPEC §5)", implemented), nil
+		return fmt.Sprintf("note: %s says protocol 0.1, the pre-1.0 form of 1.0 — update it to codecrew: \"%s\" (SPEC §5)", Pointer, implemented), nil
 	case major(pointer) == implMajor:
 		return "", nil
+	case olderMajor(pointer, implemented):
+		// The repo predates this binary's protocol. Never "update the
+		// pointer": the version field is a statement about the repo's
+		// layout and conventions, and editing it by hand would make the
+		// file lie. Migration is the act that makes it true.
+		return "", fmt.Errorf("%s speaks protocol %s, which predates the protocol this codecrew implements (%s) — move the repo forward with gh codecrew migrate (SPEC §5)", Pointer, pointer, implemented)
 	default:
-		return "", fmt.Errorf(".codecrew.yml speaks protocol %s; this codecrew implements protocol %s — upgrade the extension or the pointer (SPEC §5)", pointer, implemented)
+		return "", fmt.Errorf("%s speaks protocol %s; this codecrew implements protocol %s — upgrade the extension (SPEC §5)", Pointer, pointer, implemented)
 	}
 }
 
@@ -213,6 +287,16 @@ func major(v string) string {
 		return v[:i]
 	}
 	return v
+}
+
+// olderMajor reports whether pointer's major is numerically below
+// implemented's. An unparseable major is not treated as older: the
+// unknown-version case reads better as "upgrade the extension" than as an
+// instruction to migrate.
+func olderMajor(pointer, implemented string) bool {
+	p, err1 := strconv.Atoi(major(pointer))
+	i, err2 := strconv.Atoi(major(implemented))
+	return err1 == nil && err2 == nil && p < i
 }
 
 // Parse decodes pointer-file content.

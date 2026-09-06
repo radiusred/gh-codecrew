@@ -13,14 +13,20 @@ import (
 	"testing/fstest"
 
 	codecrew "github.com/radiusred/gh-codecrew"
+	"github.com/radiusred/gh-codecrew/internal/config"
 )
 
 func TestStampRoundTrip(t *testing.T) {
 	stamped := contractStamp("implementer.md") + "# Role: implementer\nBody.\n"
+	// The stamp is provenance: it must name where upstream keeps the
+	// contract, which under protocol 2.0 is .codecrew/roles/ (M13-R1).
+	if !strings.Contains(stamped, "upstream: radiusred/gh-codecrew "+contractPath("implementer")) {
+		t.Errorf("stamp = %q, want the upstream path %s", strings.SplitN(stamped, "\n", 2)[0], contractPath("implementer"))
+	}
 	if got := stripStamp(stamped); got != "# Role: implementer\nBody.\n" {
 		t.Errorf("stripStamp = %q", got)
 	}
-	// Unstamped content — the hub's own roles/ — passes through whole.
+	// Unstamped content — the hub's own .codecrew/roles/ — passes through whole.
 	if got := stripStamp("# Role: qa\n"); got != "# Role: qa\n" {
 		t.Errorf("unstamped content altered: %q", got)
 	}
@@ -39,7 +45,7 @@ func TestFreshScaffoldShowsNoDrift(t *testing.T) {
 		t.Errorf("fresh scaffold drifted: %v — the stamp must strip cleanly", drifted)
 	}
 	// The scaffolded file really is stamped.
-	data, _ := os.ReadFile(filepath.Join(dir, "roles", "implementer.md"))
+	data, _ := os.ReadFile(filepath.Join(dir, rolesPath("implementer.md")))
 	if !strings.HasPrefix(string(data), stampPrefix) {
 		t.Error("scaffolded contract missing the provenance stamp")
 	}
@@ -50,7 +56,7 @@ func TestLocalEditIsDrift(t *testing.T) {
 	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
 		t.Fatal(err)
 	}
-	p := filepath.Join(dir, "roles", "qa.md")
+	p := filepath.Join(dir, rolesPath("qa.md"))
 	data, _ := os.ReadFile(p)
 	os.WriteFile(p, append(data, []byte("\n- Local convention: tests ride along.\n")...), 0o644)
 	drifted, err := contractDrift(dir, fakeContracts)
@@ -63,12 +69,12 @@ func TestLocalEditIsDrift(t *testing.T) {
 }
 
 func TestContractDriftSkipsSpokes(t *testing.T) {
-	drifted, err := contractDrift(t.TempDir(), fakeContracts) // no roles/ dir at all
+	drifted, err := contractDrift(t.TempDir(), fakeContracts) // no .codecrew/roles/ at all
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(drifted) != 0 {
-		t.Errorf("spoke (no roles/) reported drift: %v", drifted)
+		t.Errorf("spoke (no .codecrew/roles/) reported drift: %v", drifted)
 	}
 }
 
@@ -93,7 +99,7 @@ func TestRolesDiffAndShow(t *testing.T) {
 		t.Errorf("clean diff output: %q", buf.String())
 	}
 	// Edit locally, expect the divergence and the reconciliation line.
-	p := filepath.Join(dir, "roles", "implementer.md")
+	p := filepath.Join(dir, rolesPath("implementer.md"))
 	data, _ := os.ReadFile(p)
 	os.WriteFile(p, append(data, []byte("local line\n")...), 0o644)
 	buf.Reset()
@@ -135,11 +141,11 @@ func TestComposeContractOrder(t *testing.T) {
 		t.Errorf("no extensions altered the contract: %q", got)
 	}
 	got := composeContract(base, []localPart{
-		{Source: "roles/qa.local.md (hub)", Body: "hub line"},
-		{Source: "roles/qa.local.md (spoke)", Body: "   \n"}, // blank: skipped
-		{Source: "roles/qa.local.md (spoke)", Body: "spoke line\n"},
+		{Source: ".codecrew/roles/qa.local.md (hub)", Body: "hub line"},
+		{Source: ".codecrew/roles/qa.local.md (spoke)", Body: "   \n"}, // blank: skipped
+		{Source: ".codecrew/roles/qa.local.md (spoke)", Body: "spoke line\n"},
 	})
-	want := "# Role: qa\nBody.\n\n<!-- extension: roles/qa.local.md (hub) -->\n\nhub line\n\n<!-- extension: roles/qa.local.md (spoke) -->\n\nspoke line\n"
+	want := "# Role: qa\nBody.\n\n<!-- extension: .codecrew/roles/qa.local.md (hub) -->\n\nhub line\n\n<!-- extension: .codecrew/roles/qa.local.md (spoke) -->\n\nspoke line\n"
 	if got != want {
 		t.Errorf("composeContract =\n%q\nwant\n%q", got, want)
 	}
@@ -150,7 +156,7 @@ func TestLocalExtensionIsNotDrift(t *testing.T) {
 	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(dir, "roles", "qa"+localSuffix), []byte("- House style.\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, rolesPath("qa"+localSuffix)), []byte("- House style.\n"), 0o644)
 	drifted, err := contractDrift(dir, fakeContracts)
 	if err != nil {
 		t.Fatal(err)
@@ -162,11 +168,11 @@ func TestLocalExtensionIsNotDrift(t *testing.T) {
 
 func TestComposedContractLayersHubThenSpoke(t *testing.T) {
 	hub, spoke := t.TempDir(), t.TempDir()
-	os.MkdirAll(filepath.Join(hub, "roles"), 0o755)
-	os.MkdirAll(filepath.Join(spoke, "roles"), 0o755)
-	os.WriteFile(filepath.Join(hub, "roles", "qa.md"), []byte("# Role: qa\n"), 0o644)
-	os.WriteFile(filepath.Join(hub, "roles", "qa"+localSuffix), []byte("hub voice\n"), 0o644)
-	os.WriteFile(filepath.Join(spoke, "roles", "qa"+localSuffix), []byte("spoke voice\n"), 0o644)
+	os.MkdirAll(filepath.Join(hub, filepath.FromSlash(config.RolesDir)), 0o755)
+	os.MkdirAll(filepath.Join(spoke, filepath.FromSlash(config.RolesDir)), 0o755)
+	os.WriteFile(filepath.Join(hub, rolesPath("qa.md")), []byte("# Role: qa\n"), 0o644)
+	os.WriteFile(filepath.Join(hub, rolesPath("qa"+localSuffix)), []byte("hub voice\n"), 0o644)
+	os.WriteFile(filepath.Join(spoke, rolesPath("qa"+localSuffix)), []byte("spoke voice\n"), 0o644)
 	// From a spoke the hub is read through a fetcher (the tracker in
 	// production); here it reads the hub directory.
 	hubRead := func(path string) ([]byte, error) { return os.ReadFile(filepath.Join(hub, path)) }
@@ -180,7 +186,7 @@ func TestComposedContractLayersHubThenSpoke(t *testing.T) {
 		t.Errorf("layering wrong (contract, hub, spoke):\n%s", got)
 	}
 	for _, marker := range []string{"(hub)", "(spoke)"} {
-		if !strings.Contains(got, "<!-- extension: roles/qa.local.md "+marker+" -->") {
+		if !strings.Contains(got, "<!-- extension: "+extensionPath("qa")+" "+marker+" -->") {
 			t.Errorf("missing %s marker:\n%s", marker, got)
 		}
 	}
@@ -203,7 +209,7 @@ func TestComposedContractLayersHubThenSpoke(t *testing.T) {
 // (checky's finding on PR #123). Bound to the real codecrew.Roles, not a
 // fixture — a fixture cannot contain what the glob would have caught.
 func TestEmbeddedRolesHoldNoExtensions(t *testing.T) {
-	entries, err := fs.ReadDir(codecrew.Roles, "roles")
+	entries, err := fs.ReadDir(codecrew.Roles, config.RolesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +227,7 @@ func TestEmbeddedRolesHoldNoExtensions(t *testing.T) {
 	}
 	// init writes a blank extension beside each contract (M7-R4) — and
 	// only the blank: this project's editorial voice never rides along.
-	data, err := os.ReadFile(filepath.Join(dir, "roles", "doc-synthesizer"+localSuffix))
+	data, err := os.ReadFile(filepath.Join(dir, rolesPath("doc-synthesizer"+localSuffix)))
 	if err != nil {
 		t.Fatalf("no blank extension scaffolded: %v", err)
 	}
@@ -234,21 +240,21 @@ func TestEmbeddedRolesHoldNoExtensions(t *testing.T) {
 // ignore it by name.
 func TestExtensionInEmbedIsSkipped(t *testing.T) {
 	polluted := fstest.MapFS{
-		"roles/qa.md":       {Data: []byte("# Role: qa\n")},
-		"roles/qa.local.md": {Data: []byte("house style\n")},
+		config.RolesDir + "/qa.md":       {Data: []byte("# Role: qa\n")},
+		config.RolesDir + "/qa.local.md": {Data: []byte("house style\n")},
 	}
 	dir := t.TempDir()
 	written, _, err := scaffold(dir, "self", polluted)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(written, filepath.Join("roles", "qa"+localSuffix)) {
+	if !slices.Contains(written, rolesPath("qa"+localSuffix)) {
 		t.Errorf("scaffold wrote %v — the blank qa extension is expected", written)
 	}
-	if data, _ := os.ReadFile(filepath.Join(dir, "roles", "qa"+localSuffix)); !strings.HasPrefix(string(data), "<!--") || strings.TrimSpace(withoutHTMLComments(string(data))) != "" {
+	if data, _ := os.ReadFile(filepath.Join(dir, rolesPath("qa"+localSuffix))); !strings.HasPrefix(string(data), "<!--") || strings.TrimSpace(withoutHTMLComments(string(data))) != "" {
 		t.Errorf("scaffold copied the embed's extension instead of writing the blank: %q", data)
 	}
-	os.WriteFile(filepath.Join(dir, "roles", "qa"+localSuffix), []byte("customised\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, rolesPath("qa"+localSuffix)), []byte("customised\n"), 0o644)
 	drifted, err := contractDrift(dir, polluted)
 	if err != nil {
 		t.Fatal(err)
@@ -274,10 +280,10 @@ func TestComposedContractSurfacesReadFailures(t *testing.T) {
 			}
 		}
 	}
-	if _, err := composedContract("qa", flaky("roles/qa.local.md"), ""); err == nil || !strings.Contains(err.Error(), "HTTP 500") {
+	if _, err := composedContract("qa", flaky(extensionPath("qa")), ""); err == nil || !strings.Contains(err.Error(), "HTTP 500") {
 		t.Errorf("extension fetch failure swallowed: %v", err)
 	}
-	if _, err := composedContract("qa", flaky("roles/qa.md"), ""); err == nil || !strings.Contains(err.Error(), "reading roles/qa.md") {
+	if _, err := composedContract("qa", flaky(contractPath("qa")), ""); err == nil || !strings.Contains(err.Error(), "reading "+contractPath("qa")) {
 		t.Errorf("contract fetch failure misreported: %v", err)
 	}
 	if got, err := composedContract("qa", flaky("none"), ""); err != nil || got != base {
@@ -288,7 +294,7 @@ func TestComposedContractSurfacesReadFailures(t *testing.T) {
 // The five contracts ship in the binary: the coordinator's is composed,
 // diffed and scaffolded like the crew's, with no special-casing.
 func TestCoordinatorContractIsEmbedded(t *testing.T) {
-	data, err := fs.ReadFile(codecrew.Roles, "roles/coordinator.md")
+	data, err := fs.ReadFile(codecrew.Roles, contractPath("coordinator"))
 	if err != nil {
 		t.Fatalf("coordinator contract not embedded: %v", err)
 	}
@@ -305,7 +311,7 @@ func TestCoordinatorContractIsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(written, "roles/coordinator.md") {
+	if !slices.Contains(written, rolesPath("coordinator.md")) {
 		t.Errorf("init did not scaffold the coordinator contract: %v", written)
 	}
 	var buf bytes.Buffer
@@ -322,7 +328,7 @@ func TestCoordinatorContractIsEmbedded(t *testing.T) {
 func TestCommentOnlyExtensionComposesToNothing(t *testing.T) {
 	base := "# Role: qa\nBody.\n"
 	blank := fmt.Sprintf(extensionScaffold, "qa")
-	if got := composeContract(base, []localPart{{Source: "roles/qa.local.md (hub)", Body: blank}}); got != base {
+	if got := composeContract(base, []localPart{{Source: extensionPath("qa") + " (hub)", Body: blank}}); got != base {
 		t.Errorf("comment-only extension altered the composition:\n%q", got)
 	}
 	two := "<!-- a -->\n<!-- b -->\n  \n"
@@ -330,11 +336,41 @@ func TestCommentOnlyExtensionComposesToNothing(t *testing.T) {
 		t.Errorf("two comments and whitespace composed: %q", got)
 	}
 	real := blank + "- House style.\n"
-	got := composeContract(base, []localPart{{Source: "roles/qa.local.md (hub)", Body: real}})
-	if !strings.Contains(got, "<!-- extension: roles/qa.local.md (hub) -->") || !strings.HasSuffix(got, real) {
+	got := composeContract(base, []localPart{{Source: extensionPath("qa") + " (hub)", Body: real}})
+	if !strings.Contains(got, "<!-- extension: "+extensionPath("qa")+" (hub) -->") || !strings.HasSuffix(got, real) {
 		t.Errorf("a real extension must compose whole, comments included:\n%q", got)
 	}
 	if withoutHTMLComments("a <!-- unterminated") != "a " {
 		t.Error("an unterminated comment runs to the end")
+	}
+}
+
+// There is no dual-read: a contract left at the 1.x path is invisible to
+// drift and to show, which read .codecrew/roles/ alone (M13-R1).
+func TestContractsAreReadOnlyFromTheNewPath(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(dir, "roles"), 0o755)
+	os.WriteFile(filepath.Join(dir, "roles", "qa.md"), []byte("# Role: qa\nan abandoned 1.x fork\n"), 0o644)
+	drifted, err := contractDrift(dir, fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(drifted) != 0 {
+		t.Errorf("drift = %v — a 1.x leftover must not be read as a contract", drifted)
+	}
+	var buf bytes.Buffer
+	diskRead := func(path string) ([]byte, error) { return os.ReadFile(filepath.Join(dir, filepath.FromSlash(path))) }
+	if err := rolesShow(&buf, "qa", false, fakeContracts, diskRead, ""); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "abandoned") {
+		t.Errorf("show read the 1.x path:\n%s", buf.String())
+	}
+	// And the file the hub really holds is the one it reads.
+	if !strings.Contains(buf.String(), "# Role: qa\n") {
+		t.Errorf("show did not read %s:\n%s", contractPath("qa"), buf.String())
 	}
 }

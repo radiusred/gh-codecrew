@@ -2,9 +2,104 @@ package config
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// Load walks upward for .codecrew/config.yml and reports Dir as the
+// directory that *contains* .codecrew/ — the repo root — so every caller's
+// cfg.Dir keeps meaning "root", whatever subdirectory the verb ran in.
+func TestLoadWalksUpwardToTheRoot(t *testing.T) {
+	root := t.TempDir()
+	writePointer(t, root, "codecrew: \"2.0\"\nhub: self\n")
+	deep := filepath.Join(root, "internal", "cli")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(deep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Hub != "self" || cfg.Codecrew != "2.0" {
+		t.Errorf("parsed %+v", cfg)
+	}
+	// t.TempDir can sit under a symlinked /tmp; compare resolved paths.
+	wantDir, _ := filepath.EvalSymlinks(root)
+	gotDir, _ := filepath.EvalSymlinks(cfg.Dir)
+	if gotDir != wantDir {
+		t.Errorf("Dir = %q, want the directory holding .codecrew/ (%q)", gotDir, wantDir)
+	}
+}
+
+// The 1.x layout is refused, never read: a root .codecrew.yml, or a root
+// roles/ holding one of the five contracts, stops the walk (M13-R1).
+func TestLoadRefusesTheLegacyLayout(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		write func(dir string)
+		found string
+	}{
+		{"the 1.x pointer", func(dir string) {
+			os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644)
+		}, ".codecrew.yml"},
+		{"a 1.x roles/ with no pointer", func(dir string) {
+			os.MkdirAll(filepath.Join(dir, "roles"), 0o755)
+			os.WriteFile(filepath.Join(dir, "roles", "qa.md"), []byte("# Role: qa\n"), 0o644)
+		}, "roles/qa.md"},
+	} {
+		dir := t.TempDir()
+		c.write(dir)
+		_, err := Load(dir)
+		var legacy *LegacyLayoutError
+		if !errors.As(err, &legacy) {
+			t.Fatalf("%s: err = %v, want a *LegacyLayoutError", c.name, err)
+		}
+		if len(legacy.Found) != 1 || legacy.Found[0] != c.found {
+			t.Errorf("%s: found %v, want [%s]", c.name, legacy.Found, c.found)
+		}
+		if !strings.Contains(legacy.Error(), c.found) {
+			t.Errorf("%s: message %q does not name the file", c.name, legacy.Error())
+		}
+	}
+	// A 2.0 pointer wins at its own level even with 1.x leftovers beside it:
+	// the walk refuses only where there is nothing current to read.
+	dir := t.TempDir()
+	writePointer(t, dir, "codecrew: \"2.0\"\nhub: self\n")
+	os.WriteFile(filepath.Join(dir, ".codecrew.yml"), []byte("codecrew: \"1.0\"\nhub: self\n"), 0o644)
+	if _, err := Load(dir); err != nil {
+		t.Errorf("a 2.0 pointer beside a 1.x leftover: %v", err)
+	}
+}
+
+// Neither layout: the plain not-a-CodeCrew-repo error, naming the file the
+// caller is missing. A roles/ that holds none of the contracts — Ansible's,
+// say — is not the 1.x layout.
+func TestLoadWithoutEitherLayout(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "roles", "webserver"), 0o755)
+	os.WriteFile(filepath.Join(dir, "roles", "webserver", "main.yml"), []byte("- name: x\n"), 0o644)
+	_, err := Load(dir)
+	var legacy *LegacyLayoutError
+	if errors.As(err, &legacy) {
+		t.Fatalf("an unrelated roles/ tree read as the 1.x layout: %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), Pointer) {
+		t.Errorf("err = %v, want it to name %s", err, Pointer)
+	}
+}
+
+func writePointer(t *testing.T, dir, yml string) {
+	t.Helper()
+	path := filepath.Join(dir, filepath.FromSlash(Pointer))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestParse(t *testing.T) {
 	cfg, err := Parse([]byte(`
@@ -272,5 +367,40 @@ roles:
 func TestParseRefusesNonScalarIdentity(t *testing.T) {
 	if _, err := Parse([]byte("hub: self\nroles:\n  qa: { identity: [a, b] }\n")); err == nil {
 		t.Error("a sequence identity parsed")
+	}
+}
+
+// The mismatch is not symmetric. A pointer ahead of the binary is the
+// operator's extension being old; one behind it is the repo being old, and
+// only the second names the migration. Neither ever tells anyone to edit
+// the version field, which would make the file lie about the repo.
+func TestCompatibleMismatchIsAsymmetric(t *testing.T) {
+	_, err := Compatible("3.0", "2.0")
+	if err == nil {
+		t.Fatal("a newer pointer was accepted")
+	}
+	if !strings.Contains(err.Error(), "upgrade the extension") {
+		t.Errorf("newer pointer: %v", err)
+	}
+	if strings.Contains(err.Error(), "migrate") {
+		t.Errorf("newer pointer offered a migration: %v", err)
+	}
+
+	_, err = Compatible("1.0", "2.0")
+	if err == nil {
+		t.Fatal("an older pointer was accepted")
+	}
+	for _, want := range []string{"predates", "gh codecrew migrate"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("older pointer: %v, want it to name %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "upgrade the extension") {
+		t.Errorf("older pointer told the operator to upgrade: %v", err)
+	}
+
+	// An unparseable major is not read as older: nothing suggests a migration.
+	if _, err := Compatible("weird", "2.0"); err == nil || strings.Contains(err.Error(), "migrate") {
+		t.Errorf("unparseable pointer: %v", err)
 	}
 }

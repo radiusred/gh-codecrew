@@ -35,7 +35,7 @@ func statusReport(w io.Writer, c *ctx) error {
 	// No open milestone replaces the board, not the report: the two checks
 	// below are local and have nothing to do with milestone state, and the
 	// quiet period between milestones is exactly when an operator
-	// reconciles a roles/ fork against a new release (#253).
+	// reconciles a .codecrew/roles/ fork against a new release (#253).
 	if len(milestones) == 0 {
 		fmt.Fprintf(w, "no open milestones in %s\n", c.hub)
 	} else if err := milestoneBoard(w, c, milestones); err != nil {
@@ -50,12 +50,12 @@ func statusReport(w io.Writer, c *ctx) error {
 	}
 
 	// Contract drift: purely local — the embedded contracts ride the
-	// binary, so status can say when a hub's roles/ fork has diverged
-	// from the installed release without touching the network.
+	// binary, so status can say when a hub's .codecrew/roles/ fork has
+	// diverged from the installed release without touching the network.
 	if drifted, err := contractDrift(c.cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
 		fmt.Fprintln(w)
 		for _, role := range drifted {
-			fmt.Fprintf(w, "contract drift: roles/%s.md differs from the embedded %s contract — gh codecrew roles diff %s\n", role, version, role)
+			fmt.Fprintf(w, "contract drift: %s differs from the embedded %s contract — gh codecrew roles diff %s\n", contractPath(role), version, role)
 		}
 	}
 
