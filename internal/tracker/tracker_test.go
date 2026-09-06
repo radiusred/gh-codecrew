@@ -770,3 +770,39 @@ p
 		t.Errorf("across headings: AdoptedRefs = %v, want %v", got, want)
 	}
 }
+
+// The label defaults are what a repository ends up wearing, so the table
+// is checked as data: the three names the protocol uses, each with a
+// colour GitHub's API will take, all three distinct, and a description
+// inside GitHub's 100-character limit.
+func TestProtocolLabels(t *testing.T) {
+	want := []string{LabelMilestone, LabelTask, LabelNeedsDecision}
+	if len(ProtocolLabels) != len(want) {
+		t.Fatalf("%d labels, want %d", len(ProtocolLabels), len(want))
+	}
+	seen := map[string]string{}
+	for i, l := range ProtocolLabels {
+		if l.Name != want[i] {
+			t.Errorf("label %d is %q, want %q", i, l.Name, want[i])
+		}
+		// Six hex digits, no leading "#": the form POST /labels takes.
+		if len(l.Color) != 6 || strings.TrimLeft(strings.ToLower(l.Color), "0123456789abcdef") != "" {
+			t.Errorf("%s: colour %q is not six hex digits", l.Name, l.Color)
+		}
+		if other, dup := seen[l.Color]; dup {
+			t.Errorf("%s and %s share the colour %s", other, l.Name, l.Color)
+		}
+		seen[l.Color] = l.Name
+		if l.Description == "" || len([]rune(l.Description)) > 100 {
+			t.Errorf("%s: description is %d characters: %q", l.Name, len([]rune(l.Description)), l.Description)
+		}
+	}
+	// The lookup one gate label is fetched through, matched as GitHub
+	// matches names.
+	if l, ok := ProtocolLabel("CC:Needs-Decision"); !ok || l.Name != LabelNeedsDecision {
+		t.Errorf("ProtocolLabel(recased) = %+v, %v", l, ok)
+	}
+	if _, ok := ProtocolLabel("bug"); ok {
+		t.Error("ProtocolLabel found a label the protocol does not define")
+	}
+}

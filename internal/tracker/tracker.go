@@ -66,6 +66,44 @@ const LabelNeedsDecision = "cc:needs-decision"
 // LabelMilestone marks a milestone tracking issue in the hub.
 const LabelMilestone = "cc:milestone"
 
+// LabelTask marks a task issue in the spoke whose code it changes.
+const LabelTask = "cc:task"
+
+// Label is one of the protocol's labels as a repository defines it: the
+// name the verbs match on, and the colour and description the protocol
+// gives it when it has to create it.
+type Label struct {
+	Name        string
+	Color       string // six hex digits, no leading "#", as the API takes it
+	Description string // GitHub's limit is 100 characters
+}
+
+// ProtocolLabels is the whole label set (SPEC §4), with the defaults init
+// creates a missing one with and checkpoint creates cc:needs-decision
+// with. The colours are sampled from the crew images — the mark's cyan for
+// the milestone, the test seat's lighter tone of the same hue for the task
+// that is part of one, and the review seat's pink for the gate, because a
+// gate is a question for a human and review is the seat whose job is
+// asking one (the Decision on #283). A label a repository already defines
+// is never restyled: the protocol cannot tell a colour the project chose
+// from one GitHub generated, so both are left alone.
+var ProtocolLabels = []Label{
+	{LabelMilestone, "01d4ff", "CodeCrew: the milestone tracking issue in the hub (SPEC §4)"},
+	{LabelTask, "92edff", "CodeCrew: a task issue, attached to its milestone as a sub-issue (SPEC §4)"},
+	{LabelNeedsDecision, "f0aeff", "CodeCrew: a human gate is raised — the protocol's verbs refuse until it is resolved (SPEC §8)"},
+}
+
+// ProtocolLabel returns the default for one label name, matched the way
+// GitHub compares label names.
+func ProtocolLabel(name string) (Label, bool) {
+	for _, l := range ProtocolLabels {
+		if strings.EqualFold(l.Name, name) {
+			return l, true
+		}
+	}
+	return Label{}, false
+}
+
 // Comment is one issue or PR comment.
 type Comment struct {
 	Author string
@@ -169,6 +207,11 @@ type Tracker interface {
 	Comment(ref IssueRef, body string) error
 	// AddLabel applies a label.
 	AddLabel(ref IssueRef, label string) error
+	// Labels returns the names of the labels repo defines — what exists to
+	// be applied, not what any issue carries.
+	Labels(repo string) ([]string, error)
+	// CreateLabel defines a label in repo with its colour and description.
+	CreateLabel(repo string, label Label) error
 	// Assign assigns a login to an issue.
 	Assign(ref IssueRef, login string) error
 	// Viewer returns the login the current credentials act as.

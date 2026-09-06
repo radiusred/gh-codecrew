@@ -287,6 +287,11 @@ func initCmd(w io.Writer, args []string) error {
 		// here, from exactly the files written, never pushed (#172).
 		commitScaffold(w, ".", written)
 	}
+	// Then the one thing the scaffold cannot write to disk: the protocol's
+	// labels, in the repository GitHub knows. After the commit, never
+	// before it — a GitHub failure here is a note, and the scaffold stands
+	// whatever it says (M14-R5, #267).
+	initLabels(w, ".")
 	if *hub == "self" {
 		fmt.Fprintf(w, "\nnext: every seat is routed to you (~ in %s); to hand one to a\n", config.Pointer)
 		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
