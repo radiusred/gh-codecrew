@@ -69,9 +69,12 @@ with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`
 prints a contract with its `.codecrew/roles/<role>.local.md` extensions
-appended; `task finish` deletes the branch it merged and `milestone close`
-sweeps what its tasks left, then the task branches earlier closes left
-behind; `milestone new`, `task finish` and `milestone
+appended; `task finish` deletes the branch it merged, tidies the clone it ran
+in and closes the backlog captures the task adopted with
+`task new --adopts`, and `milestone close` sweeps what its tasks left, then
+the task branches earlier closes left behind; `init`, `checkpoint` and
+`migrate` bring the `cc:` labels into existence with fixed colours and
+descriptions; `milestone new`, `task finish` and `milestone
 close` take `--dry-run` — every gate in order with its outcome, then what the
 verb would do, nothing written, the same refusal code. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
