@@ -410,6 +410,18 @@ func TestParseVerdictsPerComment(t *testing.T) {
 			[]Verdict{{ID: "M2-R1", State: "not satisfied", Author: "testy"}},
 		},
 		{
+			// testy's re-verdict probe on #254, verbatim (#288): an
+			// indented block needs no blank line after a heading.
+			"a verdict quoted in an indented block after a heading is content",
+			[]Comment{{Author: "testy", Body: "### Example\n    **M2-R1 — satisfied.** sample output, not a verdict\n\n**M2-R1 — not satisfied.** actual verdict"}},
+			[]Verdict{{ID: "M2-R1", State: "not satisfied", Author: "testy"}},
+		},
+		{
+			"a verdict quoted in an indented block after a thematic break is content",
+			[]Comment{{Author: "testy", Body: "---\n    **M2-R1 — satisfied.** sample output\n\n**M2-R1 — untestable.** no environment"}},
+			[]Verdict{{ID: "M2-R1", State: "untestable", Author: "testy"}},
+		},
+		{
 			"a verdict on an indented paragraph continuation is a verdict",
 			[]Comment{{Author: "testy", Body: "I reran the suite and\n    **M2-R1 — satisfied.** is the record"}},
 			[]Verdict{{ID: "M2-R1", State: "satisfied", Author: "testy"}},
@@ -487,7 +499,9 @@ func TestMismatchedRequirementIDs(t *testing.T) {
 // One code rule for the whole binary: the citation walk and the verdict
 // scan read a comment through StripCode, so what is content for one is
 // content for the other (M13-R6). All three Markdown code forms are
-// stripped — spans, fences and indented blocks (#285).
+// stripped — spans, fences and indented blocks (#285) — and an indented
+// block opens wherever it would not interrupt a paragraph, which is
+// CommonMark's only restriction on the form (#288).
 func TestStripCode(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"a span is blanked", "keep `drop` keep", "keep   keep"},
@@ -505,6 +519,23 @@ func TestStripCode(t *testing.T) {
 		{"an indented paragraph continuation is not a block", "The report says\n    **M13-R1 — satisfied.** and means it\n", "The report says\n    **M13-R1 — satisfied.** and means it\n"},
 		{"a list item's indented continuation is not a block", "- the probe ran and\n    **M13-R1 — satisfied.** is the record\n", "- the probe ran and\n    **M13-R1 — satisfied.** is the record\n"},
 		{"a fence indented four columns is code either way", "a\n\n    ```\n    drop\n    ```\nb\n", "a\n\nb\n"},
+		// The openers CommonMark allows with no blank line after them: a
+		// heading, a thematic break, a fence's close (#288). The heading
+		// shape is testy's probe on #285, comment 5560244463.
+		{"an indented block opens after an ATX heading", "### Example\n    **M13-R6 — satisfied.** sample output\n\nprose\n", "### Example\nprose\n"},
+		{"an indented block opens after a closed ATX heading", "# Title #\n    drop\nprose\n", "# Title #\nprose\n"},
+		{"an indented block opens after every heading level", "###### h6\n    drop\nprose\n", "###### h6\nprose\n"},
+		{"seven hashes are not a heading", "####### not a heading\n    kept\n", "####### not a heading\n    kept\n"},
+		{"a hash run with no space is not a heading", "#tag\n    kept\n", "#tag\n    kept\n"},
+		{"an indented block opens after a thematic break", "---\n    drop\nprose\n", "---\nprose\n"},
+		{"a thematic break of asterisks or underscores opens one too", "* * *\n    drop\n___\n    drop\nprose\n", "* * *\n___\nprose\n"},
+		{"a bullet is not a thematic break", "- item\n    kept\n", "- item\n    kept\n"},
+		{"two dashes are not a thematic break", "--\n    kept\n", "--\n    kept\n"},
+		{"mixed break characters are not a thematic break", "*-*\n    kept\n", "*-*\n    kept\n"},
+		{"an indented block opens after a fence closes", "```\ndrop\n```\n    drop\nprose\n", "prose\n"},
+		{"a heading indented four columns is code, not an opener", "a\n\n    ### in code\n    drop\nprose\n", "a\n\nprose\n"},
+		{"a heading lazily continuing a paragraph is not an opener", "prose\n    ### not a heading\n    kept\n", "prose\n    ### not a heading\n    kept\n"},
+		{"a prose line still prevents opening", "The report says\n    **M13-R6 — satisfied.** and means it\n", "The report says\n    **M13-R6 — satisfied.** and means it\n"},
 	}
 	for _, c := range cases {
 		if got := StripCode(c.in); got != c.want {

@@ -143,7 +143,8 @@ func TestExtractURLsStopsWhereAURLCannotContinue(t *testing.T) {
 
 // A URL inside code is content, not a citation (#222): probe targets that
 // are NXDOMAIN by design, command transcripts and error strings live in
-// inline spans, fenced blocks and four-space indented blocks (#285). A
+// inline spans, fenced blocks and four-space indented blocks (#285), the
+// last opening wherever it would not interrupt a paragraph (#288). A
 // Markdown link outside code, and a bare URL in prose, remain citations.
 // Spans follow CommonMark: a run of n backticks closes only on a run of
 // exactly n; an unclosed run is literal.
@@ -169,6 +170,8 @@ func TestExtractURLsSkipsCode(t *testing.T) {
 		{"indented block", "before https://github.com/o/r/pull/9\n\n    $ curl -sI https://hooks.example.test/\n    curl: (6) Could not resolve host\n\nafter https://example.com/after", []string{"https://github.com/o/r/pull/9", "https://example.com/after"}},
 		{"tab-indented block", "before https://github.com/o/r/pull/9\n\n\t$ curl -sI https://hooks.example.test/\n\nafter https://example.com/after", []string{"https://github.com/o/r/pull/9", "https://example.com/after"}},
 		{"indented continuation is prose, not a block", "the transcript is at\n    https://example.com/continued and holds", []string{"https://example.com/continued"}},
+		{"indented block after a heading", "### Probe\n    $ curl -sI https://hooks.example.test/\n\ntracked in https://github.com/o/r/issues/64", []string{"https://github.com/o/r/issues/64"}},
+		{"indented block after a thematic break", "---\n    $ curl -sI https://hooks.example.test/\n\nsee https://github.com/o/r/issues/64", []string{"https://github.com/o/r/issues/64"}},
 	} {
 		got := extractURLs(tc.text)
 		if len(got) != len(tc.want) {

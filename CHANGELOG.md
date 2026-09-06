@@ -6,6 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### An indented code block opens wherever it would not interrupt a paragraph
+- **A verdict quoted under a heading is content too.** `StripCode` opened an
+  indented code block only after a blank line or at the start of the text,
+  so `### Example` followed straight by a four-space verdict line still
+  counted that line as a verdict and hid the real one below it. CommonMark
+  restricts the form in one way only — indented code may not interrupt a
+  paragraph — so a block now opens after a blank line, the start of the
+  text, an ATX heading, a thematic break, or any line of a fenced block,
+  and a prose line still prevents one, which keeps an indented paragraph
+  continuation and a list item's continuation as prose. Headings and
+  thematic breaks count as openers only below four columns of indentation,
+  where CommonMark still reads them as such (#288).
+
 ### Indented code blocks are code, for verdicts and for citations
 - **A verdict quoted in a four-space indented block no longer counts as a
   verdict.** `StripCode` blanked Markdown's inline spans and fenced blocks
