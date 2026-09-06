@@ -6,6 +6,42 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `gh codecrew migrate`: the one-shot move to the 2.0 layout
+- The verb that moves a protocol 1.0 repo — hub or spoke — to the 2.0
+  layout, once, in one local commit it never pushes. It reads no pointer,
+  so it is exempt from the protocol check the way `init` is: the repos it
+  exists for are exactly the ones every other verb now refuses. It runs at
+  the repository root, and `--dry-run` prints every step and writes
+  nothing. The steps an adopter runs are under *Protocol 2.0: the
+  .codecrew/ layout* below.
+- **What it moves.** `.codecrew.yml` to `.codecrew/config.yml`, and out of
+  a root `roles/` only the ten names CodeCrew owns — the five role
+  contracts and their `<role>.local.md` extensions — into
+  `.codecrew/roles/`, by `git mv`, so the history follows the files; the
+  emptied directory is removed. A root `roles/` is read at all only when it
+  already holds one of the ten, so a project's own `roles/` (Ansible's, the
+  collision the layout move exists to end) is never touched. Once the
+  directory is CodeCrew's, an entry outside the ten refuses
+  `refused[FOREIGN_ROLES_DIR]` naming it: migrate does not guess which
+  files it owns.
+- **What it rewrites.** The pointer, in place: `codecrew: "2.0"`, a
+  `coordinator` row when the table declares none, and every identity typed
+  per the grammar above. A bare 1.0 value is typed by asking GitHub what it
+  is — `users/<login>`, then `users/<login>[bot]`, since a 1.0 table wrote
+  an App as its bare slug while the App's account carries the suffix — and
+  a value that answers to nothing, to both a user and an App, or to an
+  organization refuses `refused[IDENTITY_UNRESOLVED]` rather than encoding
+  a guess in the routing table. The rewrite keeps the file's comments,
+  blank lines and key order: the pointer is a file its project maintains.
+- **What it refuses.** `BOTH_LAYOUTS` when a 2.0 pointer and the 1.x layout
+  both exist, naming both; `MIGRATION_UNSUPPORTED` when the pointer's
+  protocol major is not 1, naming the version; and the two above. Every
+  refusal is raised before anything is written. A repo already on 2.0 says
+  so, writes nothing and exits 0, so a rerun is safe.
+- SPEC §6 carries the verb's row and §10 names it; `docs/introduction.md`
+  gains the four codes (thirty-eight → forty-two, with the README's count).
+  (#256)
+
 ### Routing fails closed
 - **Breaking (protocol 2.0).** A spoke that cannot read its hub's
   `.codecrew/config.yml` now refuses `refused[HUB_UNREADABLE]`, naming the hub
@@ -108,6 +144,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   `AGENTS.md`, the README and the docs; the introduction's refusal-code list
   gains `LAYOUT_LEGACY` (thirty-four → thirty-five, with the README's count).
   (#255)
+- **Moving a repo forward.** Upgrade the extension, then migrate each repo —
+  hub first, since its `.codecrew/roles/` is what spokes read:
+
+  ```
+  gh extension upgrade codecrew     # or: gh extension install radiusred/gh-codecrew
+  gh codecrew migrate --dry-run     # every step, nothing written
+  gh codecrew migrate               # the move, in one local commit
+  git show                          # read it: the pointer's rewrite is in there
+  git push -u origin HEAD           # migrate never pushes; open the PR yourself
+  ```
+
+  `migrate` is described in its own entry above. (#256)
 
 ### Typed identities in the routing table
 - A routing row's `identity` now names the kind of GitHub principal that
