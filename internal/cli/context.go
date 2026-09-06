@@ -172,7 +172,21 @@ func (c *ctx) resolveRoles(notes io.Writer) error {
 		if ghErr := unreachable(err); ghErr != nil {
 			return ghErr
 		}
-		return refuse("HUB_UNREADABLE", "the hub %s's %s could not be read (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved; a hub still on the protocol 1.x layout has no such file and is moved with gh codecrew migrate (SPEC §5, §6)", c.hub, config.Pointer, err)
+		// The shapes have different remediations, and handing over the
+		// wrong one sends an operator to a writing verb against a hub
+		// that is perfectly healthy (checky's finding on PR #279). A 403
+		// is access this seat does not have, named the way
+		// NO_CHECKS_PERMISSION names a permission. A 404 has three causes
+		// and the detail owns all of them, because GitHub answers 404 —
+		// not 403 — for a repo a token cannot see at all, so "absent"
+		// alone would send the same operator to `migrate` by the other
+		// door (probed: a private hub this App is not installed on
+		// answers 404).
+		fix := fmt.Sprintf("%s answered but would not hand this seat the file — check the identity this run mints can read it (a private hub needs the App installed there, with contents: read)", c.hub)
+		if strings.Contains(err.Error(), "HTTP 404") {
+			fix = fmt.Sprintf("%s has no such file that this seat can see, which is three conditions: a hub still on the protocol 1.x layout, moved forward with gh codecrew migrate; a hub: line naming the wrong repo; or a private hub this seat's identity is not installed on, since GitHub answers 404 rather than 403 for a repo a token cannot see", c.hub)
+		}
+		return refuse("HUB_UNREADABLE", "the hub %s's %s could not be read (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved; %s (SPEC §5, §6)", c.hub, config.Pointer, err, fix)
 	}
 	hubCfg, err := config.Parse(data)
 	if err != nil {

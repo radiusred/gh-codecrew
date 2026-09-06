@@ -262,18 +262,29 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 		err     error
 		code    string
 		details []string
+		absent  []string // clauses this shape must not be handed
 	}{
 		{
+			// GitHub answers 404, not 403, for a repo a token cannot see
+			// at all, so this detail owns all three of its causes: the
+			// unmigrated hub, the wrong repo named, and the private hub
+			// this seat was never installed on.
 			name:    "the hub's pointer 404s (an unmigrated hub, mid-window)",
 			err:     errors.New("gh api: gh: Not Found (HTTP 404)"),
 			code:    "HUB_UNREADABLE",
-			details: []string{"acme/hub", config.Pointer, "404", "gh codecrew migrate"},
+			details: []string{"acme/hub", config.Pointer, "404", "gh codecrew migrate", "naming the wrong repo", "not installed on"},
 		},
 		{
+			// A 403 is a healthy hub this seat may not read — most
+			// likely an App never installed on it. Handing that operator
+			// `migrate`, a writing verb against a repo that is fine, is
+			// the misdirection this requirement exists to remove
+			// (checky's finding on PR #279).
 			name:    "the spoke cannot see the hub",
 			err:     errors.New("gh api: gh: Resource not accessible by integration (HTTP 403)"),
 			code:    "HUB_UNREADABLE",
-			details: []string{"acme/hub", "403"},
+			details: []string{"acme/hub", "403", "contents: read"},
+			absent:  []string{"gh codecrew migrate", "1.x"},
 		},
 		{
 			name:    "the hub's pointer does not parse",
@@ -329,6 +340,11 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 			for _, want := range c.details {
 				if !strings.Contains(r.Detail, want) {
 					t.Errorf("detail %q does not name %q", r.Detail, want)
+				}
+			}
+			for _, unwanted := range c.absent {
+				if strings.Contains(r.Detail, unwanted) {
+					t.Errorf("detail %q hands this shape %q, which is not its remedy", r.Detail, unwanted)
 				}
 			}
 			// Nothing was adopted: a refused resolution leaves no table
@@ -470,8 +486,18 @@ func TestLoadConfigRefusesASpokeRoutingTable(t *testing.T) {
 		if got != c.refused {
 			t.Errorf("%q: err = %v, want SPOKE_ROUTING %v", c.yml, err, c.refused)
 		}
-		if c.refused && !strings.Contains(r.Detail, "acme/hub") {
+		if !c.refused {
+			continue
+		}
+		if !strings.Contains(r.Detail, "acme/hub") {
 			t.Errorf("%q: detail does not name the hub that carries the table: %s", c.yml, r.Detail)
+		}
+		// A repo that names itself in hub: gets the same refusal, and
+		// "delete the table here and declare it here" is no instruction
+		// at all — the detail must offer hub: self (checky's finding on
+		// PR #279).
+		if !strings.Contains(r.Detail, "hub: self") {
+			t.Errorf("%q: detail offers a repo that is its own hub no way out: %s", c.yml, r.Detail)
 		}
 	}
 }

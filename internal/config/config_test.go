@@ -496,8 +496,12 @@ func TestParseRefusesASpokeRoutingTable(t *testing.T) {
 			continue
 		}
 		// The detail must name the hub that does carry the table, the row
-		// found, and the file — an agent acts on it without reading code.
-		for _, want := range []string{"acme/hub", "reviewer", Pointer} {
+		// found, the file — an agent acts on it without reading code —
+		// and, because Parse cannot know which repo it is running in, the
+		// way out for a repo that named *itself* in hub: rather than
+		// saying self (checky's finding on PR #279: "delete the block
+		// here and declare it here" is no instruction at all).
+		for _, want := range []string{"acme/hub", "reviewer", Pointer, "hub: self"} {
 			if !strings.Contains(spoke.Error(), want) {
 				t.Errorf("%s: detail %q does not name %q", c.name, spoke, want)
 			}
