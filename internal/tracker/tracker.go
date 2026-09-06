@@ -351,6 +351,16 @@ type Record struct {
 // human gate, so it is captured as a Decision record.
 var recordLabel = regexp.MustCompile(`^\*\*(Decision|Deviation|Gate resolved)(\s*\([^\n]*?\))?:\*\*`)
 
+// gateRaisedLabel matches a raised gate at the start of a paragraph, and
+// gateResolvedLabel its resolution — the same placement rule the record
+// labels obey, and the same optional parenthetical qualifier (SPEC §4).
+// **Gate raised:** is not a record: it states a question, and only its
+// **Gate resolved:** answer is gathered as a Decision.
+var (
+	gateRaisedLabel   = regexp.MustCompile(`^\*\*Gate raised(\s*\([^\n]*?\))?:\*\*`)
+	gateResolvedLabel = regexp.MustCompile(`^\*\*Gate resolved(\s*\([^\n]*?\))?:\*\*`)
+)
+
 // continuationLabel opens a paragraph that belongs to the record before it.
 var continuationLabel = regexp.MustCompile(`^\*\*(Why|Trade-off|Rejected):\*\*`)
 
@@ -371,12 +381,7 @@ func ExtractRecords(source IssueRef, comments []Comment) []Record {
 	var records []Record
 	for _, c := range comments {
 		var open *Record
-		body := strings.ReplaceAll(c.Body, "\r\n", "\n") // web-UI comments arrive CRLF
-		for _, para := range paragraphBreak.Split(strings.TrimSpace(body), -1) {
-			para = strings.TrimSpace(para)
-			if para == "" {
-				continue
-			}
+		for _, para := range paragraphs(c.Body) {
 			if m := recordLabel.FindStringSubmatch(para); m != nil {
 				kind := m[1]
 				if kind == "Gate resolved" {
@@ -422,6 +427,25 @@ func RequirementIDs(body string) []string {
 	return ids
 }
 
+// MismatchedRequirementIDs returns the IDs under a milestone body's
+// Requirements section whose milestone number is not n, in the order they
+// appear — SPEC §4's grammar made enforceable: a requirement ID is
+// M<milestone>-R<k>, and M13's requirements are M13-R1, M13-R2, … The
+// callers refuse REQUIREMENT_ID_MISMATCH on a non-empty result (status
+// prints it instead: it reports rather than gates). An ID whose number
+// matches by a prefix only — M1-R1 under M13 — is a mismatch: the number
+// is compared as a number, not as text.
+func MismatchedRequirementIDs(body string, n int) []string {
+	var bad []string
+	for _, id := range RequirementIDs(body) {
+		num, _, _ := strings.Cut(strings.TrimPrefix(id, "M"), "-")
+		if got, err := strconv.Atoi(num); err != nil || got != n {
+			bad = append(bad, id)
+		}
+	}
+	return bad
+}
+
 // Verdict is one QA requirement verdict found in a comment (roles/qa.md).
 type Verdict struct {
 	ID     string
@@ -429,13 +453,26 @@ type Verdict struct {
 	Author string
 }
 
-// ParseVerdicts scans comments in order for verdict lines. Callers filter
-// by author role and take the last entry per ID: a later verdict
-// supersedes an earlier one.
+// ParseVerdicts scans comments in order for verdict lines, at most one per
+// requirement ID per comment — the first match in the comment — with code
+// spans and fenced blocks stripped first (StripCode), so a verdict quoted
+// back inside code is content, not a verdict, exactly as a URL in code is
+// not a citation.
+//
+// Supersession is therefore per comment: callers filter by author role and
+// take the last entry per ID, which now means "the latest comment carrying
+// a verdict for that ID wins, and within it the first match counts"
+// (SPEC §6, M13-R6). Until protocol 2.0 the last match anywhere won, so a
+// QA comment that restated an earlier verdict below its own superseded it.
 func ParseVerdicts(comments []Comment) []Verdict {
 	var verdicts []Verdict
 	for _, c := range comments {
-		for _, m := range verdictLine.FindAllStringSubmatch(c.Body, -1) {
+		seen := map[string]bool{}
+		for _, m := range verdictLine.FindAllStringSubmatch(StripCode(c.Body), -1) {
+			if seen[m[1]] {
+				continue
+			}
+			seen[m[1]] = true
 			verdicts = append(verdicts, Verdict{
 				ID:     m[1],
 				State:  strings.ToLower(m[2]),
@@ -446,27 +483,51 @@ func ParseVerdicts(comments []Comment) []Verdict {
 	return verdicts
 }
 
-// UnresolvedGates returns the **Gate raised:** comments that have no later
-// resolution record (a comment opening **Gate resolved:** or **Decision:**,
-// qualified or bare). A single trailing
-// resolution covers every gate raised before it — a human may answer several
-// questions in one comment; the label removal remains the hard block.
+// paragraphs splits a comment body the way ExtractRecords reads it: on a
+// blank line, CRLF normalised first (web-UI comments arrive CRLF), each
+// paragraph trimmed and the empty ones dropped.
+func paragraphs(body string) []string {
+	var out []string
+	for _, para := range paragraphBreak.Split(strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n")), -1) {
+		if para = strings.TrimSpace(para); para != "" {
+			out = append(out, para)
+		}
+	}
+	return out
+}
+
+// UnresolvedGates returns, in the order they were raised, the comments
+// carrying a **Gate raised:** paragraph that no later **Gate resolved:**
+// answers — one entry per gate, so a comment raising two gates that are
+// never answered appears twice.
+//
+// Two rules, both tightened in protocol 2.0 (M13-R6):
+//
+//   - Placement. A gate is recognised per paragraph, anywhere in a
+//     comment, exactly as the record labels are (SPEC §4). Until 2.0 only
+//     a comment whose body opened with the label counted, so a gate raised
+//     as a comment's second paragraph did not exist to task finish.
+//   - Resolution. Only a **Gate resolved:** paragraph resolves, and it
+//     resolves every gate still open before it — a human may answer
+//     several questions in one comment — never the gates raised after it.
+//     A bare **Decision:** resolves nothing, which is SPEC §8's wording;
+//     until 2.0 any Decision anywhere later cleared every gate at once.
+//
+// The cc:needs-decision label remains the hard block; this is the record
+// behind it.
 func UnresolvedGates(comments []Comment) []Comment {
-	var unresolved []Comment
-	lastResolution := -1
-	for i := len(comments) - 1; i >= 0; i-- {
-		trimmed := strings.TrimSpace(comments[i].Body)
-		if m := recordLabel.FindStringSubmatch(trimmed); m != nil && m[1] != "Deviation" {
-			lastResolution = i
-			break
+	var open []Comment
+	for _, c := range comments {
+		for _, para := range paragraphs(c.Body) {
+			switch {
+			case gateRaisedLabel.MatchString(para):
+				open = append(open, c)
+			case gateResolvedLabel.MatchString(para):
+				open = nil
+			}
 		}
 	}
-	for i, c := range comments {
-		if strings.HasPrefix(strings.TrimSpace(c.Body), "**Gate raised:**") && i > lastResolution {
-			unresolved = append(unresolved, c)
-		}
-	}
-	return unresolved
+	return open
 }
 
 // StartRecord is the exact comment task start posts for every start; a
