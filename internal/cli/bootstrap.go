@@ -105,7 +105,7 @@ func commitScaffold(w io.Writer, dir string, written []string) {
 	if len(written) == 0 {
 		return
 	}
-	byHand := fmt.Sprintf("git add %s && git commit -m %q -- %s", strings.Join(written, " "), scaffoldSubject, strings.Join(written, " "))
+	byHand := commitByHand(scaffoldSubject, written)
 	branch, err := git(dir, "symbolic-ref", "--short", "HEAD")
 	born := true
 	if _, e := git(dir, "rev-parse", "--verify", "--quiet", "HEAD"); e != nil {
@@ -128,15 +128,10 @@ func commitScaffold(w io.Writer, dir string, written []string) {
 		onBootstrap, fromDefault = true, fd
 		branch = bootstrapBranch
 	}
-	if _, err := git(dir, append([]string{"add", "--"}, written...)...); err != nil {
-		fmt.Fprintf(w, "note: could not stage the scaffold (%v) — commit it by hand: %s\n", err, byHand)
+	sha, ok := pathspecCommit(w, dir, scaffoldSubject, "the scaffold", written, written)
+	if !ok {
 		return
 	}
-	if _, err := git(dir, append([]string{"commit", "--only", "--quiet", "-m", scaffoldSubject, "--"}, written...)...); err != nil {
-		fmt.Fprintf(w, "note: could not commit the scaffold (%v) — commit it by hand: %s\n", err, byHand)
-		return
-	}
-	sha, _ := git(dir, "rev-parse", "--short", "HEAD")
 	fmt.Fprintf(w, "committed %s on %s: %q — the scaffold only; your other changes are as they were\n", sha, branch, scaffoldSubject)
 	switch {
 	case onBootstrap && !known:
@@ -148,4 +143,35 @@ func commitScaffold(w io.Writer, dir string, written []string) {
 	default:
 		fmt.Fprintf(w, "git push -u origin %s when ready; init never pushes\n", branch)
 	}
+}
+
+// commitByHand is the command that makes the same commit the verb would
+// have — printed in every note that says the commit could not be made, so
+// the operator is never left with written files and no way to land them.
+func commitByHand(subject string, paths []string) string {
+	return fmt.Sprintf("git add %s && git commit -m %q -- %s", strings.Join(paths, " "), subject, strings.Join(paths, " "))
+}
+
+// pathspecCommit stages and commits exactly paths on the current branch —
+// `git add --` then `git commit --only --`, never `-A` and never a stash —
+// so every other staged and unstaged change is left as it was. It is the
+// machinery both one-shot verbs commit through: init's scaffold and
+// migrate's layout move. noun names what is being committed in the notes a
+// failure prints; stage is what needs adding (a scaffold's whole pathspec,
+// or only the destinations of a set of renames git already knows), and
+// paths is the pathspec the commit is limited to.
+func pathspecCommit(w io.Writer, dir, subject, noun string, stage, paths []string) (sha string, ok bool) {
+	byHand := commitByHand(subject, paths)
+	if len(stage) > 0 {
+		if _, err := git(dir, append([]string{"add", "--"}, stage...)...); err != nil {
+			fmt.Fprintf(w, "note: could not stage %s (%v) — commit it by hand: %s\n", noun, err, byHand)
+			return "", false
+		}
+	}
+	if _, err := git(dir, append([]string{"commit", "--only", "--quiet", "-m", subject, "--"}, paths...)...); err != nil {
+		fmt.Fprintf(w, "note: could not commit %s (%v) — commit it by hand: %s\n", noun, err, byHand)
+		return "", false
+	}
+	sha, _ = git(dir, "rev-parse", "--short", "HEAD")
+	return sha, true
 }

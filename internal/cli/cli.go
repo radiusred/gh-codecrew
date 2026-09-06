@@ -12,6 +12,8 @@ const usage = `usage: gh codecrew <verb>
 
 verbs:
   init [--hub owner/repo]                    scaffold a new hub or spoke
+  migrate [--dry-run]                        move a protocol 1.x repo to the 2.0 layout: one local
+                                             commit, never pushed (--dry-run: every step, nothing written)
   status                                     where the project is
   milestone new --title T [--goal G]         create a milestone tracking issue
            [--requirement R]...              (repeatable: numbered M<n>-R1, R2, … in order, under ## Requirements)
@@ -75,6 +77,8 @@ func run(args []string) error {
 	switch verb {
 	case "init":
 		return initCmd(os.Stdout, rest)
+	case "migrate":
+		return migrateCmd(os.Stdout, rest)
 	case "status":
 		return status(os.Stdout)
 	case "identity":
