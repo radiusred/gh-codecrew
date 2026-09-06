@@ -65,7 +65,10 @@ type fakeTracker struct {
 	titles    map[int]string
 	closed    map[int]bool
 	branches  map[string][]string
-	calls     []string // every issue and PR lookup, in order, so a bound can be asserted
+	taskErr   map[int]error // a task issue that cannot be read
+	prsErr    map[int]error // a task issue whose closing PRs cannot be listed
+	infoErr   map[int]error // a PR that cannot be read
+	calls     []string      // every issue and PR lookup, in order, so a bound can be asserted
 	deleted   []string
 	failDel   string
 	repoErr   error
@@ -77,6 +80,9 @@ func (f *fakeTracker) RepoInfo(string) (tracker.RepoInfo, error) {
 }
 func (f *fakeTracker) Task(ref tracker.IssueRef) (tracker.Task, error) {
 	f.calls = append(f.calls, fmt.Sprintf("task %d", ref.Number))
+	if err := f.taskErr[ref.Number]; err != nil {
+		return tracker.Task{}, err
+	}
 	return tracker.Task{Title: f.titles[ref.Number], Closed: f.closed[ref.Number]}, nil
 }
 func (f *fakeTracker) LinkedBranches(ref tracker.IssueRef) ([]string, error) {
@@ -84,12 +90,14 @@ func (f *fakeTracker) LinkedBranches(ref tracker.IssueRef) ([]string, error) {
 }
 func (f *fakeTracker) ClosingPRs(ref tracker.IssueRef, _ bool) ([]int, error) {
 	f.calls = append(f.calls, fmt.Sprintf("prs %d", ref.Number))
-	return f.prs[ref.Number], nil
+	return f.prs[ref.Number], f.prsErr[ref.Number]
 }
 func (f *fakeTracker) TaskBranches(repo string) ([]string, error) {
 	return f.branches[repo], f.branchErr
 }
-func (f *fakeTracker) PRInfo(_ string, n int) (tracker.PR, error) { return f.info[n], nil }
+func (f *fakeTracker) PRInfo(_ string, n int) (tracker.PR, error) {
+	return f.info[n], f.infoErr[n]
+}
 func (f *fakeTracker) BranchAhead(_, b string) (int, string, error) {
 	n, ok := f.ahead[b]
 	if !ok {
@@ -230,20 +238,29 @@ func TestPlanStaleSweep(t *testing.T) {
 				"task/22-unmerged", // closed task, work not on main: kept and named
 				"task/23-open",     // task still open: kept and named
 				"task/24-gone",     // vanished between the listing and the check
+				"task/25-unread",   // no issue answers for 25: a note, never a delete
+				"task/26-noprs",    // closed task whose PR listing fails: the same
+				"task/27-badpr",    // closed task whose PR cannot be read: the same
 				"task/0-nonsense",  // no number task start would have written
 				"main",
 			},
 			"o/spoke": {"task/30-merged"},
 		},
-		closed: map[int]bool{20: true, 21: true, 22: true, 24: true, 30: true},
-		prs:    map[int][]int{20: {200}, 22: {220}, 30: {300}},
+		closed:  map[int]bool{20: true, 21: true, 22: true, 24: true, 26: true, 27: true, 30: true},
+		prs:     map[int][]int{20: {200}, 22: {220}, 27: {270}, 30: {300}},
+		taskErr: map[int]error{25: errors.New("o/hub#25: issue not found")},
+		prsErr:  map[int]error{26: errors.New("api down")},
+		infoErr: map[int]error{270: errors.New("api down")},
 		info: map[int]tracker.PR{
 			200: {HeadRef: "task/20-merged", Merged: true, HeadSHA: "m20"},
 			220: {HeadRef: "task/22-unmerged"},
 			300: {HeadRef: "task/30-merged", Merged: true, HeadSHA: "m30"},
 		},
-		ahead: map[string]int{"task/20-merged": 3, "task/21-empty": 0, "task/22-unmerged": 2, "task/23-open": 0, "task/30-merged": 4},
-		tips:  map[string]string{"task/20-merged": "m20", "task/30-merged": "m30"},
+		ahead: map[string]int{
+			"task/20-merged": 3, "task/21-empty": 0, "task/22-unmerged": 2, "task/23-open": 0,
+			"task/26-noprs": 0, "task/27-badpr": 0, "task/30-merged": 4,
+		},
+		tips: map[string]string{"task/20-merged": "m20", "task/30-merged": "m30"},
 	}
 	m := &tracker.Milestone{
 		Ref:   tracker.IssueRef{Repo: "o/hub", Number: 9},
@@ -261,6 +278,14 @@ func TestPlanStaleSweep(t *testing.T) {
 	}
 	var out bytes.Buffer
 	deleted := executeSweep(&out, ft, items)
+	// Every candidate the sweep could not judge is absent from the
+	// deletions — the property the third Decision on #273 states and
+	// finding 1 on PR #293 found untested.
+	for _, never := range []string{"task/25-unread", "task/26-noprs", "task/27-badpr"} {
+		if slices.Contains(ft.deleted, never) {
+			t.Errorf("deleted a branch it could not judge: %s (%v)", never, ft.deleted)
+		}
+	}
 	if want := "task/20-merged,task/21-empty,task/30-merged"; strings.Join(deleted, ",") != want {
 		t.Errorf("deleted = %v, want %s\n%s", deleted, want, out.String())
 	}
@@ -270,6 +295,9 @@ func TestPlanStaleSweep(t *testing.T) {
 		"stale branch task/22-unmerged: kept (2 commit(s) not on the default branch, no merged PR)",
 		"stale branch task/23-open: kept (o/hub#23 is open)",
 		"stale branch task/30-merged: deleted (PR merged)",
+		"note: stale branch task/25-unread skipped (o/hub#25: issue not found)",
+		"note: stale branch task/26-noprs skipped (api down)",
+		"note: stale branch task/27-badpr skipped (api down)",
 	} {
 		if !strings.Contains(out.String(), line) {
 			t.Errorf("output missing %q:\n%s", line, out.String())
