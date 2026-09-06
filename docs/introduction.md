@@ -126,6 +126,7 @@ orchestration platform dispatching all five seats — has its own page:
 gh extension install radiusred/gh-codecrew   # precompiled, all platforms
 gh codecrew version        # confirm what you installed (gh never auto-updates extensions)
 gh codecrew init           # scaffold a new project (see first-milestone.md)
+gh codecrew migrate        # a repo still on the 1.x layout: move it to 2.0 (--dry-run first)
 gh codecrew status         # open milestones, inferred task states, raised gates, notes
 gh codecrew role reviewer  # who holds a role: app:<slug>, user:<login>, team:<org>/<slug>, or ~ (you)
 gh codecrew help           # the full verb list
@@ -137,7 +138,7 @@ go build -o gh-codecrew ./cmd/codecrew
 ## Refusal codes
 
 A blocked gate exits non-zero with `refused[CODE]: detail`. The code is for
-the agent; the detail is for the human. All thirty-eight, by the verb that
+the agent; the detail is for the human. All forty-two, by the verb that
 raises them (the source is the catalogue of record — `refuse("CODE"` in
 `internal/cli/`):
 
@@ -181,6 +182,29 @@ raises them (the source is the catalogue of record — `refuse("CODE"` in
   `task finish` and the close's branch sweep need (`gh pr checks --json`);
   the detail names both versions. A `gh --version` banner the CLI cannot
   parse proceeds with a note.
+
+**`migrate`**
+
+- `BOTH_LAYOUTS` — the repo carries `.codecrew/config.yml` *and* a protocol
+  1.x pointer or contracts; the detail names both, and migrate will not
+  choose between them. Keep whichever the project uses, remove the other,
+  and rerun.
+- `FOREIGN_ROLES_DIR` — a root `roles/` that holds CodeCrew's own files
+  also holds entries it does not recognise; the detail names both sets.
+  Migrate moves the five role contracts and their `<role>.local.md`
+  extensions and nothing else, so it stops rather than guessing about an
+  eleventh name. Move or remove them, then rerun. A `roles/` with no
+  CodeCrew file in it is a project's own and is never read.
+- `MIGRATION_UNSUPPORTED` — the pointer's protocol major is not 1: below
+  1.0 predates the conventions the move assumes, and above it is not a 1.x
+  repo whatever the files beside it look like. The detail names the version
+  read.
+- `IDENTITY_UNRESOLVED` — a bare 1.0 identity could not be typed to exactly
+  one GitHub principal: nothing answers to it, both a user and an App do, it
+  is an organization, or GitHub could not be asked. Write the row as `~`,
+  `app:<slug>`, `user:<login>` or `team:<org>/<slug>` by hand, then rerun.
+  (A bare value that is already an App slug is found at `<slug>[bot]`, so
+  the common 1.0 table types itself.)
 
 **any verb that reads a milestone's `## Requirements`**
 
