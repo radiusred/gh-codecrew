@@ -77,7 +77,12 @@ dry run: nothing written — the live verb stops at the first refusal above
 ```
 
 Every record below was read from its issue, PR, review, commit, tag, release,
-workflow run or timeline directly.
+workflow run or timeline directly. The prose is wrapped at this file's normal
+width; the requirement-outcomes table's rows and a handful of single links
+are not, because a newline ends a Markdown table row and breaking a link
+breaks it — the same shape [M13's record](13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md#requirement-outcomes)
+and [M12's](12-v1-2-0-and-the-field-fixes-behind-it.md#requirement-outcomes)
+carry, and the shape `ROADMAP.md` has had since M1.
 
 **This PR adds the M14 ROADMAP row; it does not flip one** — the convention
 M10-R1 introduced and M12-R1 shipped, which
