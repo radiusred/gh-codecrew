@@ -6,6 +6,26 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A close sweeps the branches earlier closes left behind
+- **`milestone close` no longer walks past a stale task branch.** The sweep
+  visited only the closing milestone's own tasks, so a branch whose task
+  shipped under a milestone that closed before the sweep worked — or whose
+  delete failed once — was invisible to every later verb and stood forever:
+  `radiusred/numberguess` still carries two of them from closes on 2026-08-28
+  (#167). A second pass now follows the milestone's own: one prefix-filtered
+  listing of each repo's `task/<n>-…` branches — the hub the milestone issue
+  lives in, and every repo its tasks name — and every branch whose task issue
+  is closed judged by the same two delete conditions the milestone's own meet
+  (its PR merged and the tip still at the merged commit, or no open PR and
+  nothing beyond the default branch), which is also the only test that
+  catches a rebase-merged branch. What goes is named in the closing comment
+  under its own sentence, `Swept from earlier closes: …`; a branch with
+  unmerged commits, or one whose task is still open, is named and left with
+  the reason. Bounded: one listing per repo, and an open task's branch costs
+  a single issue read. `--dry-run` lists them beside the milestone's own and
+  writes nothing, and the milestone's own branches are never revisited by the
+  second pass. (#273)
+
 ### A task adopts a backlog capture, and the merge closes it
 - **`task new --adopts <ref>[,<ref>]`** records the backlog issues a task
   takes up: repeatable and comma-separated, a bare number resolving against

@@ -70,7 +70,8 @@ when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`
 prints a contract with its `.codecrew/roles/<role>.local.md` extensions
 appended; `task finish` deletes the branch it merged and `milestone close`
-sweeps what its tasks left; `milestone new`, `task finish` and `milestone
+sweeps what its tasks left, then the task branches earlier closes left
+behind; `milestone new`, `task finish` and `milestone
 close` take `--dry-run` — every gate in order with its outcome, then what the
 verb would do, nothing written, the same refusal code. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
