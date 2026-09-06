@@ -185,13 +185,13 @@ hub: self
 roles:
   implementer:
     harness: claude-code
-    identity: myorg-coder
+    identity: app:myorg-coder
   reviewer:
     harness: codex
-    identity: alice # the bootstrap human, by name
+    identity: user:alice # the bootstrap human, by name
   qa:
     harness: codex
-    identity: myorg-testy
+    identity: app:myorg-testy
 `
 
 const inlineYML = `codecrew: "0.1"
@@ -222,15 +222,19 @@ func TestRouteRoleNestedShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Roles["reviewer"].Identity; got != "myorg-reviewy" {
-		t.Errorf("reviewer identity = %q", got)
+	if got := cfg.Roles["reviewer"].Identity; got.Kind != config.KindApp || got.Value != "myorg-reviewy" {
+		t.Errorf("reviewer identity = %v", got)
+	}
+	// Routed in the typed form the grammar requires (SPEC §5).
+	if !strings.Contains(string(out), "identity: app:myorg-reviewy") {
+		t.Error("routed identity is not typed app:")
 	}
 	// The stale trailing comment described the old routing — gone.
 	if strings.Contains(string(out), "bootstrap human") {
 		t.Error("stale identity comment survived the rewrite")
 	}
 	// Everything else survives: siblings, harness lines, file comments.
-	for _, keep := range []string{"# Advisory role routing", "harness: codex", "identity: myorg-coder", "identity: myorg-testy", `codecrew: "0.1" # protocol version`} {
+	for _, keep := range []string{"# Advisory role routing", "harness: codex", "identity: app:myorg-coder", "identity: app:myorg-testy", `codecrew: "0.1" # protocol version`} {
 		if !strings.Contains(string(out), keep) {
 			t.Errorf("line lost in surgery: %q", keep)
 		}
@@ -247,12 +251,15 @@ func TestRouteRoleInlineShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Roles["reviewer"].Identity; got != "myorg-reviewy" {
-		t.Errorf("reviewer identity = %q", got)
+	if got := cfg.Roles["reviewer"].Identity; got.Kind != config.KindApp || got.Value != "myorg-reviewy" {
+		t.Errorf("reviewer identity = %v", got)
+	}
+	if !strings.Contains(string(out), "identity: app:myorg-reviewy") {
+		t.Error("routed identity is not typed app: in the inline shape")
 	}
 	for _, other := range []string{"implementer", "qa", "doc-synthesizer"} {
-		if cfg.Roles[other].Identity != "" {
-			t.Errorf("%s identity changed to %q", other, cfg.Roles[other].Identity)
+		if !cfg.Roles[other].Identity.Operator() {
+			t.Errorf("%s identity changed to %v", other, cfg.Roles[other].Identity)
 		}
 	}
 }

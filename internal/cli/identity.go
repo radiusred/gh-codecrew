@@ -261,13 +261,15 @@ func serveFlow(l net.Listener, manifestJSON []byte, target string, timeout time.
 	}
 }
 
-// routeRole rewrites role's identity to slug in the .codecrew.yml at path,
+// routeRole rewrites role's identity to the App slug in the .codecrew.yml
+// at path, in the typed `app:<slug>` form the grammar requires (SPEC §5),
 // by line surgery so the file's comments and layout survive. Both table
 // shapes are handled: the scaffold's inline `role: { identity: ~ }` and a
 // nested `identity:` line under the role key (whose trailing comment, if
 // any, is dropped — it described the old routing). The result must
-// re-parse with the role routed to slug, or nothing is written.
+// re-parse with the role routed to the App, or nothing is written.
 func routeRole(path, role, slug string) error {
+	routed := config.Identity{Kind: config.KindApp, Value: slug}.String()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -298,7 +300,7 @@ func routeRole(path, role, slug string) error {
 					if !re.MatchString(rest) {
 						return fmt.Errorf("no identity key on the %s role's line", role)
 					}
-					lines[i] = line[:indent] + role + ": " + re.ReplaceAllString(rest, "${1}"+slug)
+					lines[i] = line[:indent] + role + ": " + re.ReplaceAllString(rest, "${1}"+routed)
 					done = true
 				} else {
 					roleIndent = indent // nested shape: identity on a deeper line
@@ -312,7 +314,7 @@ func routeRole(path, role, slug string) error {
 				return fmt.Errorf("no identity key under the %s role", role)
 			}
 			if strings.HasPrefix(trimmed, "identity:") {
-				lines[i] = line[:indent] + "identity: " + slug
+				lines[i] = line[:indent] + "identity: " + routed
 				done = true
 			}
 		}
@@ -328,7 +330,7 @@ func routeRole(path, role, slug string) error {
 	if err != nil {
 		return fmt.Errorf("routing edit produced unparseable YAML: %w", err)
 	}
-	if cfg.Roles[role].Identity != slug {
+	if got := cfg.Roles[role].Identity; got.Kind != config.KindApp || got.Value != slug {
 		return fmt.Errorf("routing edit did not take")
 	}
 	return os.WriteFile(path, []byte(out), 0o644)
@@ -488,10 +490,11 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	if !*noRoute && hubDir != "" {
 		routed = routeRole(filepath.Join(hubDir, ".codecrew.yml"), role, creds.Slug) == nil
 	}
+	typed := config.Identity{Kind: config.KindApp, Value: creds.Slug}
 	if routed {
-		fmt.Fprintf(w, "  2. routed %s → %s in .codecrew.yml — commit it via your next PR (--no-route to skip)\n", role, creds.Slug)
+		fmt.Fprintf(w, "  2. routed %s → %s in .codecrew.yml — commit it via your next PR (--no-route to skip)\n", role, typed)
 	} else {
-		fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, creds.Slug)
+		fmt.Fprintf(w, "  2. route the role in the hub's .codecrew.yml: roles.%s.identity: %s\n", role, typed)
 	}
 	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, ownerType, creds.Slug))
 	return nil

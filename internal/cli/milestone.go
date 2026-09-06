@@ -371,7 +371,7 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	if !p.gate("QA verdicts", e) {
 		return p.stop(closeGates), nil, nil
 	}
-	if len(latest) > 0 && c.rolesConfig().Roles["qa"].Identity == "" {
+	if len(latest) > 0 && c.rolesConfig().Roles["qa"].Identity.Operator() {
 		// Said here, before the document gate, as it always was — a live
 		// close refused DOC_MISSING still says it (checky's finding on
 		// PR #179); the dry run shows it under the gate.

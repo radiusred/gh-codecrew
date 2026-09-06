@@ -28,7 +28,8 @@ verbs:
            [--bypass]                        (recorded admin merge when GitHub won't count the approval)
            [--dry-run]                       (print every gate and what it would do; write nothing)
   checkpoint <ref> --question "..."          raise a human gate (cc:needs-decision)
-  role <name>                                who holds a role (identity, or ~ for the operator)
+  role <name> [--login]                      who holds a role: app:<slug>, user:<login>, team:<org>/<slug>, or ~
+                                             (--login: the review-requestable handle, nothing for an App or ~)
   roles diff <role>                          local contract vs the one embedded in the CLI
   roles show <role> [--latest]               the contract a session loads (with local extensions), or the embedded one
   identity new <role> --name N               mint the role's App identity via the manifest flow

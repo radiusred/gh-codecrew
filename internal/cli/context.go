@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,10 +30,16 @@ type ctx struct {
 // loadConfig reads the pointer and checks its protocol version against the
 // one this binary implements: a different major refuses
 // (PROTOCOL_MISMATCH); "0.1" and a missing field proceed with a note on
-// stderr (SPEC §5).
+// stderr (SPEC §5). A routing row whose identity carries no kind refuses
+// IDENTITY_UNTYPED — config detects the condition, the CLI names it, as
+// with the protocol check.
 func loadConfig(dir string, notes io.Writer) (*config.Config, error) {
 	cfg, err := config.Load(dir)
 	if err != nil {
+		var untyped *config.UntypedIdentityError
+		if errors.As(err, &untyped) {
+			return nil, refuse("IDENTITY_UNTYPED", "%v", untyped)
+		}
 		return nil, err
 	}
 	note, err := config.Compatible(cfg.Codecrew, protocolVersion)
@@ -143,21 +150,21 @@ var teamMembers = func(org, team string) (map[string]bool, error) {
 // the per-run memo. Bot logins are never team members; an unreadable team
 // resolves to no members (routing is advisory — the verbs that gate on a
 // holder then refuse for absence, which fails closed).
-func (c *ctx) inTeam(identity, login string) bool {
+func (c *ctx) inTeam(identity config.Identity, login string) bool {
 	if strings.HasSuffix(login, "[bot]") {
 		return false
 	}
 	if c.teams == nil {
 		c.teams = map[string]map[string]bool{}
 	}
-	set, ok := c.teams[identity]
+	set, ok := c.teams[identity.Value]
 	if !ok {
-		org, team, valid := config.TeamIdentity(identity)
+		org, team, valid := identity.Team()
 		if !valid {
 			return false
 		}
 		set, _ = teamMembers(org, team)
-		c.teams[identity] = set
+		c.teams[identity.Value] = set
 	}
 	return set[login]
 }
@@ -170,7 +177,7 @@ func (c *ctx) roleFor(login string) string {
 		return role
 	}
 	for name, role := range c.rolesConfig().Roles {
-		if _, _, isTeam := config.TeamIdentity(role.Identity); isTeam && c.inTeam(role.Identity, login) {
+		if role.Identity.Kind == config.KindTeam && c.inTeam(role.Identity, login) {
 			return name
 		}
 	}
@@ -181,8 +188,8 @@ func (c *ctx) roleFor(login string) string {
 // team-held seat (#44 — any member holds the role), config.HoldsRole for
 // usernames and Apps.
 func (c *ctx) holdsRole(login, role string) bool {
-	if id := c.rolesConfig().Roles[role].Identity; id != "" {
-		if _, _, isTeam := config.TeamIdentity(id); isTeam {
+	if id := c.rolesConfig().Roles[role].Identity; !id.Operator() {
+		if id.Kind == config.KindTeam {
 			return c.inTeam(id, login)
 		}
 		return c.rolesConfig().HoldsRole(login, role)

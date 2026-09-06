@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"errors"
+	"strings"
+	"testing"
+)
 
 func TestParse(t *testing.T) {
 	cfg, err := Parse([]byte(`
@@ -10,7 +14,7 @@ roles:
   implementer:
     harness: claude-code
     model: claude-fable-5
-    identity: radiusred-cody
+    identity: app:radiusred-cody
   reviewer:
     harness: codex
     model: gpt-5.6-sol
@@ -22,11 +26,11 @@ roles:
 	if cfg.Hub != "self" {
 		t.Errorf("Hub = %q, want self", cfg.Hub)
 	}
-	if got := cfg.Roles["implementer"].Identity; got != "radiusred-cody" {
-		t.Errorf("implementer identity = %q", got)
+	if got := (cfg.Roles["implementer"].Identity); got.Kind != KindApp || got.Value != "radiusred-cody" {
+		t.Errorf("implementer identity = %v", got)
 	}
-	if got := cfg.Roles["reviewer"].Identity; got != "" {
-		t.Errorf("nil identity should parse as empty, got %q", got)
+	if got := cfg.Roles["reviewer"].Identity; !got.Operator() {
+		t.Errorf("nil identity should parse as the operator, got %v", got)
 	}
 	if got := cfg.Roles["reviewer"].Model; got != "gpt-5.6-sol" {
 		t.Errorf("model on a codex row should load, got %q", got)
@@ -41,8 +45,8 @@ func TestParseMissingHub(t *testing.T) {
 
 func TestRoleFor(t *testing.T) {
 	cfg := &Config{Roles: map[string]Role{
-		"implementer": {Identity: "radiusred-cody"},
-		"qa":          {Identity: "radiusred-testy"},
+		"implementer": {Identity: ParseIdentity("app:radiusred-cody")},
+		"qa":          {Identity: ParseIdentity("app:radiusred-testy")},
 		"reviewer":    {}, // identity: ~ — human operator during bootstrap
 	}}
 	cases := []struct {
@@ -66,15 +70,19 @@ func TestRoleFor(t *testing.T) {
 
 func TestHoldsRole(t *testing.T) {
 	routed := &Config{Roles: map[string]Role{
-		"implementer": {Identity: "radiusred-cody"},
-		"qa":          {Identity: "radiusred-testy"},
+		"implementer": {Identity: ParseIdentity("app:radiusred-cody")},
+		"qa":          {Identity: ParseIdentity("app:radiusred-testy")},
 	}}
 	human := &Config{Roles: map[string]Role{
-		"implementer": {Identity: "radiusred-cody"},
-		"qa":          {Identity: "alice"},
+		"implementer": {Identity: ParseIdentity("app:radiusred-cody")},
+		"qa":          {Identity: ParseIdentity("user:alice")},
+	}}
+	team := &Config{Roles: map[string]Role{
+		"implementer": {Identity: ParseIdentity("app:radiusred-cody")},
+		"qa":          {Identity: ParseIdentity("team:myorg/qa-crew")},
 	}}
 	unrouted := &Config{Roles: map[string]Role{
-		"implementer": {Identity: "radiusred-cody"},
+		"implementer": {Identity: ParseIdentity("app:radiusred-cody")},
 		"qa":          {}, // identity: ~ — held by the human operator
 	}}
 	empty := &Config{}
@@ -90,6 +98,8 @@ func TestHoldsRole(t *testing.T) {
 		{"routed: another crew bot does not", routed, "radiusred-cody[bot]", false},
 		{"routed to a human: that human holds", human, "alice", true},
 		{"routed to a human: another human does not", human, "bob", false},
+		{"routed to a human: a bot of the same name does not", human, "alice[bot]", false},
+		{"routed to a team: membership is not this table's question", team, "alice", false},
 		{"unrouted: the operator holds", unrouted, "davison", true},
 		{"unrouted: a crew bot does not", unrouted, "radiusred-cody[bot]", false},
 		{"unrouted: an unrelated bot does not", unrouted, "somebot[bot]", false},
@@ -133,5 +143,134 @@ func TestCompatible(t *testing.T) {
 		if (err != nil) != c.wantErr || (note != "") != c.wantNote {
 			t.Errorf("Compatible(%q, 1.0) = note %q, err %v", c.pointer, note, err)
 		}
+	}
+}
+
+// The 2.0 grammar: every form the routing table's identity value may take,
+// and everything else refused rather than guessed at (SPEC §5, M13-R4).
+func TestParseIdentity(t *testing.T) {
+	cases := []struct {
+		in    string
+		kind  IdentityKind
+		value string
+		str   string
+	}{
+		{"~", KindOperator, "", "~"},
+		{"", KindOperator, "", "~"},
+		{"  ", KindOperator, "", "~"},
+		{"app:myorg-coder", KindApp, "myorg-coder", "app:myorg-coder"},
+		{"user:alice", KindUser, "alice", "user:alice"},
+		{"team:myorg/review-crew", KindTeam, "myorg/review-crew", "team:myorg/review-crew"},
+		{" app:myorg-coder ", KindApp, "myorg-coder", "app:myorg-coder"},
+		// Untyped: the 1.0 forms, and malformed typed ones.
+		{"myorg-coder", KindUntyped, "myorg-coder", "myorg-coder"},
+		{"myorg/review-crew", KindUntyped, "myorg/review-crew", "myorg/review-crew"},
+		{"app:", KindUntyped, "app:", "app:"},
+		{"user:", KindUntyped, "user:", "user:"},
+		{"app:myorg/coder", KindUntyped, "app:myorg/coder", "app:myorg/coder"},
+		{"team:review-crew", KindUntyped, "team:review-crew", "team:review-crew"},
+		{"team:myorg/", KindUntyped, "team:myorg/", "team:myorg/"},
+		{"team:/review-crew", KindUntyped, "team:/review-crew", "team:/review-crew"},
+		{"team:a/b/c", KindUntyped, "team:a/b/c", "team:a/b/c"},
+		{"bot:myorg-coder", KindUntyped, "bot:myorg-coder", "bot:myorg-coder"},
+	}
+	for _, c := range cases {
+		got := ParseIdentity(c.in)
+		if got.Kind != c.kind || got.Value != c.value || got.String() != c.str {
+			t.Errorf("ParseIdentity(%q) = %+v (%q), want kind %v value %q string %q",
+				c.in, got, got.String(), c.kind, c.value, c.str)
+		}
+	}
+}
+
+// Login is the handle a review request can name: user: and team: yield one
+// (a team in the org/slug form `gh pr create --reviewer` wants), an App and
+// the operator yield nothing — the implementer contract's whole branch.
+func TestIdentityLogin(t *testing.T) {
+	cases := map[string]string{
+		"~":                      "",
+		"app:myorg-reviewy":      "",
+		"user:alice":             "alice",
+		"team:myorg/review-crew": "myorg/review-crew",
+	}
+	for in, want := range cases {
+		if got := ParseIdentity(in).Login(); got != want {
+			t.Errorf("ParseIdentity(%q).Login() = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestIdentityTeam(t *testing.T) {
+	org, team, ok := ParseIdentity("team:myorg/review-crew").Team()
+	if org != "myorg" || team != "review-crew" || !ok {
+		t.Errorf("Team() = %q, %q, %v", org, team, ok)
+	}
+	for _, other := range []string{"~", "app:myorg-coder", "user:alice"} {
+		if _, _, ok := ParseIdentity(other).Team(); ok {
+			t.Errorf("%q reported as a team", other)
+		}
+	}
+}
+
+// A 1.0 table read by a 2.0 binary: the untyped row is named, and the
+// refusal is deterministic — role names in order, so the same row is
+// always the one reported.
+func TestParseRefusesUntypedIdentity(t *testing.T) {
+	_, err := Parse([]byte(`
+hub: self
+roles:
+  reviewer: { identity: myorg-reviewy }
+  implementer: { identity: myorg-coder }
+  qa: { identity: ~ }
+`))
+	var untyped *UntypedIdentityError
+	if !errors.As(err, &untyped) {
+		t.Fatalf("err = %v, want *UntypedIdentityError", err)
+	}
+	if untyped.Role != "implementer" || untyped.Value != "myorg-coder" {
+		t.Errorf("named row = %q / %q, want implementer / myorg-coder", untyped.Role, untyped.Value)
+	}
+	for _, want := range []string{"roles.implementer.identity", "app:<slug>", "user:<login>", "team:<org>/<slug>", "`~`"} {
+		if !strings.Contains(untyped.Error(), want) {
+			t.Errorf("detail does not name %q: %s", want, untyped.Error())
+		}
+	}
+}
+
+// A fully typed table parses, and a routing row that names no identity at
+// all is the operator — not an untyped value.
+func TestParseTypedTable(t *testing.T) {
+	cfg, err := Parse([]byte(`
+codecrew: "2.0"
+hub: self
+roles:
+  implementer: { harness: claude-code, identity: app:myorg-coder }
+  reviewer: { identity: "team:myorg/review-crew" }
+  qa: { identity: user:alice }
+  doc-synthesizer: { harness: claude-code }
+  coordinator: { identity: ~ }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"implementer":     "app:myorg-coder",
+		"reviewer":        "team:myorg/review-crew",
+		"qa":              "user:alice",
+		"doc-synthesizer": "~",
+		"coordinator":     "~",
+	}
+	for role, w := range want {
+		if got := cfg.Roles[role].Identity.String(); got != w {
+			t.Errorf("%s identity = %q, want %q", role, got, w)
+		}
+	}
+}
+
+// An identity that is not a scalar at all is a parse failure, not a
+// silently empty row.
+func TestParseRefusesNonScalarIdentity(t *testing.T) {
+	if _, err := Parse([]byte("hub: self\nroles:\n  qa: { identity: [a, b] }\n")); err == nil {
+		t.Error("a sequence identity parsed")
 	}
 }
