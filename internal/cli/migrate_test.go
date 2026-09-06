@@ -905,3 +905,52 @@ func TestMigrateDoesTheLabelsWhenTheCommitDoesNotHappen(t *testing.T) {
 		t.Errorf("the labels must be reported before the detached-HEAD note:\n%s", out.String())
 	}
 }
+
+// The other commit-less path: `git commit` refused. The moves are on disk
+// exactly as in the detached case, so the labels run there too — and until
+// this test the claim rested on the comment above and on a live run, with
+// the call itself unguarded (checky's note 2 on PR #291). The identity is
+// unset after legacyRepo has made its commit, the way
+// TestCommitScaffoldFailureIsANote induces the same failure.
+func TestMigrateDoesTheLabelsWhenTheCommitIsRefused(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+	f := &labelFake{defined: []tracker.Label{implicit(tracker.LabelTask)}}
+	stubLabelTarget(t, f, "o/r", nil)
+	before := headSubject(t, dir)
+	git(dir, "config", "--unset", "user.email")
+	git(dir, "config", "--unset", "user.name")
+	for _, v := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL", "EMAIL"} {
+		t.Setenv(v, "")
+	}
+	t.Setenv("HOME", t.TempDir()) // no global identity either
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "note: could not commit the migration") {
+		t.Fatalf("the commit did not fail:\n%s", out.String())
+	}
+	if headSubject(t, dir) != before {
+		t.Error("a commit was made without an identity")
+	}
+	// The moves landed, so the labels did too.
+	if !exists(t, dir, config.Pointer) {
+		t.Error("the moves did not apply")
+	}
+	if got := names(f.restyled); !slices.Equal(got, []string{tracker.LabelTask}) {
+		t.Errorf("restyled %v", got)
+	}
+	if got := names(f.created); !slices.Equal(got, []string{tracker.LabelMilestone, tracker.LabelNeedsDecision}) {
+		t.Errorf("created %v", got)
+	}
+	// Here the receipts follow pathspecCommit's own note, which named the
+	// command to run — the asymmetry with the detached path that the
+	// Decision on #283 records.
+	note := strings.Index(out.String(), "note: could not commit the migration")
+	label := strings.Index(out.String(), "restyled label")
+	if label < note {
+		t.Errorf("the receipts must follow the commit note:\n%s", out.String())
+	}
+}
