@@ -532,6 +532,11 @@ func TestStripCode(t *testing.T) {
 		{"a bullet is not a thematic break", "- item\n    kept\n", "- item\n    kept\n"},
 		{"two dashes are not a thematic break", "--\n    kept\n", "--\n    kept\n"},
 		{"mixed break characters are not a thematic break", "*-*\n    kept\n", "*-*\n    kept\n"},
+		// The "nothing else on the line" clause: without it, a heading-like
+		// aside would open a block and swallow the line under it — an
+		// over-strip, which costs a verdict rather than a strip (#289).
+		{"three dashes with trailing text are not a thematic break", "--- x\n    kept\n", "--- x\n    kept\n"},
+		{"a break's characters around other text are not a thematic break", "*** NOTE ***\n    kept\n", "*** NOTE ***\n    kept\n"},
 		{"an indented block opens after a fence closes", "```\ndrop\n```\n    drop\nprose\n", "prose\n"},
 		{"a heading indented four columns is code, not an opener", "a\n\n    ### in code\n    drop\nprose\n", "a\n\nprose\n"},
 		{"a heading lazily continuing a paragraph is not an opener", "prose\n    ### not a heading\n    kept\n", "prose\n    ### not a heading\n    kept\n"},
