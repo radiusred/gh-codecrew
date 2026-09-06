@@ -32,8 +32,9 @@ func holder(roles map[string]config.Role, name string) (config.Identity, error) 
 // team: seat) and nothing at all for an App or the operator, neither of
 // which can be requested — so a caller's whole decision is whether the
 // output is empty (SPEC §6; the implementer contract). Script-consumable,
-// and correct from a pointer-only spoke because resolution falls back to
-// the hub's routing table.
+// and correct from a pointer-only spoke because a spoke's resolution *is*
+// the hub's routing table, fetched at load — there is no fallback, and a
+// hub that cannot be read refuses rather than answering `~` (SPEC §6).
 // parseRoleArgs reads `<name> [--login]` in either order. The role name
 // leads in practice, and Go's flag package stops at the first non-flag
 // argument, so the name comes off the front the way task's ref does.

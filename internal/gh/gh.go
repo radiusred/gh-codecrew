@@ -86,9 +86,13 @@ func CurrentRepo() (string, error) {
 //	Alternatively, populate the GH_TOKEN environment variable …
 //	gh: Bad credentials (HTTP 401)
 //
-// The list is deliberately narrow. An HTTP 403 or 404 means GitHub
-// answered — the caller lacks access, or the path is absent — and those
-// are the caller's own conditions to name, not this one.
+// The list is deliberately narrow, and the line it draws is whether the
+// caller has any way through at all, not whether bytes crossed the wire. A
+// 401 is on the list although GitHub did answer it: credentials it rejects
+// are the same dead end as no credentials, and no retry of the call fixes
+// either. An HTTP 403 or 404 is not: the caller got in, and lacks access to
+// one thing or asked for a path that is absent — the caller's own
+// conditions to name, not this one.
 var unreachableMarkers = []string{
 	"dial tcp",
 	"error connecting to",
