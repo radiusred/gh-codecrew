@@ -21,10 +21,16 @@ const hubConfigScaffold = `codecrew: "%s" # protocol version (SPEC.md §5): a di
 hub: self
 
 # Role routing: who holds each role (SPEC §5). Declare all five at
-# onboarding. ~ routes the role to you, the human operator; replace it with
-# a GitHub App slug or a username to delegate, or an org/team-slug to
-# route the role to any member of a GitHub team. The coordinator is the
-# seat that dispatches the other four (SPEC §7); unrouted, it is you.
+# onboarding. The identity is typed — one of exactly four forms:
+#   ~                    you, the human operator (and any session under
+#                        your own auth)
+#   app:<slug>           a GitHub App, an agent acting as itself
+#   user:<login>         one named human
+#   team:<org>/<slug>    any member of the team
+# A value carrying no type prefix is refused (IDENTITY_UNTYPED): an App
+# slug and a username are the same string, and the protocol treats them
+# differently. The coordinator is the seat that dispatches the other four
+# (SPEC §7); unrouted, it is you.
 roles:
   implementer: { identity: ~ }
   reviewer: { identity: ~ }

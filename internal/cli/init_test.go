@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	codecrew "github.com/radiusred/gh-codecrew"
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"testing/fstest"
 )
 
@@ -134,6 +135,46 @@ func TestScaffoldsCarryProtocolVersion(t *testing.T) {
 		if !strings.HasPrefix(string(data), "codecrew: \""+protocolVersion+"\"") {
 			t.Errorf("hub=%s: pointer starts %q, want codecrew: %q", hub, strings.SplitN(string(data), "\n", 2)[0], protocolVersion)
 		}
+	}
+}
+
+// The scaffolded routing table teaches the typed identity grammar (SPEC
+// §5): a hub told to write values its own binary refuses with
+// IDENTITY_UNTYPED must be impossible to scaffold, and the guidance must
+// not drift from the grammar again (checky's finding on PR #276).
+func TestScaffoldedRoutingTeachesTypedIdentities(t *testing.T) {
+	dir := t.TempDir()
+	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".codecrew.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pointer := string(data)
+	for _, want := range []string{"app:<slug>", "user:<login>", "team:<org>/<slug>", "IDENTITY_UNTYPED"} {
+		if !strings.Contains(pointer, want) {
+			t.Errorf("scaffolded routing guidance does not name %q:\n%s", want, pointer)
+		}
+	}
+	// The 1.0 grammar it replaced, in any of its wordings.
+	for _, gone := range []string{"org/team-slug", "a GitHub App slug or a username"} {
+		if strings.Contains(pointer, gone) {
+			t.Errorf("scaffolded routing guidance still teaches the 1.0 grammar (%q)", gone)
+		}
+	}
+	// And what it scaffolds parses, with every seat the operator's.
+	cfg, err := config.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for role, r := range cfg.Roles {
+		if !r.Identity.Operator() {
+			t.Errorf("scaffolded %s is %v, want ~", role, r.Identity)
+		}
+	}
+	if len(cfg.Roles) != 5 {
+		t.Errorf("scaffolded %d roles, want 5", len(cfg.Roles))
 	}
 }
 

@@ -33,7 +33,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   code; `docs/identities.md`, `docs/introduction.md`,
   `docs/first-milestone.md`, `docs/platform-interop.md`, the README's
   worked example, this hub's own routing table and the five role contracts
-  follow. (#258)
+  follow. `init`'s scaffolded routing table teaches the four forms too,
+  so a fresh hub is never told to write a value its own binary refuses.
+  (#258)
 
 ### The record grammar, tightened
 - Four rules about what recorded text *means*, each a protocol-2.0 break:
