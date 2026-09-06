@@ -15,14 +15,15 @@ import (
 // repository already defines, and what it is asked to define.
 type labelFake struct {
 	tracker.Tracker
-	defined []string
-	readErr error
-	failOn  string // the one label name CreateLabel refuses
-	created []tracker.Label
-	reads   int
+	defined  []tracker.Label
+	readErr  error
+	failOn   string // the one label name a write refuses
+	created  []tracker.Label
+	restyled []tracker.Label
+	reads    int
 }
 
-func (f *labelFake) Labels(string) ([]string, error) {
+func (f *labelFake) Labels(string) ([]tracker.Label, error) {
 	f.reads++
 	return f.defined, f.readErr
 }
@@ -33,6 +34,31 @@ func (f *labelFake) CreateLabel(_ string, l tracker.Label) error {
 	}
 	f.created = append(f.created, l)
 	return nil
+}
+
+func (f *labelFake) UpdateLabel(_ string, l tracker.Label) error {
+	if l.Name == f.failOn {
+		return errors.New("403")
+	}
+	f.restyled = append(f.restyled, l)
+	return nil
+}
+
+// defaults is the protocol's own styling for the named labels — a
+// repository already indistinguishable from a fresh scaffold.
+func defaults(names ...string) []tracker.Label {
+	var out []tracker.Label
+	for _, n := range names {
+		l, _ := tracker.ProtocolLabel(n)
+		out = append(out, l)
+	}
+	return out
+}
+
+// implicit is a label as GitHub creates one that nobody defined: a
+// generated colour and no description at all.
+func implicit(name string) tracker.Label {
+	return tracker.Label{Name: name, Color: "ededed"}
 }
 
 func names(labels []tracker.Label) []string {
@@ -69,18 +95,19 @@ func TestEnsureLabels(t *testing.T) {
 			// left as they are — whatever colour the project gave them,
 			// which this fake cannot even report, because nothing reads it.
 			name:    "a repository that already has two",
-			fake:    &labelFake{defined: []string{"bug", tracker.LabelMilestone, tracker.LabelTask}},
+			fake:    &labelFake{defined: []tracker.Label{implicit("bug"), implicit(tracker.LabelMilestone), implicit(tracker.LabelTask)}},
 			created: []string{tracker.LabelNeedsDecision},
 			lines:   []string{"created label cc:needs-decision (#f0aeff)"},
 			absent:  []string{"created label cc:milestone", "created label cc:task"},
 		},
 		{
 			// GitHub compares label names case-insensitively, and so does
-			// the check for what already exists.
+			// the check for what already exists — and a label the project
+			// restyled keeps its colour, which is init's whole rule.
 			name:    "a repository that restyled and recased them",
-			fake:    &labelFake{defined: []string{"CC:Milestone", "cc:TASK", "CC:NEEDS-DECISION"}},
+			fake:    &labelFake{defined: []tracker.Label{implicit("CC:Milestone"), implicit("cc:TASK"), implicit("CC:NEEDS-DECISION")}},
 			created: nil,
-			absent:  []string{"created label"},
+			absent:  []string{"created label", "restyled label"},
 		},
 		{
 			name:    "the label listing cannot be read",
@@ -96,7 +123,7 @@ func TestEnsureLabels(t *testing.T) {
 			fake:    &labelFake{failOn: tracker.LabelTask},
 			created: []string{tracker.LabelMilestone, tracker.LabelNeedsDecision},
 			lines: []string{
-				"note: could not create the cc:task label in o/r (403) — it is created on first use instead",
+				"note: could not create the cc:task label in o/r (403)",
 				"created label cc:milestone",
 				"created label cc:needs-decision",
 			},
@@ -107,6 +134,10 @@ func TestEnsureLabels(t *testing.T) {
 		ensureLabels(&out, tc.fake, "o/r", tracker.ProtocolLabels)
 		if got := names(tc.fake.created); !slices.Equal(got, tc.created) {
 			t.Errorf("%s: created %v, want %v", tc.name, got, tc.created)
+		}
+		// ensureLabels never restyles, whatever it finds.
+		if len(tc.fake.restyled) != 0 {
+			t.Errorf("%s: ensureLabels restyled %v", tc.name, names(tc.fake.restyled))
 		}
 		for _, want := range tc.lines {
 			if !strings.Contains(out.String(), want) {
@@ -253,5 +284,122 @@ func TestInitSkipsTheLabelsOutsideAGitRepository(t *testing.T) {
 	}
 	if f.reads != 0 || len(f.created) != 0 {
 		t.Errorf("gh was asked about a repository that does not exist: %d reads, created %v", f.reads, f.created)
+	}
+}
+
+// migrate restyles where init leaves alone: its whole promise is a
+// repository indistinguishable from a fresh 2.0 scaffold, and a 1.x
+// repository's cc: labels were all created implicitly, with a generated
+// colour and no description (the operator's Decision on #283). --dry-run
+// lists exactly the same steps and writes nothing.
+func TestApplyLabelsRestyles(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		defined  []tracker.Label
+		created  []string
+		restyled []string
+		lines    []string
+		absent   []string
+	}{
+		{
+			name:    "a 1.x repository with none of them",
+			created: []string{tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision},
+			lines:   []string{"created label cc:milestone (#01d4ff)"},
+			absent:  []string{"restyle"},
+		},
+		{
+			// The implicit creations: GitHub's grey and no description.
+			name:     "a 1.x repository whose labels came from first use",
+			defined:  []tracker.Label{implicit(tracker.LabelMilestone), implicit(tracker.LabelTask), implicit(tracker.LabelNeedsDecision)},
+			restyled: []string{tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision},
+			lines: []string{
+				"restyled label cc:milestone (#ededed -> #01d4ff) — CodeCrew: the milestone tracking issue in the hub (SPEC §4)",
+				"restyled label cc:task (#ededed -> #92edff)",
+				"restyled label cc:needs-decision (#ededed -> #f0aeff)",
+			},
+			absent: []string{"created label"},
+		},
+		{
+			// Already the protocol's: nothing to do, so a rerun is silent.
+			name:    "a repository already wearing the defaults",
+			defined: defaults(tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision),
+			absent:  []string{"label cc:"},
+		},
+		{
+			// The colour matches, case aside, and the description does
+			// not — a label styled by hand before the defaults existed.
+			name:     "the colour matches and the description does not",
+			defined:  []tracker.Label{{Name: "CC:Task", Color: "92EDFF", Description: "tasks"}},
+			created:  []string{tracker.LabelMilestone, tracker.LabelNeedsDecision},
+			restyled: []string{tracker.LabelTask},
+			lines:    []string{"restyled label cc:task (#92EDFF -> #92edff)"},
+		},
+		{
+			name:     "one implicit label and the two that are missing",
+			defined:  []tracker.Label{implicit(tracker.LabelTask)},
+			created:  []string{tracker.LabelMilestone, tracker.LabelNeedsDecision},
+			restyled: []string{tracker.LabelTask},
+		},
+	} {
+		// The real run writes, and reports each step.
+		f := &labelFake{defined: slices.Clone(tc.defined)}
+		var out bytes.Buffer
+		applyLabels(&out, f, "o/r", tracker.ProtocolLabels, true, false)
+		if got := names(f.created); !slices.Equal(got, tc.created) {
+			t.Errorf("%s: created %v, want %v", tc.name, got, tc.created)
+		}
+		if got := names(f.restyled); !slices.Equal(got, tc.restyled) {
+			t.Errorf("%s: restyled %v, want %v", tc.name, got, tc.restyled)
+		}
+		for _, want := range tc.lines {
+			if !strings.Contains(out.String(), want) {
+				t.Errorf("%s: output missing %q:\n%s", tc.name, want, out.String())
+			}
+		}
+		for _, never := range tc.absent {
+			if strings.Contains(out.String(), never) {
+				t.Errorf("%s: output must not contain %q:\n%s", tc.name, never, out.String())
+			}
+		}
+		// A restyle carries the protocol's colour and description, and the
+		// protocol's spelling of the name is what addresses it.
+		for _, l := range f.restyled {
+			if want, _ := tracker.ProtocolLabel(l.Name); l != want {
+				t.Errorf("%s: restyled to %+v, want %+v", tc.name, l, want)
+			}
+		}
+
+		// The dry run lists the same steps, in the same order, and writes
+		// nothing.
+		d := &labelFake{defined: slices.Clone(tc.defined)}
+		var dry bytes.Buffer
+		applyLabels(&dry, d, "o/r", tracker.ProtocolLabels, true, true)
+		if len(d.created) != 0 || len(d.restyled) != 0 {
+			t.Errorf("%s: the dry run wrote: created %v restyled %v", tc.name, names(d.created), names(d.restyled))
+		}
+		want := strings.NewReplacer("created ", "would create ", "restyled ", "would restyle ").Replace(out.String())
+		if dry.String() != want {
+			t.Errorf("%s: dry run said\n%s\nwant\n%s", tc.name, dry.String(), want)
+		}
+	}
+}
+
+// A restyle GitHub refuses is a note like any other, and the labels after
+// it are still attempted.
+func TestApplyLabelsRestyleFailureIsANote(t *testing.T) {
+	f := &labelFake{
+		defined: []tracker.Label{implicit(tracker.LabelMilestone), implicit(tracker.LabelTask)},
+		failOn:  tracker.LabelMilestone,
+	}
+	var out bytes.Buffer
+	applyLabels(&out, f, "o/r", tracker.ProtocolLabels, true, false)
+	if want := "note: could not restyle the cc:milestone label in o/r (403)"; !strings.Contains(out.String(), want) {
+		t.Errorf("output missing %q:\n%s", want, out.String())
+	}
+	if got := names(f.restyled); !slices.Equal(got, []string{tracker.LabelTask}) {
+		t.Errorf("restyled %v, want the label after the failure", got)
+	}
+	if got := names(f.created); !slices.Equal(got, []string{tracker.LabelNeedsDecision}) {
+		t.Errorf("created %v", got)
 	}
 }

@@ -194,13 +194,14 @@ func recordGH(t *testing.T, stdout string) *[][]string {
 // goes to the API as six hex digits with no leading "#", which the API
 // rejects.
 func TestLabelCalls(t *testing.T) {
-	calls := recordGH(t, `[{"name":"bug"},{"name":"cc:task"}]`)
+	calls := recordGH(t, `[{"name":"bug","color":"d73a4a","description":"Something is broken"},{"name":"cc:task","color":"ededed","description":""}]`)
 	got, err := GitHub{}.Labels("o/r")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(got, ",") != "bug,cc:task" {
-		t.Errorf("Labels = %v", got)
+	want := []Label{{"bug", "d73a4a", "Something is broken"}, {"cc:task", "ededed", ""}}
+	if !slices.Equal(got, want) {
+		t.Errorf("Labels = %+v, want %+v", got, want)
 	}
 	if len(*calls) != 1 {
 		t.Fatalf("calls = %v", *calls)
@@ -225,5 +226,22 @@ func TestLabelCalls(t *testing.T) {
 	}
 	if strings.Contains(line, "color=#") {
 		t.Errorf("the colour reached the API with a leading #: %q", line)
+	}
+
+	// A restyle addresses the label by the name the repository spells it
+	// with — GitHub matches names case-insensitively, so a recased label is
+	// the same label — and sends no new_name: restyling is not renaming.
+	calls = recordGH(t, "")
+	if err := (GitHub{}).UpdateLabel("o/r", Label{"CC:Needs-Decision", l.Color, l.Description}); err != nil {
+		t.Fatal(err)
+	}
+	line = strings.Join((*calls)[0], " ")
+	for _, want := range []string{"-X PATCH", "repos/o/r/labels/CC:Needs-Decision", "color=" + l.Color, "description=" + l.Description} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the restyle call %q is missing %q", line, want)
+		}
+	}
+	if strings.Contains(line, "new_name") {
+		t.Errorf("the restyle renamed the label: %q", line)
 	}
 }

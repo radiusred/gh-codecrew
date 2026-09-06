@@ -6,7 +6,7 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-### `init` and `checkpoint` create the `cc:` labels, in the crew palette
+### The `cc:` labels are created, and restyled by `migrate`, from the crew palette
 - **Nothing defined the protocol's labels.** `cc:milestone`, `cc:task` and
   `cc:needs-decision` were created implicitly by the first
   `gh issue create --label` or `POST /issues/N/labels` that mentioned
@@ -25,14 +25,26 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   pairing is chosen for the two that co-occur on a gated task issue. SPEC
   §4 carries the table as the protocol's defaults; only the names are
   protocol.
-- **A GitHub failure never reaches the scaffold.** The label step is the
-  only thing `init` does after the commit, so an unreadable label
-  listing, a refused creation, a `gh` that cannot name the repository, or
-  a directory that is not a git repository yet is a `note:` line and
-  nothing more — the files are written and the scaffold is committed
-  either way. `checkpoint` degrades the same way: a creation that fails
-  still raises the gate, since applying an unknown label creates it
-  implicitly as before. (#283, #267)
+- **`migrate` restyles; `init` does not.** The one-shot move to the 2.0
+  layout now brings the three labels to the defaults whatever they were
+  wearing, creating the missing ones and reporting each — the one place
+  the protocol overwrites a label's styling. A 1.x repository's `cc:`
+  labels were all created implicitly, so leaving them is leaving the
+  migration half done, and the migration's promise is a repository
+  indistinguishable from a fresh 2.0 `init`. `--dry-run` lists the
+  creations and restyles beside the file steps and writes neither. The
+  asymmetry is deliberate: `migrate` runs once, on a repository whose
+  labels nobody chose; `init` reruns, on one whose labels somebody may
+  have.
+- **A GitHub failure never reaches the local work.** `init`'s label step is
+  the only thing it does after the commit, and `migrate`'s likewise, so an
+  unreadable label listing, a refused write, a `gh` that cannot name the
+  repository, or a directory that is not a git repository yet is a `note:`
+  line and nothing more — the files are written, the scaffold or the move
+  is committed, and neither verb ever refuses over a label.
+  `checkpoint` degrades the same way: a creation that fails still raises
+  the gate, since applying an unknown label creates it implicitly as
+  before. (#283, #267)
 
 ### A close sweeps the branches earlier closes left behind
 - **`milestone close` no longer walks past a stale task branch.** The sweep
@@ -380,6 +392,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   1.x root entry point holds the old instructions, so it usually does not.
   Paste the two lines it prints into each file it names; migrate does not
   edit them itself.
+
+  The move also brings the repo's `cc:` labels to the protocol's defaults —
+  created where missing, restyled where a 1.x repo had them from implicit
+  creation — reported after the commit and listed by `--dry-run`. It needs
+  GitHub, and a repo it cannot reach gets a `note:` and the migration
+  stands; rerun `migrate` (or set the colours by hand) once it can (#283).
 
   `migrate` is described in its own entry above. (#256)
 

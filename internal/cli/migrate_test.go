@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // legacy1x is a protocol 1.0 pointer as v1 scaffolded and hands edited it:
@@ -42,6 +43,12 @@ func stubAccounts(t *testing.T, accounts map[string]string) {
 // named file under roles/ (or wherever the name says).
 func legacyRepo(t *testing.T, pointer string, files map[string]string) string {
 	t.Helper()
+	// A temp repository has no origin, so gh could not name it anyway —
+	// and asking the real one would put a network call inside every
+	// migrate test. The label step prints its note and migrate carries on,
+	// which is the point of the note; the two tests that exercise the step
+	// stub a target of their own over this one.
+	stubLabelTarget(t, nil, "", errors.New("no git remotes found"))
 	dir := gitRepo(t)
 	write := func(rel, content string) {
 		path := filepath.Join(dir, filepath.FromSlash(rel))
@@ -684,5 +691,97 @@ func TestMigrateUnresolvedIdentityWritesNothing(t *testing.T) {
 	}
 	if exists(t, dir, config.Pointer) || !exists(t, dir, "roles/qa.md") {
 		t.Error("a refused migration moved files")
+	}
+}
+
+// A 1.x repository's cc: labels were all created implicitly — a colour
+// GitHub generated, no description — so migrate restyles them to the
+// protocol's defaults and creates the ones that never came up, which is
+// the difference between it and init: migrate's promise is a repository
+// indistinguishable from a fresh 2.0 scaffold, init reruns on a repository
+// the project may have restyled on purpose (the operator's Decision on
+// #283). The step runs after the commit, so nothing GitHub says can reach
+// the move.
+func TestMigrateRestylesTheLabels(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+	f := &labelFake{defined: []tracker.Label{implicit("bug"), implicit(tracker.LabelTask)}}
+	stubLabelTarget(t, f, "o/r", nil)
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(f.restyled); !slices.Equal(got, []string{tracker.LabelTask}) {
+		t.Errorf("restyled %v, want the one label the 1.x repo had", got)
+	}
+	if got := names(f.created); !slices.Equal(got, []string{tracker.LabelMilestone, tracker.LabelNeedsDecision}) {
+		t.Errorf("created %v", got)
+	}
+	if _, restyled := tracker.FindLabel(f.restyled, "bug"); restyled {
+		t.Error("migrate restyled a label that is not the protocol's")
+	}
+	for _, want := range []string{
+		"restyled label cc:task (#ededed -> #92edff)",
+		"created label cc:milestone (#01d4ff)",
+		"created label cc:needs-decision (#f0aeff)",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("migrate did not report %q:\n%s", want, out.String())
+		}
+	}
+	// After the commit, and before the guidance that follows it.
+	commit := strings.Index(out.String(), "committed ")
+	label := strings.Index(out.String(), "restyled label")
+	next := strings.Index(out.String(), "next: read it")
+	if commit < 0 || !(commit < label && label < next) {
+		t.Errorf("the label step is not between the commit and the guidance:\n%s", out.String())
+	}
+}
+
+// The dry run lists the label steps beside the file ones and writes
+// neither. A GitHub that will not answer is a note in both modes and never
+// a refusal — the migration is a local move, and no remote failure may
+// stand in its way.
+func TestMigrateDryRunListsTheLabelsAndWritesNothing(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+	f := &labelFake{defined: []tracker.Label{implicit(tracker.LabelTask)}}
+	stubLabelTarget(t, f, "o/r", nil)
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, true); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.created) != 0 || len(f.restyled) != 0 {
+		t.Errorf("the dry run wrote: created %v restyled %v", names(f.created), names(f.restyled))
+	}
+	for _, want := range []string{
+		"would restyle label cc:task (#ededed -> #92edff)",
+		"would create label cc:milestone (#01d4ff)",
+		"would create label cc:needs-decision (#f0aeff)",
+		"dry run: nothing written",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the dry run did not print %q:\n%s", want, out.String())
+		}
+	}
+
+	// And with GitHub refusing, in both modes: a note, no refusal, and the
+	// migration still committed.
+	for _, dryRun := range []bool{true, false} {
+		dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
+		stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+		stubLabelTarget(t, &labelFake{readErr: errors.New("403")}, "o/r", nil)
+		var out bytes.Buffer
+		if err := migrate(&out, dir, dryRun); err != nil {
+			t.Fatalf("dryRun=%v: %v", dryRun, err)
+		}
+		if want := "note: could not read o/r's labels (403)"; !strings.Contains(out.String(), want) {
+			t.Errorf("dryRun=%v: output missing %q:\n%s", dryRun, want, out.String())
+		}
+		if committed := strings.Contains(out.String(), "committed "); committed == dryRun {
+			t.Errorf("dryRun=%v: committed = %v", dryRun, committed)
+		}
 	}
 }
