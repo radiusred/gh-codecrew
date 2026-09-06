@@ -34,9 +34,10 @@ slug from `roles.doc-synthesizer.identity` (`app:<slug>`).
   evidence` checks every URL a record cites — in prose or in a Markdown
   link — and refuses when a github.com citation does not resolve. A URL
   that is not evidence — a probe target that is unreachable by design, a
-  hostname in a verbatim command or error string — goes inside a code span
-  or a fenced block, where the verb does not read it; the record keeps the
-  hostname, and nobody edits a comment to hide it from the scanner
+  hostname in a verbatim command or error string — goes inside code, in any
+  of its three forms: a code span, a fenced block, or a block indented four
+  columns after a blank line. The verb reads none of them; the record keeps
+  the hostname, and nobody edits a comment to hide it from the scanner
   ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Quote
   such URLs the same way in the milestone document.
 - **Requirement outcomes:** a short table of requirement IDs with their final
