@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,8 +15,9 @@ import (
 // milestone issue and the tasks alike, keyed by number.
 type statusFake struct {
 	tracker.Tracker
-	milestones []tracker.Milestone
-	issues     map[int]tracker.Task
+	milestones   []tracker.Milestone
+	issues       map[int]tracker.Task
+	keepBranches bool // the repo does NOT delete branches on merge
 }
 
 func (f *statusFake) OpenMilestones(string) ([]tracker.Milestone, error) { return f.milestones, nil }
@@ -25,7 +28,7 @@ func (f *statusFake) IssueBody(tracker.IssueRef) (string, error) {
 	return "## Requirements\n- **M2-R1** — a thing\n", nil
 }
 func (f *statusFake) RepoInfo(string) (tracker.RepoInfo, error) {
-	return tracker.RepoInfo{DefaultBranch: "main", DeleteBranchOnMerge: true}, nil
+	return tracker.RepoInfo{DefaultBranch: "main", DeleteBranchOnMerge: !f.keepBranches}, nil
 }
 
 func statusCtx(t *testing.T, f tracker.Tracker) *ctx {
@@ -92,5 +95,49 @@ func TestStatusMilestoneWithoutGate(t *testing.T) {
 	}
 	if !strings.Contains(got, "gates raised: none\n") {
 		t.Errorf("no gate anywhere must print none:\n%s", got)
+	}
+}
+
+// Between milestones status still reports what it knows: the contract-drift
+// check reads the hub's roles/ against the contracts embedded in the
+// binary and never touches milestone state, and the quiet period is when a
+// fork gets reconciled against a new release — so the no-open-milestones
+// line replaces the board, not the two advisory checks under it (#253).
+func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {
+	c := statusCtx(t, &statusFake{keepBranches: true})
+	if err := os.MkdirAll(filepath.Join(c.cfg.Dir, "roles"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(c.cfg.Dir, "roles", "coordinator.md"), []byte("a fork of the contract\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := statusReport(&out, c); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"no open milestones in o/r\n",
+		"note: o/r does not delete branches on merge",
+		"contract drift: roles/coordinator.md differs from the embedded",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("status output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "gates raised") {
+		t.Errorf("with no open milestone there is no gates section to print:\n%s", got)
+	}
+}
+
+// The counterpart: an undrifted hub whose repo deletes branches prints the
+// line and nothing else, so neither advisory check is free.
+func TestStatusWithoutOpenMilestonesSaysNothingElseWhenClean(t *testing.T) {
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, &statusFake{})); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "no open milestones in o/r\n" {
+		t.Errorf("a clean hub between milestones prints one line, got:\n%s", got)
 	}
 }
