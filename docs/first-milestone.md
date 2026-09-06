@@ -262,10 +262,11 @@ in the crew, and it's a ladder:
    Same identities, same commands — just different eyes.
 2. **Give crew members their own identities.** When you want the record to
    show *which* agent did what — and GitHub itself to enforce that the
-   approver isn't the author — route roles to other humans by username, to
-   a GitHub team (`identity: org/team-slug`, any member holds the seat), or
-   to GitHub App identities: [identities.md](identities.md). The protocol
-   doesn't change; only the routing table does.
+   approver isn't the author — route roles to other humans
+   (`identity: user:<login>`), to a GitHub team
+   (`identity: team:<org>/<slug>`, any member holds the seat), or to GitHub
+   App identities (`identity: app:<slug>`): [identities.md](identities.md).
+   The protocol doesn't change; only the routing table does.
 3. **Full orchestration platforms** — an orchestrator dispatching the whole
    crew against the routing table, webhooks instead of polling. Run end to
    end on Paperclip: three milestones on a proving-ground repo, the third

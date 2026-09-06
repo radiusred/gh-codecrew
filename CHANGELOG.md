@@ -6,6 +6,35 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Typed identities in the routing table
+- A routing row's `identity` now names the kind of GitHub principal that
+  holds the seat: `~` (the operator, and any session acting under the
+  operator's own auth), `app:<slug>` (a GitHub App), `user:<login>` (one
+  named human) or `team:<org>/<slug>` (any member of the team). **Breaking
+  (protocol 2.0):** a bare value — a 1.0 table's `my-org-coder` — is
+  refused at load with `refused[IDENTITY_UNTYPED]`, naming the row and the
+  four forms; `gh codecrew migrate` rewrites an existing table (#256).
+  An App slug and a username are the same string, so a 1.0 table could not
+  say which a seat held, and the protocol treats them differently (#254,
+  M13-R4).
+- What the kind decides, instead of being guessed from the value's shape:
+  a crew identity — refused `--operator-confirm` and `--bypass` — is now
+  the `app:`-typed holders and `[bot]` logins only, so a human holding a
+  seat (`user:`, or a member of a `team:`) keeps the operator's acts where
+  before every routed login was refused; role holding matches an App with
+  or without its `[bot]` suffix and a user exactly; a team is a `team:`
+  row rather than any value containing a slash.
+- `gh codecrew role <name>` prints the typed value (`app:radiusred-checky`),
+  and the new `--login` prints the handle a review request can name — the
+  login for `user:`, `<org>/<slug>` for `team:` — and nothing at all for an
+  App or the operator, which is the implementer contract's whole branch at
+  PR creation. `identity new` routes and prints `identity: app:<slug>`.
+- SPEC §5 carries the grammar as a table and §6's every-verb row the new
+  code; `docs/identities.md`, `docs/introduction.md`,
+  `docs/first-milestone.md`, `docs/platform-interop.md`, the README's
+  worked example, this hub's own routing table and the five role contracts
+  follow. (#258)
+
 ### The record grammar, tightened
 - Four rules about what recorded text *means*, each a protocol-2.0 break:
   text already written on GitHub is reclassified, which is why they ride a

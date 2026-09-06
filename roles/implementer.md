@@ -13,7 +13,9 @@ export GH_TOKEN=$(gh codecrew identity token <slug>)
 ```
 
 where `<slug>` is the App named by `roles.implementer.identity` in the
-hub's `.codecrew.yml` (the full name, `myorg-coder`, not `coder`). The
+hub's `.codecrew.yml` — the value is typed, so the row reads
+`identity: app:myorg-coder` and the slug is what follows `app:`: the full
+name, `myorg-coder`, not `coder`. The
 verb resolves credentials in this order and stops at the first hit:
 1. Env vars set by your orchestrator: an App ID (`GITHUB_APP_ID` or
    `GITHUB_CLIENT_ID`) and a private key (`GITHUB_PRIVATE_KEY` or
@@ -93,13 +95,21 @@ Then, every run:
   obvious the answer seems.
 - **Open the PR** referencing the task (`Closes #123`) and finalize its
   description as the task summary: what was done, which requirements it
-  satisfies, links to any deviation comments. Request review from the
-  reviewer role's holder — `--reviewer $(gh codecrew role reviewer)` — when the
-  holder is a human username or team. Skip it when it prints `~` (the
-  operator holds the role; there is no username to request), and stand down
-  when the holder is an App identity: GitHub cannot receive a review request
-  for an App, so its review arrives by dispatch instead (see "Dispatching a
-  role session" in https://github.com/radiusred/gh-codecrew/blob/main/docs/identities.md) — do not raise a gate over
+  satisfies, links to any deviation comments. Whether to request a review
+  is the reviewer seat's identity kind, and one command answers it:
+
+  ```
+  reviewer=$(gh codecrew role reviewer --login)
+  [ -n "$reviewer" ] && gh pr create --reviewer "$reviewer" ...
+  ```
+
+  `--login` prints a handle for the two kinds GitHub will accept a review
+  request for — `user:<login>` (the login) and `team:<org>/<slug>`
+  (`org/slug`) — and **nothing** for `app:<slug>` and `~`. Nothing means
+  do not request: `~` is the operator, who has no username to request, and
+  GitHub cannot receive a review request for an App at all, so an
+  App-held seat's review arrives by dispatch instead (see "Dispatching a
+  role session" in https://github.com/radiusred/gh-codecrew/blob/main/docs/identities.md). Do not raise a gate over
   the unrequestable name, and do not dispatch the reviewer yourself either:
   dispatch belongs to the coordination layer above the roles — the operator,
   an orchestrating session, or a platform watching the App's webhook — never

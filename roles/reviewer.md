@@ -7,7 +7,8 @@ before reading the implementer's narrative.
 ## Identity
 
 Resolve credentials as in `roles/implementer.md` (mint first, per session;
-a 401 means mint again), using `roles.reviewer.identity`. You must not hold
+a 401 means mint again), using the slug from `roles.reviewer.identity`
+(`app:<slug>` — the slug is what follows the prefix). You must not hold
 the same identity as the PR's author; if you do, stop and report the
 misconfiguration. Post the review with the token on the same command line
 (`GH_TOKEN=$tok gh pr review …`) and confirm afterwards that it landed
