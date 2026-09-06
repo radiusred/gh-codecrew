@@ -720,3 +720,53 @@ func TestAdoptsBlockRoundTrips(t *testing.T) {
 		t.Errorf("the block reads back as %v, want %v", got, want)
 	}
 }
+
+// A ref quoted in code inside the section is content, not an adoption —
+// the rule the verdict scan and the citation walk already read a record by
+// (M13-R6), and the one that matters most here: what this returns is what
+// task finish closes after a merge, where nothing can refuse.
+func TestAdoptedRefsIgnoresRefsQuotedInCode(t *testing.T) {
+	for _, tc := range []struct{ name, quoted string }{
+		{"fenced", "```\n- #42 — a ref shown as an example\n```"},
+		{"tilde-fenced", "~~~\n- #42 — a ref shown as an example\n~~~"},
+		{"indented", "    - #42 — a ref shown as an example"},
+		{"span", "- `#42` — a ref shown as an example"},
+	} {
+		body := "## Adopts\n- #193 — the real capture\n\n" + tc.quoted + "\n\n## Plan\np\n"
+		want := []IssueRef{{Repo: "o/hub", Number: 193}}
+		if got := AdoptedRefs(body, "o/hub"); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: AdoptedRefs = %v, want %v", tc.name, got, want)
+		}
+	}
+}
+
+// The heading is a heading, not a substring: prose that quotes "## Adopts"
+// — as a task about this feature does, #270's own Goal among them — must
+// not shadow the real section. Shadowing closed an issue nobody adopted
+// and missed the one that was.
+func TestAdoptedRefsFindsTheHeadingNotTheQuotedString(t *testing.T) {
+	body := `## Goal
+Records an ## Adopts line and comments on each capture, e.g.
+- #999 — the shape it writes
+
+## Requirements
+M14-R1
+
+## Adopts
+- #193 — the real capture
+
+## Plan
+p
+`
+	want := []IssueRef{{Repo: "o/hub", Number: 193}}
+	if got := AdoptedRefs(body, "o/hub"); !reflect.DeepEqual(got, want) {
+		t.Errorf("AdoptedRefs = %v, want %v", got, want)
+	}
+	// The section ends at the next heading of level 1 or 2, and a deeper
+	// heading inside it does not end it.
+	body = "## Adopts\n- #193 — the real capture\n\n### A note\n- #194 — still adopted\n\n# Appendix\n- #999 — not\n"
+	want = []IssueRef{{Repo: "o/hub", Number: 193}, {Repo: "o/hub", Number: 194}}
+	if got := AdoptedRefs(body, "o/hub"); !reflect.DeepEqual(got, want) {
+		t.Errorf("across headings: AdoptedRefs = %v, want %v", got, want)
+	}
+}
