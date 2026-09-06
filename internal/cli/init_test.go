@@ -34,7 +34,7 @@ func TestScaffoldHub(t *testing.T) {
 	if len(skipped) != 0 {
 		t.Errorf("fresh dir skipped %v", skipped)
 	}
-	for _, want := range []string{filepath.FromSlash(config.Pointer), "ROADMAP.md", "AGENTS.md", "CLAUDE.md", rolesPath("qa.md"), rolesPath("qa" + localSuffix), rolesPath("implementer" + localSuffix)} {
+	for _, want := range []string{filepath.FromSlash(config.Pointer), filepath.FromSlash(config.AgentsFile), "ROADMAP.md", "AGENTS.md", "CLAUDE.md", rolesPath("qa.md"), rolesPath("qa" + localSuffix), rolesPath("implementer" + localSuffix)} {
 		if !slices.Contains(written, want) {
 			t.Errorf("missing %s from written %v", want, written)
 		}
@@ -53,14 +53,20 @@ func TestScaffoldHub(t *testing.T) {
 	}
 }
 
+// A spoke gets the pointer and the entry point and nothing else: an agent is
+// dispatched into a spoke exactly as into a hub, so it needs the same file to
+// land on, while the roadmap, the contracts and their extensions stay in the
+// hub that owns them (M13-R3).
 func TestScaffoldSpoke(t *testing.T) {
 	dir := t.TempDir()
 	written, _, err := scaffold(dir, "org/hub", fakeContracts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(written) != 1 || written[0] != filepath.FromSlash(config.Pointer) {
-		t.Fatalf("spoke mode wrote %v, want only the pointer", written)
+	want := []string{filepath.FromSlash(config.AgentsFile), filepath.FromSlash(config.Pointer), "AGENTS.md", "CLAUDE.md"}
+	slices.Sort(want)
+	if !slices.Equal(written, want) {
+		t.Fatalf("spoke mode wrote %v, want %v", written, want)
 	}
 	cfg, _ := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.Pointer)))
 	if !strings.Contains(string(cfg), "hub: org/hub") {
@@ -113,7 +119,7 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 	if _, _, err := scaffold(dir, "self", fakeContracts); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.AgentsFile)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +132,7 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 		"Reviews are model reviews",
 	} {
 		if !strings.Contains(flat, want) {
-			t.Errorf("scaffolded AGENTS.md missing %q", want)
+			t.Errorf("scaffolded %s missing %q", config.AgentsFile, want)
 		}
 	}
 }
@@ -255,15 +261,111 @@ func TestScaffoldedClaudeImportsAgents(t *testing.T) {
 	}
 }
 
-func TestScaffoldSpokeWritesNoClaude(t *testing.T) {
+// What stays hub-only: the roadmap and the contracts. A spoke that grew its
+// own copy of either would be a second source of truth for what the hub owns.
+func TestScaffoldSpokeWritesNoRoadmapOrContracts(t *testing.T) {
 	dir := t.TempDir()
 	written, _, err := scaffold(dir, "owner/hub", fakeContracts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range written {
-		if f == "CLAUDE.md" || f == "AGENTS.md" {
-			t.Errorf("spoke scaffold wrote %s; spokes get only the pointer", f)
+		if f == "ROADMAP.md" || strings.HasPrefix(f, filepath.FromSlash(config.RolesDir)) {
+			t.Errorf("spoke scaffold wrote %s; the roadmap and the contracts live in the hub", f)
+		}
+	}
+}
+
+// The instructions live in .codecrew/AGENTS.md — CodeCrew's own directory,
+// rewritable whole — and the root AGENTS.md is only the pointer at them, in
+// both forms: the sentence a plain-markdown harness follows and the bare
+// @-import Claude Code resolves (M13-R3).
+func TestScaffoldWritesTheEntryPointAndARootPointer(t *testing.T) {
+	for _, hub := range []string{"self", "org/hub"} {
+		dir := t.TempDir()
+		if _, _, err := scaffold(dir, hub, fakeContracts); err != nil {
+			t.Fatal(err)
+		}
+		instructions, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.AgentsFile)))
+		if err != nil {
+			t.Fatalf("hub=%s: %v", hub, err)
+		}
+		if !strings.Contains(string(instructions), "gh codecrew roles show <role>") {
+			t.Errorf("hub=%s: %s does not carry the instructions:\n%s", hub, config.AgentsFile, instructions)
+		}
+		root, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+		if err != nil {
+			t.Fatalf("hub=%s: %v", hub, err)
+		}
+		// The pointer is short: a heading and the lines, nothing an adopter
+		// has to re-merge when the instructions change.
+		if len(strings.Split(strings.TrimSpace(string(root)), "\n")) > 6 {
+			t.Errorf("hub=%s: root AGENTS.md is not a short pointer:\n%s", hub, root)
+		}
+		for _, want := range []string{config.AgentsFile, "@" + config.AgentsFile} {
+			if !strings.Contains(string(root), want) {
+				t.Errorf("hub=%s: root AGENTS.md does not carry %q:\n%s", hub, want, root)
+			}
+		}
+		if strings.Contains(string(root), "`@"+config.AgentsFile+"`") {
+			t.Errorf("hub=%s: the import is wrapped in backticks — Claude Code reads that as literal text", hub)
+		}
+		if !strings.Contains(string(root), entryPointLines) {
+			t.Errorf("hub=%s: root AGENTS.md is not the block init prints:\n%s", hub, root)
+		}
+	}
+}
+
+// An existing root entry point is kept — and init prints the exact lines to
+// add to it, byte for byte the ones its own pointer carries, rather than
+// reporting a skip that leaves the project with instructions nothing reaches
+// (M13-R3).
+func TestInitPrintsTheLineToAddForAKeptEntryPoint(t *testing.T) {
+	for _, existing := range [][]string{{"AGENTS.md"}, {"CLAUDE.md"}, {"AGENTS.md", "CLAUDE.md"}, nil} {
+		dir := t.TempDir()
+		for _, f := range existing {
+			if err := os.WriteFile(filepath.Join(dir, f), []byte("# mine\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		wd, _ := os.Getwd()
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		err := initCmd(&out, nil)
+		os.Chdir(wd)
+		if err != nil {
+			t.Fatalf("%v: %v", existing, err)
+		}
+		got := out.String()
+		if len(existing) == 0 {
+			// Nothing was kept, so there is nothing to paste.
+			if strings.Contains(got, "action needed") {
+				t.Errorf("a fresh init asked for an action:\n%s", got)
+			}
+			continue
+		}
+		for _, f := range existing {
+			if !strings.Contains(got, "kept existing "+f) {
+				t.Errorf("%v: init did not report keeping %s:\n%s", existing, f, got)
+			}
+			if data, _ := os.ReadFile(filepath.Join(dir, f)); string(data) != "# mine\n" {
+				t.Errorf("%v: init overwrote %s", existing, f)
+			}
+			if !strings.Contains(got, "Kept:") || !strings.Contains(got, f) {
+				t.Errorf("%v: the action-needed heading does not name %s:\n%s", existing, f, got)
+			}
+		}
+		// The lines it prints are the ones its own root pointer carries.
+		if !strings.Contains(got, entryPointLines) {
+			t.Errorf("%v: init printed no line to add:\n%s", existing, got)
+		}
+		if !strings.Contains(agentsPointerScaffold, entryPointLines) {
+			t.Error("the printed block is not what the root pointer scaffold contains")
+		}
+		if !strings.Contains(got, config.AgentsFile) {
+			t.Errorf("%v: the report never names %s:\n%s", existing, config.AgentsFile, got)
 		}
 	}
 }
