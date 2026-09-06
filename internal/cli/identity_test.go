@@ -178,7 +178,7 @@ func TestServeFlowRejectsCodelessCallback(t *testing.T) {
 	}
 }
 
-const nestedYML = `codecrew: "0.1" # protocol version
+const nestedYML = `codecrew: "2.0" # protocol version
 hub: self
 
 # Advisory role routing, read by whoever dispatches agents.
@@ -194,7 +194,7 @@ roles:
     identity: app:myorg-testy
 `
 
-const inlineYML = `codecrew: "0.1"
+const inlineYML = `codecrew: "2.0"
 hub: self
 roles:
   implementer: { identity: ~ }
@@ -234,7 +234,7 @@ func TestRouteRoleNestedShape(t *testing.T) {
 		t.Error("stale identity comment survived the rewrite")
 	}
 	// Everything else survives: siblings, harness lines, file comments.
-	for _, keep := range []string{"# Advisory role routing", "harness: codex", "identity: app:myorg-coder", "identity: app:myorg-testy", `codecrew: "0.1" # protocol version`} {
+	for _, keep := range []string{"# Advisory role routing", "harness: codex", "identity: app:myorg-coder", "identity: app:myorg-testy", `codecrew: "2.0" # protocol version`} {
 		if !strings.Contains(string(out), keep) {
 			t.Errorf("line lost in surgery: %q", keep)
 		}
@@ -278,7 +278,7 @@ func TestRouteRoleErrors(t *testing.T) {
 	}
 	unchanged(t, p, nestedYML)
 
-	spoke := writeTemp(t, "codecrew: \"0.1\"\nhub: myorg/hub\n")
+	spoke := writeTemp(t, "codecrew: \"2.0\"\nhub: myorg/hub\n")
 	if err := routeRole(spoke, "reviewer", "x"); err == nil {
 		t.Error("routed into a pointer-only spoke config")
 	}
