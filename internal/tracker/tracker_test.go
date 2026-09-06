@@ -220,10 +220,54 @@ func TestExtractRecordsM5Corpus(t *testing.T) {
 	}
 }
 
+// The protocol-2.0 gate grammar (M13-R6): **Gate raised:** is read per
+// paragraph like every other label, only **Gate resolved:** resolves, and
+// it resolves the gates open before it — never the ones after.
+// The tightened rules must not reclassify the hub's own history. The M5
+// corpus carries the project's one hand-raised gate (#68) and its
+// **Gate resolved:** answer: it was resolved before protocol 2.0 and stays
+// resolved after it.
+func TestUnresolvedGatesM5Corpus(t *testing.T) {
+	data, err := os.ReadFile("testdata/m5-corpus.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Sources []struct {
+			Ref      string    `json:"ref"`
+			Comments []Comment `json:"comments"`
+		} `json:"sources"`
+	}
+	if err := json.Unmarshal(data, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	raised := 0
+	for _, src := range corpus.Sources {
+		for _, c := range src.Comments {
+			for _, para := range paragraphs(c.Body) {
+				if gateRaisedLabel.MatchString(para) {
+					raised++
+				}
+			}
+		}
+		if got := UnresolvedGates(src.Comments); len(got) != 0 {
+			t.Errorf("%s: %d gate(s) newly unresolved", src.Ref, len(got))
+		}
+	}
+	if raised != 1 {
+		t.Errorf("the corpus should carry the one recorded gate, found %d", raised)
+	}
+}
+
 func TestUnresolvedGates(t *testing.T) {
 	gate := Comment{Author: "cody", Body: "**Gate raised:** rename or split?"}
+	gateLate := Comment{Author: "cody", Body: "I have pushed the rebase and the tests are green.\n\n**Gate raised:** rename or split?"}
+	gateTwice := Comment{Author: "cody", Body: "**Gate raised:** rename or split?\n\n**Gate raised:** and which name?"}
 	resolved := Comment{Author: "human", Body: "**Gate resolved:** rename"}
+	resolvedLate := Comment{Author: "human", Body: "Read both branches.\n\n**Gate resolved:** rename"}
 	decision := Comment{Author: "human", Body: "**Decision:** rename"}
+	deviation := Comment{Author: "cody", Body: "**Deviation:** skipped W.\n**Why:** unnecessary."}
+	quoted := Comment{Author: "human", Body: "The convention is a paragraph opening **Gate raised:** like this one mid-line."}
 	chat := Comment{Author: "human", Body: "thinking about it"}
 	cases := []struct {
 		name     string
@@ -232,16 +276,28 @@ func TestUnresolvedGates(t *testing.T) {
 	}{
 		{"no gates", []Comment{chat, decision}, 0},
 		{"gate then resolution", []Comment{gate, resolved}, 0},
-		{"gate then decision counts", []Comment{gate, decision}, 0},
+		{"a bare Decision no longer resolves", []Comment{gate, decision}, 1},
+		{"a Deviation never resolved", []Comment{gate, deviation}, 1},
 		{"gate with only chat after", []Comment{gate, chat}, 1},
 		{"resolution before gate does not count", []Comment{resolved, gate}, 1},
 		{"second gate after resolution is unresolved", []Comment{gate, resolved, gate}, 1},
-		{"one trailing resolution covers earlier gates", []Comment{gate, gate, resolved}, 0},
+		{"one resolution covers every gate open before it", []Comment{gate, gate, resolved}, 0},
+		{"a gate raised in a later paragraph counts", []Comment{gateLate}, 1},
+		{"a gate raised in a later paragraph is resolvable", []Comment{gateLate, resolved}, 0},
+		{"a resolution in a later paragraph resolves", []Comment{gate, resolvedLate}, 0},
+		{"two gates in one comment are two gates", []Comment{gateTwice}, 2},
+		{"two gates in one comment, one resolution", []Comment{gateTwice, resolved}, 0},
+		{"a label mid-line is not a gate", []Comment{quoted}, 0},
+		{"a resolution then a later gate leaves the later one", []Comment{gate, resolved, gateLate}, 1},
 	}
 	for _, c := range cases {
 		if got := len(UnresolvedGates(c.comments)); got != c.want {
 			t.Errorf("%s: got %d unresolved, want %d", c.name, got, c.want)
 		}
+	}
+	// The comment carrying the gate is what task finish links to.
+	if got := UnresolvedGates([]Comment{gateLate}); len(got) != 1 || got[0].Author != "cody" {
+		t.Errorf("the raising comment is returned: %+v", got)
 	}
 }
 
@@ -300,6 +356,131 @@ func TestParseVerdicts(t *testing.T) {
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("verdict[%d] = %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
+// Verdict supersession, protocol 2.0 (M13-R6): per comment, not per
+// match. Within a comment the first verdict for an ID counts, so a QA
+// comment that restates an earlier verdict below its own no longer
+// supersedes itself; across comments the latest comment carrying a verdict
+// for the ID wins, which is what milestone close tallies.
+func TestParseVerdictsPerComment(t *testing.T) {
+	cases := []struct {
+		name     string
+		comments []Comment
+		want     []Verdict
+	}{
+		{
+			"the first match for an ID in a comment counts",
+			[]Comment{{Author: "testy", Body: "**M2-R1 — not satisfied.** the probe fails\n\nMy earlier **M2-R1 — satisfied.** was wrong."}},
+			[]Verdict{{ID: "M2-R1", State: "not satisfied", Author: "testy"}},
+		},
+		{
+			"a later comment supersedes",
+			[]Comment{
+				{Author: "testy", Body: "**M2-R1 — not satisfied.** the probe fails"},
+				{Author: "testy", Body: "**M2-R1 — satisfied.** fixed on the follow-up PR"},
+			},
+			[]Verdict{
+				{ID: "M2-R1", State: "not satisfied", Author: "testy"},
+				{ID: "M2-R1", State: "satisfied", Author: "testy"},
+			},
+		},
+		{
+			"a verdict quoted in a fenced block is content",
+			[]Comment{{Author: "testy", Body: "The form is:\n\n```markdown\n**M2-R1 — satisfied.** <evidence>\n```\n\nMine follows.\n\n**M2-R1 — not satisfied.** the probe fails"}},
+			[]Verdict{{ID: "M2-R1", State: "not satisfied", Author: "testy"}},
+		},
+		{
+			"a verdict quoted in a code span is content",
+			[]Comment{{Author: "testy", Body: "I withdraw `**M2-R1 — satisfied.**` and record:\n\n**M2-R1 — untestable.** no environment"}},
+			[]Verdict{{ID: "M2-R1", State: "untestable", Author: "testy"}},
+		},
+		{
+			"a fence quoting one ID does not hide another",
+			[]Comment{{Author: "testy", Body: "```\n**M2-R1 — satisfied.**\n```\n\n**M2-R2 — satisfied.** it holds"}},
+			[]Verdict{{ID: "M2-R2", State: "satisfied", Author: "testy"}},
+		},
+		{
+			"different IDs in one comment all count",
+			[]Comment{{Author: "testy", Body: "- **M2-R1 — satisfied.** a\n- **M2-R2 — not satisfied.** b\n"}},
+			[]Verdict{
+				{ID: "M2-R1", State: "satisfied", Author: "testy"},
+				{ID: "M2-R2", State: "not satisfied", Author: "testy"},
+			},
+		},
+	}
+	for _, c := range cases {
+		got := ParseVerdicts(c.comments)
+		if len(got) != len(c.want) {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+			continue
+		}
+		for i := range c.want {
+			if got[i] != c.want[i] {
+				t.Errorf("%s: verdict[%d] = %v, want %v", c.name, i, got[i], c.want[i])
+			}
+		}
+	}
+}
+
+// The tally milestone close performs over that stream: last write per ID
+// wins, which under the per-comment rule means the latest comment's first
+// match for the ID.
+func TestVerdictTallyIsPerComment(t *testing.T) {
+	comments := []Comment{
+		{Author: "testy", Body: "- **M2-R1 — satisfied.** a\n- **M2-R2 — satisfied.** b\n"},
+		{Author: "testy", Body: "**M2-R2 — not satisfied.** the hairbrush case\n\nEarlier I wrote **M2-R2 — satisfied.**, which this supersedes."},
+	}
+	latest := map[string]string{}
+	for _, v := range ParseVerdicts(comments) {
+		latest[v.ID] = v.State
+	}
+	if latest["M2-R1"] != "satisfied" || latest["M2-R2"] != "not satisfied" {
+		t.Errorf("tally = %v, want M2-R1 satisfied and M2-R2 not satisfied", latest)
+	}
+}
+
+// SPEC §4: a requirement ID is M<milestone>-R<k>. IDs outside the
+// Requirements section are not requirements and are not checked.
+func TestMismatchedRequirementIDs(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		n    int
+		want []string
+	}{
+		{"a matching set", "## Requirements\n- **M13-R1** — a\n- **M13-R2** — b\n", 13, nil},
+		{"a foreign ID", "## Requirements\n- **M13-R1** — a\n- **M12-R3** — b\n", 13, []string{"M12-R3"}},
+		{"every ID foreign", "## Requirements\n- **M1-R1** — a\n- **M2-R1** — b\n", 13, []string{"M1-R1", "M2-R1"}},
+		{"a prefix is not a match", "## Requirements\n- **M1-R1** — a\n", 13, []string{"M1-R1"}},
+		{"M1 does not swallow M13", "## Requirements\n- **M13-R1** — a\n", 1, []string{"M13-R1"}},
+		{"IDs outside the section are not requirements", "## Requirements\n- **M13-R1** — a\n\n## Gates\n- **M9-R9** — a gate\n", 13, nil},
+		{"no section", "## Goal\nnothing here", 13, nil},
+	}
+	for _, c := range cases {
+		got := MismatchedRequirementIDs(c.body, c.n)
+		if fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("%s: MismatchedRequirementIDs = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// One code rule for the whole binary: the citation walk and the verdict
+// scan read a comment through StripCode, so what is content for one is
+// content for the other (M13-R6).
+func TestStripCode(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"a span is blanked", "keep `drop` keep", "keep   keep"},
+		{"a fence is blanked", "a\n```\ndrop\n```\nb\n", "a\nb\n"},
+		{"a tilde fence is blanked", "a\n~~~\ndrop\n~~~\nb\n", "a\nb\n"},
+		{"an unclosed fence runs to the end", "a\n```\ndrop\ndrop\n", "a\n"},
+		{"an unclosed backtick run is literal", "a ` b\n", "a ` b\n"},
+	}
+	for _, c := range cases {
+		if got := StripCode(c.in); got != c.want {
+			t.Errorf("%s: StripCode(%q) = %q, want %q", c.name, c.in, got, c.want)
 		}
 	}
 }
