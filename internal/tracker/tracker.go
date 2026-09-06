@@ -381,10 +381,18 @@ var adoptedLine = regexp.MustCompile(`(?m)^[ \t]*[-*][ \t]+((?:[\w.-]+/[\w.-]+)?
 // section, in the order written, deduplicated; a bare `#N` resolves
 // against defaultRepo, the task's own repo. No section, or none of its
 // lines carrying a ref, is no adoptions.
+//
+// The body is read through StripCode first, as the verdict scan and the
+// citation walk read a comment (M13-R6): a ref quoted in a fenced block,
+// an indented block or an inline span is content, not an adoption. That
+// rule matters more here than anywhere it already held — what this returns
+// is what task finish closes after a merge, where nothing can refuse — so
+// the section is found by heading rather than by substring too
+// (adoptsSection).
 func AdoptedRefs(body, defaultRepo string) []IssueRef {
 	var refs []IssueRef
 	seen := map[IssueRef]bool{}
-	for _, m := range adoptedLine.FindAllStringSubmatch(section(body, AdoptsHeading), -1) {
+	for _, m := range adoptedLine.FindAllStringSubmatch(adoptsSection(StripCode(body)), -1) {
 		ref, err := ParseRef(m[1], defaultRepo)
 		if err != nil || seen[ref] {
 			continue
@@ -393,6 +401,34 @@ func AdoptedRefs(body, defaultRepo string) []IssueRef {
 		refs = append(refs, ref)
 	}
 	return refs
+}
+
+// adoptsHeadingLine matches the ## Adopts heading as a heading — at the
+// head of a line, up to three columns of indentation as CommonMark allows,
+// the text exact, trailing spaces ignored — and sectionEnd matches the
+// heading of level 1 or 2 that ends it.
+var (
+	adoptsHeadingLine = regexp.MustCompile(`(?m)^ {0,3}` + AdoptsHeading + `[ \t]*$`)
+	sectionEnd        = regexp.MustCompile(`(?m)^ {0,3}#{1,2} `)
+)
+
+// adoptsSection returns the text under the ## Adopts heading. section()
+// finds its heading by substring, which is enough where a miss costs a
+// presence check (PlanPresent) or an ID list (RequirementIDs); here it is
+// not, because prose that merely quotes the heading would shadow the real
+// section and decide what task finish closes — and a task about this
+// feature quotes it (#270's own Goal does). So the heading is matched as a
+// heading and the section runs to the next one of level 1 or 2.
+func adoptsSection(body string) string {
+	loc := adoptsHeadingLine.FindStringIndex(body)
+	if loc == nil {
+		return ""
+	}
+	rest := body[loc[1]:]
+	if end := sectionEnd.FindStringIndex(rest); end != nil {
+		rest = rest[:end[0]]
+	}
+	return rest
 }
 
 // AdoptionRecord is the comment task new posts on a capture, so the
