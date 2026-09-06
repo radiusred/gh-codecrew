@@ -9,8 +9,8 @@
   </style>
   <rect rx="8" class="box hub" x="24" y="60" width="256" height="120"/>
   <text class="h" x="40" y="88">hub</text>
-  <text class="s" x="40" y="112">roles/ — the four contracts</text>
-  <text class="s" x="40" y="132">.codecrew.yml — the routing table</text>
+  <text class="s" x="40" y="112">.codecrew/roles/ — the four contracts</text>
+  <text class="s" x="40" y="132">.codecrew/config.yml — the routing table</text>
   <text class="s" x="40" y="152">milestone issues and their records</text>
   <text class="m" x="40" y="172" fill="#1ad1ff">hub: self</text>
 
