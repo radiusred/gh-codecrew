@@ -4,7 +4,9 @@ CodeCrew is developed with CodeCrew: the protocol in [SPEC.md](SPEC.md) is
 the contribution process.
 
 - **Ideas and bugs** — open an issue. Leave it unlabelled: that is a backlog
-  capture, not protocol traffic, until it is adopted into a milestone.
+  capture, not protocol traffic, until it is adopted into a milestone — at
+  which point the task that delivers it names it (`task new --adopts`), and
+  `task finish` closes it with the merge.
 - **Work** — every change is a task under the open milestone
   (`gh codecrew status` names it; [ROADMAP.md](ROADMAP.md) lists the
   finished ones): a task issue with a plan written

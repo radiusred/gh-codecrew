@@ -6,6 +6,30 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A task adopts a backlog capture, and the merge closes it
+- **`task new --adopts <ref>[,<ref>]`** records the backlog issues a task
+  takes up: repeatable and comma-separated, a bare number resolving against
+  the task's own repo and `owner/repo#n` naming one anywhere. The refs go
+  into an `## Adopts` section of the task body and each capture gets a
+  comment naming the task. Every ref must be an open issue, checked before
+  anything is created — `refused[ADOPT_NOT_OPEN]` for one that cannot be
+  read as much as for one already closed — so a refusal leaves no
+  half-adopted task; duplicates collapse, and a comment that fails once the
+  task exists is a `note:`, the body carrying the link either way.
+- **`task finish` closes them after the merge**, each with a comment naming
+  the task, the pull request and the commit the merge left on the default
+  branch. Nothing there refuses, because the merge has happened: a capture
+  already closed is reported, and one that cannot be closed is a `note:`
+  naming it. `--dry-run` lists each capture it would close, and each it
+  would skip, beside the branch it would delete.
+- The protocol now does the bookkeeping the link already describes: an
+  adopted capture stays open exactly as long as the task carrying it, and no
+  PR body has to remember a `Closes` line for one. Every hub milestone since
+  M3 closed with a manual sweep of the captures it had adopted, or forgot
+  one. SPEC §4 says what adoption means, §6's `task new` and `task finish`
+  rows say what the verbs do, and the coordinator and implementer contracts
+  follow (#270, closing #193).
+
 ### `task finish` tidies the clone it ran in
 - **The local task branch goes with the remote one.** `task finish` merged
   the PR and deleted the head branch on GitHub, and left the operator
