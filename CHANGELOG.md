@@ -6,6 +6,66 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [2.0.0] — 2026-09-06
+
+Protocol 2.0, and the first release of the extension that speaks it.
+Everything below merged through the protocol — a task, a plan, a PR, the
+reviewer seat's approval, `task finish` — and is recorded on the linked
+issues.
+
+### What broke, and what to do
+
+**Every CodeCrew-owned file now lives under `.codecrew/`.** The pointer
+moved from `.codecrew.yml` to `.codecrew/config.yml`, and the role
+contracts and their local extensions out of a root `roles/` into
+`.codecrew/roles/`, hub and spoke alike: the framework had been writing
+into the root of repositories it does not own, where `roles/` collides
+with real project layouts. **A 2.0 binary refuses a 1.x repository** — a
+root `.codecrew.yml`, or a root `roles/` holding one of the five
+contracts, raises `refused[LAYOUT_LEGACY]` naming what it found and the
+verb that moves the repo forward. There is no dual read and no
+compatibility shim, so a repo stops working the moment the extension is
+upgraded and stays stopped until it is migrated.
+
+**Migrating a repository:**
+
+1. `gh extension upgrade codecrew` (or `gh extension install
+   radiusred/gh-codecrew`), once per machine.
+2. In each repository, `gh codecrew migrate --dry-run` to see every step,
+   then `gh codecrew migrate` — **hubs before their spokes**, because a
+   spoke resolves its routing by reading the hub's `.codecrew/config.yml`
+   and refuses `HUB_UNREADABLE` while the hub is still on 1.x.
+3. `git show` — read the commit. The files move by `git mv`, so their
+   history follows them; the part worth reading is the pointer's rewrite,
+   which types every identity in the routing table.
+4. `git push -u origin HEAD`, then open the pull request. `migrate` never
+   pushes: landing the move is the operator's act.
+5. If the output ends with an `action needed` block, paste the lines it
+   prints into each root `AGENTS.md` or `CLAUDE.md` it names. A 1.x root
+   entry point holds the old instructions and does not reach
+   `.codecrew/AGENTS.md`; `migrate` never edits a file the project owns.
+
+The move also brings the repository's `cc:` labels to the protocol's
+defaults, and that step alone needs GitHub: a repository it cannot reach
+gets a `note:` and the migration still stands, with a rerun as the
+recovery.
+
+**The other breaks need no action beyond that migration, which resolves
+each of them.** Routing identities are typed — `app:`, `user:`, `team:`,
+`~` — and a bare 1.0 value is refused `IDENTITY_UNTYPED`; routing fails
+closed instead of degrading to an empty table, so a spoke that cannot
+read its hub refuses rather than resolving every seat to the operator;
+the agent entry point moved to `.codecrew/AGENTS.md`, with the root files
+pointing at it; and three 1.0 shims are gone — `codecrew: "0.1"`, the
+coordinator row inferred when a declared table omits it, and an assignee
+standing in for a start record. One break is not about files at all: the
+record grammar tightened, which reclassifies text already written on
+GitHub — a gate is read per paragraph, only `**Gate resolved:**` resolves
+one, verdict supersession is per comment, and a requirement ID must carry
+its own milestone's number. Each has its own entry below.
+
 ### The `cc:` labels are created, and restyled by `migrate`, from the crew palette
 - **Nothing defined the protocol's labels.** `cc:milestone`, `cc:task` and
   `cc:needs-decision` were created implicitly by the first
@@ -1077,7 +1137,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/radiusred/gh-codecrew/compare/v1.0.2...v1.0.3
