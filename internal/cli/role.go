@@ -11,15 +11,17 @@ import (
 // holder resolves a role name against a routing table: the routed
 // identity, the operator's `~` (explicitly, or because no table is
 // declared), or an error for a name absent from a declared table.
+//
+// `coordinator` is no such name. Until 2.0 it was special-cased to `~`,
+// because the row arrived after 1.0 hubs had scaffolded their tables; the
+// shim is gone (M13-R7) and a declared table missing the row is the error
+// every other missing role is. `init` scaffolds the row and
+// `gh codecrew migrate` adds it to a 1.x table (SPEC §6), so the only way
+// to reach this error is a table someone edited to remove a seat that
+// exists.
 func holder(roles map[string]config.Role, name string) (config.Identity, error) {
 	role, ok := roles[name]
 	if !ok && len(roles) > 0 {
-		// The coordinator row arrived after 1.0 hubs scaffolded their
-		// tables; a table without it still has a coordinator — the
-		// operator, as every unrouted seat is (SPEC §5, §7).
-		if name == "coordinator" {
-			return config.Identity{}, nil
-		}
 		return config.Identity{}, fmt.Errorf("role %q is not in the routing table", name)
 	}
 	return role.Identity, nil
