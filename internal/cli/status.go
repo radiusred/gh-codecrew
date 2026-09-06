@@ -82,8 +82,17 @@ func milestoneBoard(w io.Writer, c *ctx, milestones []tracker.Milestone) error {
 		}
 		fmt.Fprintln(w, header)
 		if body, err := c.t.IssueBody(m.Ref); err == nil {
+			// The Requirements section, read the way milestone close
+			// reads it: empty, or declaring an ID that is not this
+			// milestone's (M13-R6). status reports both as a line and
+			// carries on — it is the board, not a gate.
+			num, numbered := tracker.MilestoneNumber(m.Title)
 			if ids := tracker.RequirementIDs(body); len(ids) == 0 {
 				fmt.Fprintf(w, "  %s\n", requirementsNote(ids))
+			} else if numbered {
+				if bad := tracker.MismatchedRequirementIDs(body, num); len(bad) > 0 {
+					fmt.Fprintf(w, "  %s\n", requirementIDMismatchNote(num, bad))
+				}
 			}
 		}
 		if len(m.Tasks) == 0 {
