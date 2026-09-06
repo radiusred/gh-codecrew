@@ -262,6 +262,61 @@ func TestMigrateBothLayouts(t *testing.T) {
 	}
 }
 
+// A 2.0 file already sitting where a 1.x one would go is both layouts one
+// level down: migrate refuses before writing rather than renaming over the
+// newer file and stranding the tracked source's deletion outside its own
+// commit (checky's finding on PR #280).
+func TestMigrateRefusesAnExistingDestination(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{
+		"roles/qa.md":              "# Role: qa (1.x)\n",
+		config.RolesDir + "/qa.md": "# Role: qa (2.0)\n",
+	})
+	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+
+	var out bytes.Buffer
+	err := migrate(&out, dir, false)
+	if code := refusalCode(t, err); code != "BOTH_LAYOUTS" {
+		t.Fatalf("code = %s, want BOTH_LAYOUTS (%v)", code, err)
+	}
+	for _, want := range []string{config.RolesDir + "/qa.md", "roles/qa.md"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not name %s: %v", want, err)
+		}
+	}
+	if got := read(t, dir, config.RolesDir+"/qa.md"); got != "# Role: qa (2.0)\n" {
+		t.Errorf("the existing 2.0 file was overwritten: %q", got)
+	}
+	if !exists(t, dir, "roles/qa.md") || !exists(t, dir, config.LegacyPointer) {
+		t.Error("a refused migration moved files")
+	}
+	status, err := git(dir, "status", "--short")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != "" {
+		t.Errorf("a refused migration touched the index or the tree: %q", status)
+	}
+}
+
+// A source git does not track is renamed on the filesystem and left out of
+// the commit's pathspec, which is the only case that may skip git mv.
+func TestMigrateMovesAnUntrackedPointer(t *testing.T) {
+	dir := legacyRepo(t, "", nil)
+	if err := os.WriteFile(filepath.Join(dir, config.LegacyPointer), []byte("codecrew: \"1.0\"\nhub: myorg/hub\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := migrate(&out, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if !exists(t, dir, config.Pointer) || exists(t, dir, config.LegacyPointer) {
+		t.Error("the untracked pointer did not move")
+	}
+	if got := headSubject(t, dir); got != migrateSubject {
+		t.Errorf("HEAD subject = %q, want %q", got, migrateSubject)
+	}
+}
+
 // A spoke holds the pointer and, at most, its own extensions.
 func TestMigrateSpoke(t *testing.T) {
 	dir := legacyRepo(t, "codecrew: \"1.0\"\nhub: myorg/hub\n", map[string]string{

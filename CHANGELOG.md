@@ -33,11 +33,13 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   organization refuses `refused[IDENTITY_UNRESOLVED]` rather than encoding
   a guess in the routing table. The rewrite keeps the file's comments,
   blank lines and key order: the pointer is a file its project maintains.
-- **What it refuses.** `BOTH_LAYOUTS` when a 2.0 pointer and the 1.x layout
-  both exist, naming both; `MIGRATION_UNSUPPORTED` when the pointer's
-  protocol major is not 1, naming the version; and the two above. Every
-  refusal is raised before anything is written. A repo already on 2.0 says
-  so, writes nothing and exits 0, so a rerun is safe.
+- **What it refuses.** `BOTH_LAYOUTS` when the two layouts overlap — a 2.0
+  pointer beside the 1.x one, or a 2.0 file already sitting where a 1.x one
+  would move — naming what it found; `MIGRATION_UNSUPPORTED` when the
+  pointer's protocol major is not 1, naming the version; and the two above.
+  Every refusal is raised before anything is written, and the one rename
+  that may skip `git mv` is a source git does not track. A repo already on
+  2.0 says so, writes nothing and exits 0, so a rerun is safe.
 - SPEC §6 carries the verb's row and §10 names it; `docs/introduction.md`
   gains the four codes (thirty-eight → forty-two, with the README's count).
   (#256)

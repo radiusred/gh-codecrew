@@ -92,6 +92,10 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 	if err != nil {
 		return err
 	}
+	moves := append([]move{{from: config.LegacyPointer, to: config.Pointer}}, roleMoves...)
+	if err := checkDestinations(root, moves); err != nil {
+		return err
+	}
 	changes, err := rewritePointer(doc)
 	if err != nil {
 		return err
@@ -101,7 +105,6 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		return err
 	}
 
-	moves := append([]move{{from: config.LegacyPointer, to: config.Pointer}}, roleMoves...)
 	emptied := len(roleMoves) > 0
 
 	moved, removed, rewrote := "moved", "removed", "rewrote"
@@ -190,25 +193,58 @@ func commitPaths(moves []move) (stage, paths []string) {
 // both ends of every move.
 func commitPathCount(moves []move) int { return 2 * len(moves) }
 
+// checkDestinations refuses before anything is written when a 2.0 file
+// already sits where a 1.x one would move. It is the same condition the
+// pointer check catches one level up — the repo carries both layouts — and
+// the answer is the same: migrate will not overwrite the newer file to
+// reach the older one, and it will not leave the tracked source's deletion
+// outside its own commit (checky's finding on PR #280).
+func checkDestinations(root string, moves []move) error {
+	var clashes []string
+	for _, m := range moves {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(m.to))); err == nil {
+			clashes = append(clashes, fmt.Sprintf("%s, where %s would go", m.to, m.from))
+		}
+	}
+	if len(clashes) == 0 {
+		return nil
+	}
+	return refuse("BOTH_LAYOUTS", "%s carries both layouts: it already holds %s — keep whichever the project uses, remove the other, then rerun",
+		root, strings.Join(clashes, "; "))
+}
+
 // applyMoves performs each rename with git mv, so the history follows the
-// file. A source git does not know — an uncommitted 1.x scaffold — is
-// renamed on the filesystem instead and marked untracked, since naming it
-// in the commit's pathspec would fail.
+// file. The one case that falls back to the filesystem is a source git does
+// not know — an uncommitted 1.x scaffold — because naming an untracked path
+// in the commit's pathspec would fail. Every other git mv failure is
+// returned: git refusing to move a file it tracks is the repository's
+// answer, and renaming underneath it would strand the source's deletion
+// outside the migration commit.
 func applyMoves(root string, moves []move) error {
 	for i := range moves {
 		to := filepath.Join(root, filepath.FromSlash(moves[i].to))
 		if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			return err
 		}
-		if _, err := git(root, "mv", "--", moves[i].from, moves[i].to); err == nil {
+		_, mvErr := git(root, "mv", "--", moves[i].from, moves[i].to)
+		if mvErr == nil {
 			moves[i].tracked = true
 			continue
+		}
+		if isTracked(root, moves[i].from) {
+			return fmt.Errorf("moving %s to %s: %w", moves[i].from, moves[i].to, mvErr)
 		}
 		if err := os.Rename(filepath.Join(root, filepath.FromSlash(moves[i].from)), to); err != nil {
 			return fmt.Errorf("moving %s to %s: %w", moves[i].from, moves[i].to, err)
 		}
 	}
 	return nil
+}
+
+// isTracked reports whether git holds an index entry for path.
+func isTracked(root, path string) bool {
+	_, err := git(root, "ls-files", "--error-unmatch", "--", path)
+	return err == nil
 }
 
 // migratableNames are the only file names migrate takes out of a 1.x
