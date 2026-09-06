@@ -230,7 +230,7 @@ var closeGates = []string{"milestone open", "no gate raised", "tasks closed", "r
 
 func milestoneClose(w io.Writer, args []string) error {
 	fs := flag.NewFlagSet("milestone close", flag.ContinueOnError)
-	dryRun := fs.Bool("dry-run", false, "print every gate, the branches the sweep would delete or keep, and the closing comment; write nothing; exit with the first refusal's code")
+	dryRun := fs.Bool("dry-run", false, "print every gate, the branches both sweeps would delete or keep, and the closing comment; write nothing; exit with the first refusal's code")
 	nArg, args := splitLeadingRef(args)
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -416,9 +416,13 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	// ones go, anything else is reported — so the successful close, and its
 	// closing comment, carry what was removed (M6-R8). The sweep runs
 	// before the close on purpose: it only ever deletes a merged or empty
-	// branch, so a close that fails after it loses nothing (#133).
+	// branch, so a close that fails after it loses nothing (#133). Then a
+	// second pass over the branches earlier closes left behind, which no
+	// later verb ever came back for (#167, M14-R4): same delete conditions,
+	// wider candidate set, reported and closing-commented on its own.
 	items := planSweep(c.t, milestone)
-	var wouldDelete []string
+	stale := planStaleSweep(c.t, milestone, items)
+	var wouldDelete, wouldDeleteStale []string
 	for _, it := range items {
 		switch {
 		case it.Note != "":
@@ -430,17 +434,36 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 			p.would("keep branch %s (%s)", it.Name, it.Reason)
 		}
 	}
-	closing := func(swept []string) string {
+	for _, it := range stale {
+		switch {
+		case it.Note != "":
+			p.would("skip: %s", strings.TrimPrefix(it.Note, "note: "))
+		case it.Delete:
+			wouldDeleteStale = append(wouldDeleteStale, it.Name)
+			p.would("delete stale branch %s (%s)", it.Name, it.Reason)
+		default:
+			p.would("keep stale branch %s (%s)", it.Name, it.Reason)
+		}
+	}
+	closing := func(swept, sweptStale []string) string {
 		comment := fmt.Sprintf("Closed by `gh codecrew milestone close %d`: all %d tasks done, milestone document merged.", n, len(milestone.Tasks))
 		if len(swept) > 0 {
 			comment += fmt.Sprintf(" Swept %d task branch(es): %s.", len(swept), strings.Join(swept, ", "))
 		}
+		if len(sweptStale) > 0 {
+			comment += fmt.Sprintf(" Swept from earlier closes: %s.", strings.Join(sweptStale, ", "))
+		}
 		return comment
 	}
-	p.would("close %s (%s) with: %s", milestone.Title, milestone.Ref, closing(wouldDelete))
+	p.would("close %s (%s) with: %s", milestone.Title, milestone.Ref, closing(wouldDelete, wouldDeleteStale))
 	run := func(w io.Writer) error {
 		swept := executeSweep(w, c.t, items)
-		if err := c.t.CloseIssue(milestone.Ref, closing(swept)); err != nil {
+		var sweptStale []string
+		if len(stale) > 0 {
+			fmt.Fprintln(w, "swept from earlier closes:")
+			sweptStale = executeSweep(w, c.t, stale)
+		}
+		if err := c.t.CloseIssue(milestone.Ref, closing(swept, sweptStale)); err != nil {
 			return err
 		}
 		fmt.Fprintf(w, "closed %s (%s)\n", milestone.Title, milestone.Ref)

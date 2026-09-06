@@ -3,6 +3,9 @@ package cli
 import (
 	"fmt"
 	"io"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
@@ -86,12 +89,14 @@ func sweepBranches(w io.Writer, t tracker.Tracker, m *tracker.Milestone) (delete
 
 // sweepItem is one branch the close would consider — delete it, or keep
 // it and say why — or a note about a lookup it had to skip, in the order
-// the sweep meets them.
+// the sweep meets them. Stale marks the second pass's items: a branch no
+// milestone of this close's own is responsible for.
 type sweepItem struct {
 	Repo, Name string
 	Delete     bool
 	Reason     string
 	Note       string
+	Stale      bool
 }
 
 // planSweep decides, without touching anything, what the sweep would do
@@ -171,16 +176,137 @@ func executeSweep(w io.Writer, t tracker.Tracker, items []sweepItem) (deleted []
 			fmt.Fprintln(w, it.Note)
 			continue
 		}
+		kind := "branch"
+		if it.Stale {
+			kind = "stale branch"
+		}
 		if !it.Delete {
-			fmt.Fprintf(w, "branch %s: kept (%s)\n", it.Name, it.Reason)
+			fmt.Fprintf(w, "%s %s: kept (%s)\n", kind, it.Name, it.Reason)
 			continue
 		}
 		if err := t.DeleteBranch(it.Repo, it.Name); err != nil {
-			fmt.Fprintf(w, "branch %s: kept (%s; delete failed: %v)\n", it.Name, it.Reason, err)
+			fmt.Fprintf(w, "%s %s: kept (%s; delete failed: %v)\n", kind, it.Name, it.Reason, err)
 			continue
 		}
-		fmt.Fprintf(w, "branch %s: deleted (%s)\n", it.Name, it.Reason)
+		fmt.Fprintf(w, "%s %s: deleted (%s)\n", kind, it.Name, it.Reason)
 		deleted = append(deleted, it.Name)
 	}
 	return deleted
+}
+
+// taskBranchPrefix opens every branch `task start` cuts. The stale sweep
+// lists under it and reads the task number back out of it.
+const taskBranchPrefix = "task/"
+
+// taskNumber reads the task issue number out of a branch `task start` cut —
+// `task/<n>-<slug>`. Anything else yields 0 and is no candidate for a
+// sweep: another prefix, no number, or a number written with a leading zero
+// that `task start` would never have produced.
+func taskNumber(branch string) int {
+	rest, ok := strings.CutPrefix(branch, taskBranchPrefix)
+	if !ok {
+		return 0
+	}
+	digits, _, _ := strings.Cut(rest, "-")
+	if digits == "" || (len(digits) > 1 && digits[0] == '0') {
+		return 0
+	}
+	n, err := strconv.Atoi(digits)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
+}
+
+// planStaleSweep decides, without touching anything, what the close would
+// do to the task branches EARLIER closes left behind. `milestone close`
+// sweeps only the closing milestone's own tasks, so a branch whose task
+// shipped under a milestone that closed before the sweep worked — or whose
+// delete failed once — is invisible to every later verb and accumulates
+// (#167). The candidate set is the change and the delete conditions are
+// not: every branch here meets the same branchAction the milestone's own
+// meet, which is also the only test that catches a rebase-merged branch,
+// whose commits are rewritten and so are never `ahead == 0`.
+//
+// The repos are the hub the milestone issue lives in and every repo its
+// tasks name — one prefix-filtered listing each. Branches the milestone's
+// own pass already considered, and its own tasks', are left to it, so a
+// verdict is never restated or overridden.
+func planStaleSweep(t tracker.Tracker, m *tracker.Milestone, own []sweepItem) (items []sweepItem) {
+	seen := map[string]bool{}
+	for _, it := range own {
+		if it.Name != "" {
+			seen[it.Repo+" "+it.Name] = true
+		}
+	}
+	mine := map[tracker.IssueRef]bool{}
+	repos := []string{m.Ref.Repo}
+	for _, task := range m.Tasks {
+		mine[task] = true
+		if !slices.Contains(repos, task.Repo) {
+			repos = append(repos, task.Repo)
+		}
+	}
+	repos = slices.DeleteFunc(repos, func(r string) bool { return r == "" })
+	for _, repo := range repos {
+		info, err := t.RepoInfo(repo)
+		if err != nil {
+			items = append(items, sweepItem{Note: fmt.Sprintf("note: stale branch sweep skipped for %s (%v)", repo, err)})
+			continue
+		}
+		branches, err := t.TaskBranches(repo)
+		if err != nil {
+			items = append(items, sweepItem{Note: fmt.Sprintf("note: stale branch sweep skipped for %s (%v)", repo, err)})
+			continue
+		}
+		for _, name := range branches {
+			ref := tracker.IssueRef{Repo: repo, Number: taskNumber(name)}
+			if ref.Number == 0 || name == info.DefaultBranch || seen[repo+" "+name] || mine[ref] {
+				continue
+			}
+			seen[repo+" "+name] = true
+			if item, ok := staleBranchAction(t, ref, name); ok {
+				items = append(items, item)
+			}
+		}
+	}
+	return items
+}
+
+// staleBranchAction judges one branch an earlier close left behind. The
+// task issue's state is read first, so a branch whose task is still open
+// costs one issue read and stops there; only a closed task's branch goes on
+// to the PR and comparison lookups the delete conditions need. ok is false
+// when the branch is not the sweep's to report at all — it went away
+// between the listing and the check.
+func staleBranchAction(t tracker.Tracker, ref tracker.IssueRef, name string) (sweepItem, bool) {
+	skip := func(err error) (sweepItem, bool) {
+		return sweepItem{Note: fmt.Sprintf("note: stale branch %s skipped (%v)", name, err)}, true
+	}
+	task, err := t.Task(ref)
+	if err != nil {
+		return skip(err)
+	}
+	if !task.Closed {
+		return sweepItem{Repo: ref.Repo, Name: name, Reason: fmt.Sprintf("%s is open", ref), Stale: true}, true
+	}
+	nums, err := t.ClosingPRs(ref, true)
+	if err != nil {
+		return skip(err)
+	}
+	var prs []tracker.PR
+	for _, num := range nums {
+		pr, err := t.PRInfo(ref.Repo, num)
+		if err != nil {
+			return skip(err)
+		}
+		prs = append(prs, pr)
+	}
+	ahead, tip, err := t.BranchAhead(ref.Repo, name)
+	if err != nil {
+		return sweepItem{}, false
+	}
+	pr, hasPR := prByHead(prs)[name]
+	del, reason := branchAction(pr, hasPR, ahead, tip)
+	return sweepItem{Repo: ref.Repo, Name: name, Delete: del, Reason: reason, Stale: true}, true
 }
