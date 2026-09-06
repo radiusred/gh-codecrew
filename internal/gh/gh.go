@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 // Command builds the gh process every call runs through. It is a variable
@@ -72,4 +73,45 @@ func CurrentRepo() (string, error) {
 		return "", err
 	}
 	return repo.NameWithOwner, nil
+}
+
+// unreachableMarkers are what gh prints when the API was never answered —
+// the transport failed, or the caller carries no credentials GitHub will
+// look at. Each was read off the installed gh (2.x) rather than guessed:
+//
+//	dial tcp 127.0.0.1:443: connect: connection refused   (no route, refused, timed out)
+//	error connecting to nonexistent.invalid               (the host does not resolve)
+//	check your internet connection or https://githubstatus.com
+//	To get started with GitHub CLI, please run:  gh auth login
+//	Alternatively, populate the GH_TOKEN environment variable …
+//	gh: Bad credentials (HTTP 401)
+//
+// The list is deliberately narrow. An HTTP 403 or 404 means GitHub
+// answered — the caller lacks access, or the path is absent — and those
+// are the caller's own conditions to name, not this one.
+var unreachableMarkers = []string{
+	"dial tcp",
+	"error connecting to",
+	"check your internet connection",
+	"gh auth login",
+	"GH_TOKEN environment variable",
+	"Bad credentials",
+	"(HTTP 401)",
+}
+
+// Unreachable reports whether err is gh failing to reach GitHub at all —
+// offline, DNS-less, or unauthenticated — as opposed to GitHub answering
+// with a refusal of its own. Callers that fetch across repos use it to
+// name the condition instead of reporting a missing file (SPEC §6).
+func Unreachable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, m := range unreachableMarkers {
+		if strings.Contains(msg, m) {
+			return true
+		}
+	}
+	return false
 }
