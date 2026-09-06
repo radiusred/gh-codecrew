@@ -530,6 +530,27 @@ func TestTypeIdentity(t *testing.T) {
 	}
 }
 
+// GitHub out of reach is its own condition after #259, not a value that
+// could not be typed: migrate names it with the shared code and still
+// writes nothing.
+func TestMigrateNamesAnUnreachableGitHub(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, nil)
+	prev := lookupAccount
+	lookupAccount = func(string) (string, bool, error) {
+		return "", false, errors.New("gh api: dial tcp 140.82.121.6:443: connect: network is unreachable")
+	}
+	t.Cleanup(func() { lookupAccount = prev })
+
+	var out bytes.Buffer
+	err := migrate(&out, dir, false)
+	if code := refusalCode(t, err); code != "GH_UNREACHABLE" {
+		t.Fatalf("code = %s, want GH_UNREACHABLE (%v)", code, err)
+	}
+	if exists(t, dir, config.Pointer) || !exists(t, dir, config.LegacyPointer) {
+		t.Error("a refused migration moved files")
+	}
+}
+
 // An identity that cannot be typed stops the whole migration before it
 // writes: half a migration is worse than none.
 func TestMigrateUnresolvedIdentityWritesNothing(t *testing.T) {
