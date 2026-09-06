@@ -277,12 +277,16 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 }
 
 // evidenceFake serves the walk from a state=all milestone listing: the
-// titles and the closed set, then empty bodies and comments — no citation,
-// so nothing reaches the network and the test is about resolution alone.
+// titles, the closed set and one body per milestone, then empty comments —
+// no citation, so nothing reaches the network and the tests are about
+// resolution, the requirement-ID check and their order. The walk is
+// recorded so a test can prove the ID check runs before it.
 type evidenceFake struct {
 	tracker.Tracker
 	milestones []tracker.TitledIssue
 	closed     map[int]bool
+	bodies     map[int]string
+	walked     bool
 }
 
 func (f *evidenceFake) MilestoneIssues(string) ([]tracker.TitledIssue, error) {
@@ -296,11 +300,14 @@ func (f *evidenceFake) OpenMilestones(string) ([]tracker.Milestone, error) {
 func (f *evidenceFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
 	return tracker.Task{Ref: ref, Closed: f.closed[ref.Number]}, nil
 }
-func (f *evidenceFake) IssueBody(tracker.IssueRef) (string, error) {
-	return "## Requirements\n- **M11-R1** — a thing\n", nil
+func (f *evidenceFake) IssueBody(ref tracker.IssueRef) (string, error) {
+	return f.bodies[ref.Number], nil
 }
-func (f *evidenceFake) SubIssues(tracker.IssueRef) ([]tracker.IssueRef, error) { return nil, nil }
-func (f *evidenceFake) Comments(tracker.IssueRef) ([]tracker.Comment, error)   { return nil, nil }
+func (f *evidenceFake) SubIssues(tracker.IssueRef) ([]tracker.IssueRef, error) {
+	f.walked = true
+	return nil, nil
+}
+func (f *evidenceFake) Comments(tracker.IssueRef) ([]tracker.Comment, error) { return nil, nil }
 
 func evidenceHub() *evidenceFake {
 	return &evidenceFake{
@@ -309,6 +316,10 @@ func evidenceHub() *evidenceFake {
 			{Ref: tracker.IssueRef{Repo: "o/r", Number: 254}, Title: "M13: Protocol 2.0"},
 		},
 		closed: map[int]bool{233: true},
+		bodies: map[int]string{
+			233: "## Requirements\n- **M11-R1** — a thing\n",
+			254: "## Requirements\n- **M13-R1** — a thing\n",
+		},
 	}
 }
 
@@ -354,5 +365,50 @@ func TestMilestoneEvidenceRefusesAnAbsentMilestone(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "open milestone") {
 		t.Errorf("the detail must not still say open: %v", err)
+	}
+}
+
+// milestone evidence is read so that QA can be dispatched against the
+// record; a requirement belonging to another milestone is not this
+// record's to verdict, so the ID grammar is checked before the walk and
+// refuses (M13-R6). The walk itself would reach the network, so the
+// refusal's timing is the assertion.
+func TestMilestoneEvidenceRefusesMismatchedRequirementID(t *testing.T) {
+	f := evidenceHub()
+	f.bodies[254] = "## Requirements\n- **M13-R1** — mine\n- **M12-R3** — another milestone's\n"
+	var out bytes.Buffer
+	err := milestoneEvidenceReport(&out, statusCtx(t, f), "13")
+	if err == nil {
+		t.Fatal("a foreign requirement ID must refuse")
+	}
+	for _, want := range []string{"refused[REQUIREMENT_ID_MISMATCH]", "M12-R3", "M13", "o/r#254"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal lacks %q: %v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "M13-R1") {
+		t.Errorf("the milestone's own ID must not be named: %v", err)
+	}
+	if f.walked {
+		t.Error("the record was walked before the ID check refused")
+	}
+	if !strings.Contains(out.String(), "requirements counted: M13-R1, M12-R3 (2)") {
+		t.Errorf("the requirements note is printed before the refusal:\n%s", out.String())
+	}
+}
+
+// The same verb over a milestone whose IDs are its own walks the record as
+// before: the check passes and the report is reached.
+func TestMilestoneEvidenceWalksWhenRequirementIDsMatch(t *testing.T) {
+	f := evidenceHub()
+	var out bytes.Buffer
+	if err := milestoneEvidenceReport(&out, statusCtx(t, f), "13"); err != nil {
+		t.Fatalf("a milestone's own IDs must pass: %v", err)
+	}
+	if !f.walked {
+		t.Error("the record must be walked once the ID check passes")
+	}
+	if !strings.Contains(out.String(), "evidence is reachable") {
+		t.Errorf("the walk must report:\n%s", out.String())
 	}
 }

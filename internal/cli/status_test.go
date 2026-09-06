@@ -17,7 +17,8 @@ type statusFake struct {
 	tracker.Tracker
 	milestones   []tracker.Milestone
 	issues       map[int]tracker.Task
-	keepBranches bool // the repo does NOT delete branches on merge
+	body         string // the milestone body; a well-formed one by default
+	keepBranches bool   // the repo does NOT delete branches on merge
 }
 
 func (f *statusFake) OpenMilestones(string) ([]tracker.Milestone, error) { return f.milestones, nil }
@@ -25,6 +26,9 @@ func (f *statusFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
 	return f.issues[ref.Number], nil
 }
 func (f *statusFake) IssueBody(tracker.IssueRef) (string, error) {
+	if f.body != "" {
+		return f.body, nil
+	}
 	return "## Requirements\n- **M2-R1** — a thing\n", nil
 }
 func (f *statusFake) RepoInfo(string) (tracker.RepoInfo, error) {
@@ -139,5 +143,63 @@ func TestStatusWithoutOpenMilestonesSaysNothingElseWhenClean(t *testing.T) {
 	}
 	if got := out.String(); got != "no open milestones in o/r\n" {
 		t.Errorf("a clean hub between milestones prints one line, got:\n%s", got)
+	}
+}
+
+// status reports the board; it does not gate it. A requirement ID that is
+// not the milestone's own — the condition milestone close and milestone
+// evidence refuse REQUIREMENT_ID_MISMATCH on — is printed as a line naming
+// the code, and the rest of the report still runs (M13-R6).
+func TestStatusReportsRequirementIDMismatch(t *testing.T) {
+	f := &statusFake{
+		milestones: []tracker.Milestone{{
+			Ref: tracker.IssueRef{Repo: "o/r", Number: 5}, Title: "M2: Two",
+			Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 7}},
+		}},
+		issues: map[int]tracker.Task{
+			5: {Title: "M2: Two", Labels: []string{tracker.LabelMilestone}},
+			7: {Title: "Seven", Labels: []string{"cc:task"}},
+		},
+		body: "## Requirements\n- **M2-R1** — mine\n- **M9-R4** — another milestone's\n",
+	}
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatalf("status must report the mismatch, not die on it: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"REQUIREMENT_ID_MISMATCH",
+		"M9-R4",
+		"not M2's",
+		"[ready      ] o/r#7",  // the report carries on past the note…
+		"gates raised: none\n", // …to the end
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("status output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "M2-R1") {
+		t.Errorf("the milestone's own ID must not be named as a mismatch:\n%s", got)
+	}
+}
+
+// A well-formed Requirements section prints no mismatch line at all.
+func TestStatusSilentWhenRequirementIDsMatch(t *testing.T) {
+	f := &statusFake{
+		milestones: []tracker.Milestone{{
+			Ref: tracker.IssueRef{Repo: "o/r", Number: 5}, Title: "M2: Two",
+			Tasks: []tracker.IssueRef{{Repo: "o/r", Number: 7}},
+		}},
+		issues: map[int]tracker.Task{
+			5: {Title: "M2: Two", Labels: []string{tracker.LabelMilestone}},
+			7: {Title: "Seven", Labels: []string{"cc:task"}},
+		},
+	}
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Contains(got, "REQUIREMENT_ID_MISMATCH") {
+		t.Errorf("a milestone's own IDs must print no note:\n%s", got)
 	}
 }
