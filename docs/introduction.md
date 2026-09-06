@@ -185,10 +185,12 @@ raises them (the source is the catalogue of record — `refuse("CODE"` in
 
 **`migrate`**
 
-- `BOTH_LAYOUTS` — the repo carries `.codecrew/config.yml` *and* a protocol
-  1.x pointer or contracts; the detail names both, and migrate will not
-  choose between them. Keep whichever the project uses, remove the other,
-  and rerun.
+- `BOTH_LAYOUTS` — the two layouts overlap: the repo carries
+  `.codecrew/config.yml` *and* a protocol 1.x pointer or contracts, or a
+  2.0 file already sits where a 1.x one would move (`.codecrew/roles/qa.md`
+  beside a `roles/qa.md`). The detail names what it found, and migrate will
+  not overwrite the newer file to reach the older one. Keep whichever the
+  project uses, remove the other, and rerun.
 - `FOREIGN_ROLES_DIR` — a root `roles/` that holds CodeCrew's own files
   also holds entries it does not recognise; the detail names both sets.
   Migrate moves the five role contracts and their `<role>.local.md`
