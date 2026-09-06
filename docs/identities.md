@@ -493,8 +493,15 @@ stop using the framework:
   hooks.
 - **Labels** — `cc:milestone`, `cc:task`, `cc:needs-decision` on each repo,
   created on first use. Remove in the repo's label settings if you like.
-- **Task branches** — `task finish` deletes a merged head and `milestone
-  close` sweeps; anything left is listed by `git branch -r`.
+- **Task branches** — two sweeps, because the verbs reach two places. On
+  GitHub, `task finish` deletes a merged head and `milestone close` sweeps
+  the rest; anything left is listed by `git branch -r`. In a clone,
+  `task finish` tidies the clone it ran in and no other, and it
+  deliberately keeps a local task branch carrying commits the merge did
+  not, naming it instead of deleting it — so every other clone, and every
+  branch kept that way, is yours to sweep: `git fetch --prune` and
+  `git branch --list 'task/*'` list them per clone, and `git branch -D`
+  removes the ones you are done with (`-d` refuses a rebase-merged branch).
 - **App identities** — each crew App under the owning account's Developer
   settings: uninstall it from the org or account, then delete the App. Its
   private key and credential stub live only in `~/.config/codecrew/`;
