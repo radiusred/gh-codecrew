@@ -302,6 +302,7 @@ type closeFake struct {
 	comments  map[int][]tracker.Comment
 	hasDoc    bool
 	branches  map[string][]string // the stale sweep's per-repo listing
+	openPRs   map[string][]int    // open PRs by head branch, whatever they close
 	ahead     map[string]int
 	writes    []string
 }
@@ -326,7 +327,10 @@ func (f *closeFake) RepoInfo(string) (tracker.RepoInfo, error) {
 	return tracker.RepoInfo{DefaultBranch: "main"}, nil
 }
 func (f *closeFake) LinkedBranches(tracker.IssueRef) ([]string, error) { return nil, nil }
-func (f *closeFake) TaskBranches(repo string) ([]string, error)        { return f.branches[repo], nil }
+func (f *closeFake) TaskBranches(repo string) ([]string, bool, error) {
+	return f.branches[repo], false, nil
+}
+func (f *closeFake) OpenPRsForBranch(_, branch string) ([]int, error) { return f.openPRs[branch], nil }
 func (f *closeFake) BranchAhead(_, b string) (int, string, error) {
 	n, ok := f.ahead[b]
 	if !ok {

@@ -148,7 +148,7 @@ func planSweep(t tracker.Tracker, m *tracker.Milestone) (items []sweepItem) {
 			add(n)
 		}
 		if info, err := t.Task(task); err == nil {
-			add(fmt.Sprintf("task/%d-%s", task.Number, slug(info.Title)))
+			add(fmt.Sprintf("%s%d-%s", tracker.TaskBranchPrefix, task.Number, slug(info.Title)))
 		}
 		if linked, err := t.LinkedBranches(task); err == nil {
 			for _, n := range linked {
@@ -194,16 +194,12 @@ func executeSweep(w io.Writer, t tracker.Tracker, items []sweepItem) (deleted []
 	return deleted
 }
 
-// taskBranchPrefix opens every branch `task start` cuts. The stale sweep
-// lists under it and reads the task number back out of it.
-const taskBranchPrefix = "task/"
-
 // taskNumber reads the task issue number out of a branch `task start` cut —
 // `task/<n>-<slug>`. Anything else yields 0 and is no candidate for a
 // sweep: another prefix, no number, or a number written with a leading zero
 // that `task start` would never have produced.
 func taskNumber(branch string) int {
-	rest, ok := strings.CutPrefix(branch, taskBranchPrefix)
+	rest, ok := strings.CutPrefix(branch, tracker.TaskBranchPrefix)
 	if !ok {
 		return 0
 	}
@@ -254,10 +250,17 @@ func planStaleSweep(t tracker.Tracker, m *tracker.Milestone, own []sweepItem) (i
 			items = append(items, sweepItem{Note: fmt.Sprintf("note: stale branch sweep skipped for %s (%v)", repo, err)})
 			continue
 		}
-		branches, err := t.TaskBranches(repo)
+		branches, truncated, err := t.TaskBranches(repo)
 		if err != nil {
 			items = append(items, sweepItem{Note: fmt.Sprintf("note: stale branch sweep skipped for %s (%v)", repo, err)})
 			continue
+		}
+		if truncated {
+			// A page is the whole listing, so a repo with more task
+			// branches than one holds would otherwise be swept in silent
+			// part. Successive closes make progress; the operator is told
+			// there is more rather than left to infer it.
+			items = append(items, sweepItem{Note: fmt.Sprintf("note: %s carries more task branches than one listing holds; this sweep saw %d of them and a later close reaches the rest", repo, len(branches))})
 		}
 		for _, name := range branches {
 			ref := tracker.IssueRef{Repo: repo, Number: taskNumber(name)}
@@ -308,5 +311,22 @@ func staleBranchAction(t tracker.Tracker, ref tracker.IssueRef, name string) (sw
 	}
 	pr, hasPR := prByHead(prs)[name]
 	del, reason := branchAction(pr, hasPR, ahead, tip)
+	if del && !hasPR {
+		// branchAction's "no PR" arm is only as good as the PR set it was
+		// handed, and ClosingPRs finds the PRs that close <n> — so a PR
+		// opened on this branch that carries no `Closes #<n>` line is
+		// invisible to it, and deleting the branch would close that PR.
+		// Pass one's candidates come from the task's own PRs; pass two's
+		// come from a repo-wide listing, so the exposure is wider than the
+		// arm was written for (checky on PR #293). One lookup, and only for
+		// a branch about to go on the strength of there being no PR at all.
+		open, err := t.OpenPRsForBranch(ref.Repo, name)
+		if err != nil {
+			return skip(err)
+		}
+		if len(open) > 0 {
+			del, reason = false, fmt.Sprintf("open PR #%d on this branch", open[0])
+		}
+	}
 	return sweepItem{Repo: ref.Repo, Name: name, Delete: del, Reason: reason, Stale: true}, true
 }
