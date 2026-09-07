@@ -12,6 +12,7 @@ import (
 
 	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
+	"github.com/radiusred/gh-codecrew/internal/tracker/faketracker"
 )
 
 func teamCtx(t *testing.T) *ctx {
@@ -30,24 +31,25 @@ roles:
 	return &ctx{cfg: cfg, roles: cfg}
 }
 
-func stubTeams(t *testing.T, members map[string]bool) *int {
-	t.Helper()
-	calls := 0
-	orig := teamMembers
-	teamMembers = func(org, team string) (map[string]bool, error) {
-		calls++
-		if org != "myorg" || team != "review-crew" {
-			return nil, fmt.Errorf("unexpected team %s/%s", org, team)
-		}
-		return members, nil
+// scriptTeam puts the fake venue on the ctx and scripts the one team the
+// routing table names. The fake counts the calls itself, so the memo is
+// asserted from the record rather than from a closure the test keeps.
+func scriptTeam(c *ctx, members ...string) *faketracker.Venue {
+	v := &faketracker.Venue{
+		TeamMembersFn: func(org, team string) ([]string, error) {
+			if org != "myorg" || team != "review-crew" {
+				return nil, fmt.Errorf("unexpected team %s/%s", org, team)
+			}
+			return members, nil
+		},
 	}
-	t.Cleanup(func() { teamMembers = orig })
-	return &calls
+	c.t = v
+	return v
 }
 
 func TestTeamHeldRole(t *testing.T) {
 	c := teamCtx(t)
-	calls := stubTeams(t, map[string]bool{"alice": true, "bob": true})
+	v := scriptTeam(c, "alice", "bob")
 
 	// Any member holds the role (#44); non-members and bots do not.
 	if !c.holdsRole("alice", "reviewer") || !c.holdsRole("bob", "reviewer") {
@@ -80,16 +82,16 @@ func TestTeamHeldRole(t *testing.T) {
 		t.Error("uncrewed human lost the unrouted-role fallback")
 	}
 	// Memoized: many checks, one fetch.
-	if *calls != 1 {
-		t.Errorf("team fetched %d times, want 1 (memoized per run)", *calls)
+	if n := v.Count("TeamMembers"); n != 1 {
+		t.Errorf("team fetched %d times, want 1 (memoized per run): %v", n, v.Calls())
 	}
 }
 
 func TestUnreadableTeamFailsClosed(t *testing.T) {
 	c := teamCtx(t)
-	orig := teamMembers
-	teamMembers = func(org, team string) (map[string]bool, error) { return nil, fmt.Errorf("403") }
-	t.Cleanup(func() { teamMembers = orig })
+	c.t = &faketracker.Venue{
+		TeamMembersFn: func(string, string) ([]string, error) { return nil, fmt.Errorf("403") },
+	}
 	if c.holdsRole("alice", "reviewer") {
 		t.Error("unreadable team granted the role — must fail closed")
 	}

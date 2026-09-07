@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
-	"github.com/radiusred/gh-codecrew/internal/gh"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -606,16 +605,14 @@ func typeIdentity(role, value string) (string, error) {
 // is there at all. A func var so tests stand in for the API, the
 // teamMembers pattern.
 var lookupAccount = func(login string) (accountType string, found bool, err error) {
-	var acct struct {
-		Type string `json:"type"`
-	}
-	if err := gh.JSON(&acct, "api", "users/"+url.PathEscape(login)); err != nil {
+	kind, err := tracker.GitHub{}.AccountType(login)
+	if err != nil {
 		if strings.Contains(err.Error(), "HTTP 404") || strings.Contains(err.Error(), "Not Found") {
 			return "", false, nil
 		}
 		return "", false, err
 	}
-	return acct.Type, true, nil
+	return kind, true, nil
 }
 
 // resolveIdentity asks GitHub what a bare 1.0 login is. A GitHub App's

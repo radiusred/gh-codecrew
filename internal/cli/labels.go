@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/radiusred/gh-codecrew/internal/gh"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -119,12 +118,13 @@ func ensureLabels(w io.Writer, t tracker.Tracker, repo string, want []tracker.La
 }
 
 // labelTarget resolves what the label step writes through and into: the
-// tracker, and the owner/repo `gh` says the working directory belongs to.
+// venue, and the owner/repo it says the working directory belongs to.
 // A func var for the reason defaultRequiresPR is one — the verbs that call
 // it are tested without a GitHub behind them.
 var labelTarget = func() (tracker.Tracker, string, error) {
-	repo, err := gh.CurrentRepo()
-	return tracker.GitHub{}, repo, err
+	v := tracker.GitHub{}
+	repo, err := v.CurrentRepo()
+	return v, repo, err
 }
 
 // initLabels is init's whole label step, and it is deliberately the only

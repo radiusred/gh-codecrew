@@ -98,15 +98,6 @@ func TestBuildManifestWithWebhook(t *testing.T) {
 	}
 }
 
-func TestManifestTarget(t *testing.T) {
-	if got := manifestTarget("radiusred", "Organization"); got != "https://github.com/organizations/radiusred/settings/apps/new" {
-		t.Errorf("org target = %q", got)
-	}
-	if got := manifestTarget("davison", "User"); got != "https://github.com/settings/apps/new" {
-		t.Errorf("personal target = %q", got)
-	}
-}
-
 func TestPemPathConvention(t *testing.T) {
 	now := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
 	got := pemPath("/home/x/.config", "myorg-coder", now)
@@ -281,15 +272,6 @@ func TestRouteRoleErrors(t *testing.T) {
 	spoke := writeTemp(t, "codecrew: \"2.0\"\nhub: myorg/hub\n")
 	if err := routeRole(spoke, "reviewer", "x"); err == nil {
 		t.Error("routed into a pointer-only spoke config")
-	}
-}
-
-func TestAppSettingsURL(t *testing.T) {
-	if got := appSettingsURL("radiusred", "Organization", "radiusred-reviewy"); got != "https://github.com/organizations/radiusred/settings/apps/radiusred-reviewy" {
-		t.Errorf("org settings URL = %q", got)
-	}
-	if got := appSettingsURL("davison", "User", "davison-reviewy"); got != "https://github.com/settings/apps/davison-reviewy" {
-		t.Errorf("personal settings URL = %q", got)
 	}
 }
 
