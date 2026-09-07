@@ -6,6 +6,26 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `task start` does not offer an App as an assignee; `status` names the holder
+
+- **The permanent 403 is gone.** GitHub does not accept a GitHub App as an
+  issue assignee, so for every App-held seat `task start` made a call that
+  could only fail and printed `note: could not assign @…[bot] (HTTP 403)`
+  on every start — error-shaped output for a condition that was never an
+  error. The routing table types the caller, so the call is no longer made:
+  an `app:`-typed login, or any login carrying the `[bot]` suffix, is not
+  assigned and nothing is said about it. A `user:`- or `team:`-typed caller,
+  and the operator holding no seat, is still assigned, and a failure there
+  is still a note — that one is a real failure.
+- **`status` reads the holder off the record.** A task in progress or in
+  review now shows the login from its latest `**Started by**` record — the
+  only thing that says a task was started, and the login `task finish`
+  holds to — rather than its first assignee. An App-run task names its
+  holder for the first time, and after a handover the board names the seat
+  that took the task over. The first assignee remains a display fallback
+  for a task nothing records a start on; it is not an ownership signal.
+  (#307)
+
 ### The M14 record
 
 - `docs/milestones/14-adoption-tidy-and-the-v2-0-0-release.md` — the
