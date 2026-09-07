@@ -495,3 +495,131 @@ func TestTaskNewAdoptsRefusesUnreachableAsItself(t *testing.T) {
 		t.Errorf("a refusal created %v", f.created)
 	}
 }
+
+// startFake answers the reads task start makes and records the writes, so
+// a test can ask whether the assignment was attempted at all.
+type startFake struct {
+	tracker.Tracker
+	task      tracker.Task
+	viewer    string
+	assignErr error    // what Assign fails with, when it does
+	assigned  []string // the logins Assign was called with
+	posted    []string // the comment bodies posted
+	branches  []string // the branch names DevelopBranch was called with
+}
+
+func (f *startFake) Task(tracker.IssueRef) (tracker.Task, error) { return f.task, nil }
+func (f *startFake) IssueBody(tracker.IssueRef) (string, error) {
+	return "## Plan\n\nDo the thing.\n", nil
+}
+func (f *startFake) Viewer() (string, error) { return f.viewer, nil }
+func (f *startFake) Comment(_ tracker.IssueRef, b string) error {
+	f.posted = append(f.posted, b)
+	return nil
+}
+func (f *startFake) DevelopBranch(_ tracker.IssueRef, n string) error {
+	f.branches = append(f.branches, n)
+	return nil
+}
+func (f *startFake) Assign(_ tracker.IssueRef, login string) error {
+	f.assigned = append(f.assigned, login)
+	return f.assignErr
+}
+
+func startCtx(f *startFake, roles map[string]config.Role) *ctx {
+	cfg := &config.Config{Codecrew: "1.0", Hub: "self", Roles: roles}
+	return &ctx{cfg: cfg, roles: cfg, current: "o/r", hub: "o/r", t: f}
+}
+
+func startingTask() tracker.Task {
+	return tracker.Task{Ref: tracker.IssueRef{Repo: "o/r", Number: 7}, Title: "Do the thing", Labels: []string{tracker.LabelTask}}
+}
+
+// #287: GitHub does not accept a GitHub App as an issue assignee, so for
+// every App-held seat the call was a guaranteed 403 and its note a
+// permanent line of error-shaped output on every start. The routing table
+// types the caller, so the call is not made and nothing is said about it —
+// the **Started by** record is the fact, and is posted as before.
+func TestTaskStartDoesNotAssignAnApp(t *testing.T) {
+	for _, viewer := range []string{"myorg-coder[bot]", "myorg-coder"} {
+		f := &startFake{task: startingTask(), viewer: viewer}
+		var out bytes.Buffer
+		if err := runTaskStart(startCtx(f, crewRoles), &out, f.task.Ref); err != nil {
+			t.Fatalf("%s: %v", viewer, err)
+		}
+		if len(f.assigned) != 0 {
+			t.Errorf("%s: an App was offered as an assignee: %q", viewer, f.assigned)
+		}
+		if got := out.String(); strings.Contains(got, "note:") || strings.Contains(got, "assign") {
+			t.Errorf("%s: the skipped assignment was reported:\n%s", viewer, got)
+		}
+		if len(f.posted) != 1 || f.posted[0] != tracker.StartRecord(viewer) {
+			t.Errorf("%s: the start record posted was %q", viewer, f.posted)
+		}
+		if !strings.Contains(out.String(), "started o/r#7 as @"+viewer) {
+			t.Errorf("%s: no receipt:\n%s", viewer, out.String())
+		}
+	}
+}
+
+// An unrouted `[bot]` login is an App by construction — GitHub refuses it
+// as an assignee whether or not this project's table names it — so the
+// same skip applies with no routing row at all.
+func TestTaskStartDoesNotAssignAnUnroutedBotLogin(t *testing.T) {
+	f := &startFake{task: startingTask(), viewer: "someone-else[bot]"}
+	var out bytes.Buffer
+	if err := runTaskStart(startCtx(f, crewRoles), &out, f.task.Ref); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.assigned) != 0 {
+		t.Errorf("an unrouted bot login was offered as an assignee: %q", f.assigned)
+	}
+	if strings.Contains(out.String(), "note:") {
+		t.Errorf("the skipped assignment was reported:\n%s", out.String())
+	}
+}
+
+// The other half: a human caller — a `user:`-typed seat, a `team:`-typed
+// one, and the operator holding no seat at all — is still assigned, which
+// is the courtesy the call exists for.
+func TestTaskStartAssignsAHumanCaller(t *testing.T) {
+	stubTeams(t, map[string]bool{"bob": true})
+	roles := map[string]config.Role{
+		"implementer": {Identity: config.ParseIdentity("user:alice")},
+		"qa":          {Identity: config.ParseIdentity("team:myorg/review-crew")},
+		"reviewer":    {},
+	}
+	// alice holds a user:-typed seat, bob a team-held one, davison no seat
+	// at all — three humans, all assignable.
+	for _, viewer := range []string{"alice", "bob", "davison"} {
+		f := &startFake{task: startingTask(), viewer: viewer}
+		var out bytes.Buffer
+		if err := runTaskStart(startCtx(f, roles), &out, f.task.Ref); err != nil {
+			t.Fatalf("%s: %v", viewer, err)
+		}
+		if len(f.assigned) != 1 || f.assigned[0] != viewer {
+			t.Errorf("%s: assigned %q, want [%q]", viewer, f.assigned, viewer)
+		}
+		if strings.Contains(out.String(), "note:") {
+			t.Errorf("%s: a successful assignment said something:\n%s", viewer, out.String())
+		}
+	}
+}
+
+// A human assignment that fails is still a note: that one is a real
+// failure — a login without access to the repo — not a permanent property
+// of the identity kind, and the start stands either way.
+func TestTaskStartNotesAFailedHumanAssignment(t *testing.T) {
+	roles := map[string]config.Role{"implementer": {Identity: config.ParseIdentity("user:alice")}}
+	f := &startFake{task: startingTask(), viewer: "alice", assignErr: errors.New("gh: Validation Failed (HTTP 422)")}
+	var out bytes.Buffer
+	if err := runTaskStart(startCtx(f, roles), &out, f.task.Ref); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "note: could not assign @alice (gh: Validation Failed (HTTP 422))") {
+		t.Errorf("a failed human assignment must still be reported:\n%s", out.String())
+	}
+	if len(f.posted) != 1 {
+		t.Errorf("the record is posted regardless: %q", f.posted)
+	}
+}
