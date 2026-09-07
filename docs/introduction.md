@@ -142,6 +142,60 @@ gh codecrew help           # the full verb list
 go build -o gh-codecrew ./cmd/codecrew
 ```
 
+## Projects with external contributors
+
+A project that takes issues from outside the crew accumulates community
+reports alongside protocol traffic, in one issue list. That is safe by
+construction, because the framework reads labels and an unlabelled issue is
+invisible to every verb: `status` lists the hub's `cc:milestone` issues and
+walks their sub-issues, `milestone close` counts the same set, `task start`
+refuses `NOT_A_TASK` on an issue that is not labelled `cc:task`, and
+`task finish` then refuses `NOT_OWNER`, because nothing recorded a start on
+it. A report nobody labelled is a report, however many of them arrive. Three
+conventions keep it that way.
+
+**No issue template may auto-apply a `cc:` label.** GitHub restricts
+labelling to triage permission and above, so a first-time reporter cannot
+apply one by hand — but a template's `labels:` front matter, and an issue
+form's `labels:` key, label the issue on the reporter's behalf whatever
+their permission. That is the one path by which a read-only user's issue
+arrives already wearing a protocol label, and a template naming `cc:task`
+would hand the verbs an issue with no plan, no requirement IDs and no
+milestone above it. So: no template under `.github/ISSUE_TEMPLATE/` names a
+`cc:` label, in front matter or in a form key. It is a convention a
+project's template review holds to and not a gate — the CLI never reads
+`.github/ISSUE_TEMPLATE/`, and nothing refuses over one.
+
+**A community report is adopted, never converted.** When the project takes
+one up, it becomes work the way any backlog capture does: a task, opened
+with `gh codecrew task new --milestone <n> --adopts <ref>`, which lists the
+report under the task's `## Adopts` section and comments on the report
+naming the task. The report itself is left exactly as filed — not relabelled
+`cc:task`, not rewritten into the task template, not edited to carry a plan.
+`task finish` closes it after the merge with a comment naming the task, the
+pull request and the commit the merge left, so no pull request body has to
+remember a closing keyword for it
+([#193](https://github.com/radiusred/gh-codecrew/issues/193)). Converting in
+place loses on both counts: the report is the reporter's account of a
+problem, and the trail is worth more showing what was asked for and what was
+built as two linked objects than as one issue the maintainer overwrote — and
+a report relabelled `cc:task` is an issue the verbs will now pick up, where
+the good case is `task start` refusing it for having no plan and the bad one
+is a plan pasted over the reporter's words.
+[SPEC §4](../SPEC.md#4-state-model) has the adoption grammar, and
+[the coordinator contract](../.codecrew/roles/coordinator.md) the rule as a
+coordinator meets it.
+
+**Reverting a `cc:` label applied below `maintain` is deferred.** A project
+that grew enough triage-level helpers to worry about the protocol labels
+being misapplied could add a workflow on the `labeled` event that reads the
+actor's permission, removes any `cc:` label applied by an actor below
+`maintain` who is not one of the routing table's role Apps, and comments to
+say why. Nothing here ships it: no protocol behaviour depends on it,
+GitHub's triage floor already keeps reporters out, and it would cost a
+workflow run on every label event in the repository — build it when a
+project has the helpers that make the misuse real, not before.
+
 ## Refusal codes
 
 A blocked gate exits 1 — every failure does, and there is no exit-code
