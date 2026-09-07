@@ -218,6 +218,12 @@ func taskStart(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
+	return runTaskStart(c, w, ref)
+}
+
+// runTaskStart is the verb itself, separated from the flag and pointer
+// reading the way runTaskNew is, so the fakes can drive it.
+func runTaskStart(c *ctx, w io.Writer, ref tracker.IssueRef) error {
 	task, err := c.t.Task(ref)
 	if err != nil {
 		return err
@@ -240,10 +246,19 @@ func taskStart(w io.Writer, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := c.t.Assign(ref, viewer); err != nil {
-		// Bot identities are not assignable; the assignment is a courtesy
-		// for humans, the record below is the fact.
-		fmt.Fprintf(w, "note: could not assign @%s (%v)\n", viewer, err)
+	// The assignment is a courtesy for humans; the record below is the
+	// fact. GitHub will not accept an App as an assignee at all, so for an
+	// App-held seat the call was a guaranteed 403 and its note a permanent
+	// line of error-shaped output on every start (#287). The routing table
+	// now says which callers those are, so the call is not made: crew is
+	// exactly "this login is a GitHub App" — a `[bot]` suffix is an App by
+	// construction, and a routed seat is one when its row reads `app:`.
+	// Nothing is printed either way; not attempting an impossible
+	// assignment is not an event.
+	if !crewIdentity(c)(viewer) {
+		if err := c.t.Assign(ref, viewer); err != nil {
+			fmt.Fprintf(w, "note: could not assign @%s (%v)\n", viewer, err)
+		}
 	}
 	// Every start posts the record, so the latest one is the owner task
 	// finish holds to (NOT_OWNER) — across a restart or a handover.
