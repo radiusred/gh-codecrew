@@ -16,9 +16,11 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   report and a sweep can never disagree. One prefix-filtered listing and one
   issue read per branch; a branch whose task is still open costs that read
   and nothing more; a branch whose task cannot be read is a `note:` and is
-  left standing; a listing that ran past its page says so. Nothing stale
-  prints nothing. Between milestones this is the only place a skipped sweep
-  is visible at all. (#310)
+  left standing; a listing that ran past its page says so; a repository that
+  could not be read at all takes the report's place with a `note:`, because
+  the report's silence has to keep meaning clean. Nothing stale prints
+  nothing. Between milestones this is the only place a skipped sweep is
+  visible at all. (#310)
 - **`task finish` says what else the merge would close.** Before merging —
   and in `--dry-run`'s listing — it prints `note: this PR would also
   close …` for every issue in the pull request's closing references that is
