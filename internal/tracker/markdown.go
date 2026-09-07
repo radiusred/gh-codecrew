@@ -2,6 +2,32 @@ package tracker
 
 import "strings"
 
+// NormalizeLineEndings rewrites CRLF as LF. Every record the tracker reads
+// is read line by line — the `(?m)` scans anchor with `$`, which in Go
+// matches only before `\n`, and the paragraph split looks for a blank line
+// — so a body GitHub's web editor saved with CRLF defeated all of them: an
+// `## Adopts` section that yields its refs under LF yielded none under
+// CRLF, and `task finish` would have closed nothing (#296).
+//
+// It is applied in two places, and needs both:
+//
+//   - Where a body enters the package, in the GitHub-backed readers that
+//     return one (IssueBody, Comments). That is the boundary, and it is
+//     where a CRLF body actually arrives.
+//   - At every exported scanner's entry, because Tracker is an interface:
+//     a string crossing that seam carries no promise about its line
+//     endings, and a scanner reached with a body from another backend, a
+//     fake tracker or a caller's own hand must read it the same way. The
+//     second pass is free when there is nothing to replace — strings.Replace
+//     returns its input unchanged when it finds no match — so it costs a
+//     scan, not an allocation.
+//
+// Nothing below those two layers repeats it: line endings are not part of
+// the record grammar (SPEC §4), and one rule wants one place to hold it.
+func NormalizeLineEndings(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
+}
+
 // StripCode blanks Markdown code out of record text in all three of its
 // forms: inline spans (a backtick run closed by a run of the same length,
 // as CommonMark reads them), fenced blocks (a line opening with three or

@@ -404,7 +404,7 @@ const PlanPlaceholder = "_To be written by the implementer before the first comm
 
 // PlanPresent reports whether the task body's Plan section has real content.
 func PlanPresent(body string) bool {
-	content := section(body, "## Plan")
+	content := section(NormalizeLineEndings(body), "## Plan")
 	content = strings.ReplaceAll(content, PlanPlaceholder, "")
 	return strings.TrimSpace(content) != ""
 }
@@ -474,7 +474,7 @@ var adoptedLine = regexp.MustCompile(`(?m)^[ \t]*[-*][ \t]+((?:[\w.-]+/[\w.-]+)?
 func AdoptedRefs(body, defaultRepo string) []IssueRef {
 	var refs []IssueRef
 	seen := map[IssueRef]bool{}
-	for _, m := range adoptedLine.FindAllStringSubmatch(adoptsSection(StripCode(body)), -1) {
+	for _, m := range adoptedLine.FindAllStringSubmatch(adoptsSection(StripCode(NormalizeLineEndings(body))), -1) {
 		ref, err := ParseRef(m[1], defaultRepo)
 		if err != nil || seen[ref] {
 			continue
@@ -589,7 +589,7 @@ func ExtractRecords(source IssueRef, comments []Comment) []Record {
 	var records []Record
 	for _, c := range comments {
 		var open *Record
-		for _, para := range paragraphs(c.Body) {
+		for _, para := range paragraphs(NormalizeLineEndings(c.Body)) {
 			if m := recordLabel.FindStringSubmatch(para); m != nil {
 				kind := m[1]
 				if kind == "Gate resolved" {
@@ -626,7 +626,7 @@ var (
 func RequirementIDs(body string) []string {
 	var ids []string
 	seen := map[string]bool{}
-	for _, m := range requirementID.FindAllStringSubmatch(section(body, "## Requirements"), -1) {
+	for _, m := range requirementID.FindAllStringSubmatch(section(NormalizeLineEndings(body), "## Requirements"), -1) {
 		if !seen[m[1]] {
 			seen[m[1]] = true
 			ids = append(ids, m[1])
@@ -678,7 +678,7 @@ func ParseVerdicts(comments []Comment) []Verdict {
 	var verdicts []Verdict
 	for _, c := range comments {
 		seen := map[string]bool{}
-		for _, m := range verdictLine.FindAllStringSubmatch(StripCode(c.Body), -1) {
+		for _, m := range verdictLine.FindAllStringSubmatch(StripCode(NormalizeLineEndings(c.Body)), -1) {
 			if seen[m[1]] {
 				continue
 			}
@@ -694,11 +694,13 @@ func ParseVerdicts(comments []Comment) []Verdict {
 }
 
 // paragraphs splits a comment body the way ExtractRecords reads it: on a
-// blank line, CRLF normalised first (web-UI comments arrive CRLF), each
-// paragraph trimmed and the empty ones dropped.
+// blank line, each paragraph trimmed and the empty ones dropped. The body
+// arrives with LF line endings — its two callers are exported scanners,
+// and both normalise at their entry (NormalizeLineEndings) — so the split
+// does not do it again.
 func paragraphs(body string) []string {
 	var out []string
-	for _, para := range paragraphBreak.Split(strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n")), -1) {
+	for _, para := range paragraphBreak.Split(strings.TrimSpace(body), -1) {
 		if para = strings.TrimSpace(para); para != "" {
 			out = append(out, para)
 		}
@@ -728,7 +730,7 @@ func paragraphs(body string) []string {
 func UnresolvedGates(comments []Comment) []Comment {
 	var open []Comment
 	for _, c := range comments {
-		for _, para := range paragraphs(c.Body) {
+		for _, para := range paragraphs(NormalizeLineEndings(c.Body)) {
 			switch {
 			case gateRaisedLabel.MatchString(para):
 				open = append(open, c)
@@ -761,7 +763,7 @@ func StartRecord(login string) string { return "**Started by** @" + login + "." 
 // §6, §8).
 func StartedBy(comments []Comment) string {
 	for i := len(comments) - 1; i >= 0; i-- {
-		body := strings.TrimSpace(comments[i].Body)
+		body := strings.TrimSpace(NormalizeLineEndings(comments[i].Body))
 		rest, ok := strings.CutPrefix(body, "**Started by** @")
 		if !ok || !strings.HasSuffix(rest, ".") {
 			continue

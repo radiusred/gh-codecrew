@@ -73,6 +73,29 @@ func TestHelperGH(t *testing.T) {
 		fmt.Print(`[]`)
 		os.Exit(0)
 	}
+	// An issue read or its comment listing, answered with the JSON the
+	// test put in the environment — the path a body takes from GitHub
+	// into the package. The REST path is found by prefix rather than by
+	// position so a paginating reader's extra flags do not hide it.
+	if len(args) >= 2 && args[0] == "api" {
+		path := ""
+		for _, a := range args[1:] {
+			if strings.HasPrefix(a, "repos/") {
+				path = a
+				break
+			}
+		}
+		if path != "" {
+			if body := os.Getenv("GH_HELPER_COMMENTS_JSON"); body != "" && strings.Contains(path, "/comments") {
+				fmt.Print(body)
+				os.Exit(0)
+			}
+			if body := os.Getenv("GH_HELPER_ISSUE_JSON"); body != "" && !strings.Contains(path, "/comments") {
+				fmt.Print(body)
+				os.Exit(0)
+			}
+		}
+	}
 	fmt.Fprintf(os.Stderr, "fake gh: unexpected call %v", args)
 	os.Exit(2)
 }
