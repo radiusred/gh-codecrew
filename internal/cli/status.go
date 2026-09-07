@@ -106,8 +106,8 @@ func milestoneBoard(w io.Writer, c *ctx, milestones []tracker.Milestone) error {
 			state := tracker.InferState(task)
 			who := ""
 			if state == tracker.InProgress || state == tracker.InReview {
-				if len(task.Assignees) > 0 {
-					who = " @" + task.Assignees[0]
+				if login := taskHolder(c, ref, task); login != "" {
+					who = " @" + login
 				}
 			}
 			fmt.Fprintf(w, "  [%-11s] %-28s %s%s\n", state, ref, task.Title, who)
@@ -132,4 +132,34 @@ func milestoneBoard(w io.Writer, c *ctx, milestones []tracker.Milestone) error {
 	}
 
 	return nil
+}
+
+// taskHolder names the seat holding a task that is in flight: the login
+// from its latest `**Started by**` record, which is the only thing that
+// says a task was started and the same login task finish holds to
+// (NOT_OWNER). Reading the record rather than the assignee list is what
+// lets an App-run task name its holder at all — GitHub does not accept an
+// App as an assignee, so those tasks have no assignee to show (#287) — and
+// after a handover it names the seat that took the task over rather than
+// whoever was assigned first.
+//
+// The first assignee remains the fallback, for display only: a task that
+// nothing records a start on is in progress precisely because it carries an
+// assignee (SPEC §4's lifecycle table), so a state with no name beside it
+// would contradict the signal that produced it. It is not an ownership
+// signal — task finish still refuses a task with no start record.
+//
+// The comments read is one per task and only in the two states that have a
+// holder; a read that fails is not worth failing the board for, so it falls
+// through to the assignee.
+func taskHolder(c *ctx, ref tracker.IssueRef, task tracker.Task) string {
+	if comments, err := c.t.Comments(ref); err == nil {
+		if login := tracker.StartedBy(comments); login != "" {
+			return login
+		}
+	}
+	if len(task.Assignees) > 0 {
+		return task.Assignees[0]
+	}
+	return ""
 }
