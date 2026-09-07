@@ -684,7 +684,10 @@ Three independent layers, attacking different failure modes:
    repo, read by `task finish`. Catch what code can catch. A PR with zero
    reported checks refuses (`refused[NO_CHECKS]`, no override): this layer
    cannot be satisfied by absence, so every repo using `task finish`
-   carries at least one `pull_request` workflow.
+   carries at least one `pull_request` workflow. A check that reports
+   `skipped` is a reported check — the platform's own fact, and what a
+   docs-only path should produce (a job the committed workflow skips by
+   `if:`); `[skip ci]` produces no fact at all and is refused.
 2. **Independent review** — the reviewer role holder's approval required to
    merge when the seat routes to a distinct principal; any non-doer approval
    only when the role is operator-held. The doer is fixed too: the seat that

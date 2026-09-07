@@ -199,6 +199,78 @@ jobs:
 Push it to the task branch, let the check report, and `task finish` (with
 failing or pending checks it refuses too — that's the gate having teeth).
 
+### When the gate is expensive: let the workflow gate itself
+
+The ten lines above run everything on every pull request, which is right
+until the gate takes minutes and a run of docs-only PRs pays for it twice
+over. The temptation is `[skip ci]` in the commit message. Don't: GitHub
+creates no workflow run and no check run for a skipped push, so there is no
+fact for `task finish` to read, and it refuses `NO_CHECKS` — correctly, and
+with no override. The commit message is author-controlled; a reported check
+is the platform's own fact, and the gate only ever trusts the second one.
+(GitHub reads the marker out of the message wherever it appears, so a commit
+that merely *mentions* it skips the run too — which is how this section
+found out.)
+
+What *does* satisfy the gate is a check that reports `skipping`. So let the
+committed workflow decide, from the diff, whether the heavy job needs to
+run — a cheap job that always reports, and the expensive one behind
+`needs:` and `if:` on its output:
+
+```yaml
+# .github/workflows/test.yml
+name: Test
+on: [pull_request]
+
+jobs:
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the base commit has to be in the clone
+      - id: classify
+        run: |
+          git diff --name-only \
+            ${{ github.event.pull_request.base.sha }}...HEAD > changed.txt
+          # Docs are an allowlist: anything not matching is code. A new
+          # top-level directory is code until you say otherwise.
+          if grep -qvE '^(docs/.*|[^/]*\.md)$' changed.txt; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+      - run: make docs-check   # your cheap docs gate: seconds, not minutes
+
+  test:
+    name: Go build and test
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+```
+
+A docs-only PR now costs one short job; everything else runs the full gate.
+Three things make it hold up:
+
+- **Gate the job, not the workflow.** `on: pull_request: paths:` looks like
+  the same idea, but a workflow that never triggers reports nothing at all —
+  a required check filtered that way stays pending forever and `task finish`
+  sees the same absence `[skip ci]` produces. A job skipped by `if:` inside
+  a run that did happen reports `Skipped`, and that is a fact.
+- **Classify by allowlist.** `.github/**`, the `Makefile`, `scripts/**` and
+  every source path are code. Invert the test — list what counts as docs,
+  treat the rest as code — so a directory nobody thought about defaults to
+  running the gate.
+- **It is no weaker than what you had.** A pull request could always neuter
+  the workflow; both the change and the classification are in the diff, and
+  the reviewer reads that diff either way.
+
 ## 6. Verdict — you hold the qa role
 
 Try to close the milestone:
