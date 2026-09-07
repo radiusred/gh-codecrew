@@ -6,7 +6,19 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### The M15 record
+
+- `docs/milestones/15-v2-0-1-what-the-fleet-migration-taught.md` — the
+  milestone that fixed what running v2.0.0 exposed and then shipped v2.0.1:
+  `migrate` writing the root entry points a 1.x repo never had, an App that
+  is no longer offered as an assignee, every listing read walking to the end,
+  a CRLF body read as the LF one, the stale-branch report and the
+  closing-reference note, the release, and the site's first blog post. Seven
+  requirements, seven delivery tasks — one of them in the spoke — fourteen
+  review rounds and one QA round in which every requirement came back
+  `satisfied`. The M15 row is added to `ROADMAP.md`, and
+  `docs/introduction.md`'s verb summary now names what M15 added to
+  `task finish` and `status`. (#321)
 
 ## [2.0.1] — 2026-09-07
 
