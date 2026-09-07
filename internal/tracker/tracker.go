@@ -1,10 +1,14 @@
-// Package tracker defines the backend interface, shaped by the workflow
-// verbs rather than by any tracker's feature set (SPEC.md §10), and the pure
-// protocol logic: task-ref parsing and state inference.
+// Package tracker is the venue: the one place the CLI reaches GitHub from.
+// It defines the backend interface, shaped by the workflow verbs rather
+// than by any venue's feature set (SPEC.md §10), the GitHub implementation
+// of it — the only one there is, by design — and the pure protocol logic:
+// task-ref parsing and state inference. internal/gh, the wrapper over the
+// gh binary, has exactly one importer, and it is this package.
 package tracker
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -189,8 +193,15 @@ func MissingChecksPermission(err error) string {
 	return "checks: read"
 }
 
-// Tracker is the backend interface, shaped by the workflow verbs. GitHub is
-// the only implementation; the seam exists so a future backend stays possible.
+// Tracker is the venue seam: every invocation of gh and every GitHub REST
+// or GraphQL call the CLI makes goes through this one interface, in this
+// one package, shaped by the workflow verbs rather than by any venue's
+// feature set. GitHub is the only implementation and is meant to be — a
+// second venue is backlog until a community asks for one (#194) — so
+// nothing anywhere names another. The venue's own knowledge that is not a
+// call at all (its URL grammar, its error classifiers) sits beside the
+// interface as package functions in venue.go, where a fake has no business
+// scripting it.
 type Tracker interface {
 	// OpenMilestones returns the open cc:milestone issues in the hub repo.
 	OpenMilestones(hub string) ([]Milestone, error)
@@ -294,6 +305,39 @@ type Tracker interface {
 	DeleteBranch(repo, branch string) error
 	// RepoInfo fetches the repo settings the verbs consult.
 	RepoInfo(repo string) (RepoInfo, error)
+
+	// The venue beyond issues and pull requests: the client's own version,
+	// the repository a directory belongs to, an account, a team, and the
+	// App endpoints a GitHub App is created and configured through. Their
+	// implementations and their doc comments are in venue.go.
+
+	// ClientVersion returns the installed venue client's release, which
+	// the verbs hold a floor on.
+	ClientVersion() (string, error)
+	// CurrentRepo returns the owner/repo of the repository in the working
+	// directory.
+	CurrentRepo() (string, error)
+	// RepoInDir is CurrentRepo for a named directory, with the default
+	// branch alongside — the read init makes against the tree it is
+	// scaffolding rather than the process's own directory.
+	RepoInDir(dir string) (repo, defaultBranch string, err error)
+	// BranchRuleTypes lists the types of the rules that apply to a branch.
+	BranchRuleTypes(repo, branch string) ([]string, error)
+	// TeamMembers returns a team's member logins.
+	TeamMembers(org, team string) ([]string, error)
+	// AccountType reports what the venue holds at a login — "User",
+	// "Bot", "Organization" — or its own not-found error.
+	AccountType(login string) (string, error)
+	// APIReachable resolves one API path with the caller's credentials.
+	APIReachable(path string) error
+	// AppManifestConversion exchanges an App-manifest code for the created
+	// App's credentials.
+	AppManifestConversion(code string) (*AppCredentials, error)
+	// AppRequest performs one REST call signed as the App itself — the one
+	// transport that cannot be the venue's CLI, since an App JWT is
+	// neither a user nor an installation credential. Status and body come
+	// back unread; the caller names its own conditions from them.
+	AppRequest(client *http.Client, jwt, method, path string, body any) (status int, data []byte, err error)
 }
 
 // RepoInfo is the slice of repository settings the verbs read.
