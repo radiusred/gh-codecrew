@@ -246,6 +246,12 @@ type Tracker interface {
 	ClosingPRs(ref IssueRef, includeClosed bool) ([]int, error)
 	// PRInfo fetches the gate-relevant state of one PR.
 	PRInfo(repo string, number int) (PR, error)
+	// ClosingReferences lists the issues GitHub itself will close when this
+	// pull request merges — the closing keywords its own parser found in
+	// the PR body, which is a different reader from the protocol's and sees
+	// prose the protocol never treats as a reference (#303). Titled,
+	// because a note about an issue nobody meant to close has to name it.
+	ClosingReferences(repo string, number int) ([]TitledIssue, error)
 	// MergePR rebase-merges a PR.
 	MergePR(repo string, number int) error
 	// MergePRBypass rebase-merges with the ruleset's administrator bypass

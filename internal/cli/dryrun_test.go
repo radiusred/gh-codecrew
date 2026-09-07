@@ -22,6 +22,7 @@ type finishFake struct {
 	viewer   string
 	prs      []int
 	pr       tracker.PR
+	closes   []tracker.TitledIssue // what GitHub says the PR would close
 	writes   []string
 	closed   []string // the closing comment of every CloseIssue, in order
 }
@@ -43,6 +44,9 @@ func (f *finishFake) Comments(tracker.IssueRef) ([]tracker.Comment, error) { ret
 func (f *finishFake) Viewer() (string, error)                              { return f.viewer, nil }
 func (f *finishFake) ClosingPRs(tracker.IssueRef, bool) ([]int, error)     { return f.prs, nil }
 func (f *finishFake) PRInfo(string, int) (tracker.PR, error)               { return f.pr, nil }
+func (f *finishFake) ClosingReferences(string, int) ([]tracker.TitledIssue, error) {
+	return f.closes, nil
+}
 func (f *finishFake) Comment(_ tracker.IssueRef, body string) error {
 	f.writes = append(f.writes, "comment: "+firstLine(body))
 	return nil
@@ -80,6 +84,8 @@ func cleanFinish() *finishFake {
 		prs:      []int{9},
 		pr: tracker.PR{Repo: "o/r", Number: 9, Author: "myorg-coder[bot]", HeadRef: "task/7-x", HeadSHA: "abc",
 			Open: true, ChecksOK: true, ApprovedBy: []string{"myorg-reviewy[bot]"}, ReviewDecision: "APPROVED"},
+		// What a well-formed PR body leaves GitHub holding: the task, alone.
+		closes: []tracker.TitledIssue{{Ref: tracker.IssueRef{Repo: "o/r", Number: 7}, Title: "Seven"}},
 	}
 }
 
@@ -723,5 +729,65 @@ func TestPlanCloseSweepsStaleBranchesFromEarlierCloses(t *testing.T) {
 	want := "delete: task/7-empty;close: Closed by `gh codecrew milestone close 2`: all 1 tasks done, milestone document merged. Swept from earlier closes: task/7-empty."
 	if got := strings.Join(f.writes, ";"); got != want {
 		t.Errorf("writes =\n%s\nwant\n%s", got, want)
+	}
+}
+
+// GitHub parses the PR body itself, as prose, so a closing keyword near an
+// example ref hands the merge an issue nobody meant to close — PR #294
+// shipped two of them (#303, M15-R5). task finish says so before it merges,
+// and the dry run says the same thing in the same place. It is a note and
+// never a gate: the body was parsed long before the verb ran.
+func TestFinishNotesClosingReferencesBeyondTheTask(t *testing.T) {
+	f := cleanFinish()
+	f.closes = []tracker.TitledIssue{
+		{Ref: tracker.IssueRef{Repo: "o/r", Number: 7}, Title: "Seven"},
+		{Ref: tracker.IssueRef{Repo: "o/r", Number: 42}, Title: "An example ref in the prose"},
+	}
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("an unintended reference is a note, not a refusal: err %v refusal %v", err, p.refusal)
+	}
+	want := "note: this PR would also close o/r#42 (An example ref in the prose) — not the task\n"
+	var dry bytes.Buffer
+	p.print(&dry)
+	if !strings.Contains(dry.String(), want) {
+		t.Errorf("the dry run's listing lacks %q:\n%s", want, dry.String())
+	}
+	if strings.Contains(dry.String(), "o/r#7 (Seven)") {
+		t.Errorf("the task's own reference is what the PR is for and must not be noted:\n%s", dry.String())
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("planning wrote: %v", f.writes)
+	}
+	var live bytes.Buffer
+	if err := run(&live); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(live.String(), want) {
+		t.Errorf("the live run lacks %q:\n%s", want, live.String())
+	}
+	// Before the merge, so the operator reads it while it still matters.
+	if i, j := strings.Index(live.String(), want), strings.Index(live.String(), "merged PR #9"); i < 0 || j < 0 || i > j {
+		t.Errorf("the note must print before the merge line:\n%s", live.String())
+	}
+}
+
+// A PR that closes only its task says nothing at all — in either mode.
+func TestFinishSaysNothingWhenThePRClosesOnlyTheTask(t *testing.T) {
+	f := cleanFinish()
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var dry bytes.Buffer
+	p.print(&dry)
+	var live bytes.Buffer
+	if err := run(&live); err != nil {
+		t.Fatal(err)
+	}
+	for name, out := range map[string]string{"dry run": dry.String(), "live run": live.String()} {
+		if strings.Contains(out, "would also close") {
+			t.Errorf("%s: nothing beyond the task is closed, so nothing is said:\n%s", name, out)
+		}
 	}
 }

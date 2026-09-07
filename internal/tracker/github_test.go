@@ -460,3 +460,42 @@ func TestOpenPRsForBranchPaginates(t *testing.T) {
 		}
 	}
 }
+
+// ClosingReferences is what GitHub's own body parser made of a PR, and
+// task finish names each one it did not expect (#303). The shape is the
+// one PR #294 answers with: number, title, and the repository the issue
+// lives in — a closing keyword can name another repo's issue, so the ref
+// is built from nameWithOwner and never assumed to be the PR's own.
+func TestClosingReferences(t *testing.T) {
+	calls := recordGH(t, `{"data":{"repository":{"pullRequest":{"closingIssuesReferences":{"nodes":[
+	  {"number":42,"title":"Let a solo operator satisfy the verdict gate","repository":{"nameWithOwner":"radiusred/gh-codecrew"}},
+	  {"number":7,"title":"Elsewhere","repository":{"nameWithOwner":"radiusred/codecrew-www"}}]}}}}}`)
+	got, err := (GitHub{}).ClosingReferences("radiusred/gh-codecrew", 294)
+	if err != nil {
+		t.Fatalf("ClosingReferences: %v", err)
+	}
+	want := []TitledIssue{
+		{Ref: IssueRef{Repo: "radiusred/gh-codecrew", Number: 42}, Title: "Let a solo operator satisfy the verdict gate"},
+		{Ref: IssueRef{Repo: "radiusred/codecrew-www", Number: 7}, Title: "Elsewhere"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("ClosingReferences = %+v, want %+v", got, want)
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, want := range []string{"api graphql", "closingIssuesReferences", "nameWithOwner", "owner=radiusred", "repo=gh-codecrew", "num=294"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the query call %q is missing %q", line, want)
+		}
+	}
+
+	calls = recordGH(t, `{"data":{"repository":{"pullRequest":{"closingIssuesReferences":{"nodes":[]}}}}}`)
+	if got, err := (GitHub{}).ClosingReferences("o/r", 1); err != nil || len(got) != 0 {
+		t.Errorf("a PR that closes nothing = %v, %v", got, err)
+	}
+	if _, err := (GitHub{}).ClosingReferences("gh-codecrew", 294); err == nil {
+		t.Error("a repo ref with no owner must refuse before the API call")
+	}
+	if len(*calls) != 1 {
+		t.Errorf("the refusal reached the API: %v", *calls)
+	}
+}

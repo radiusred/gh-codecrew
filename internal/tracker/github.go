@@ -299,6 +299,59 @@ query($owner: String!, $repo: String!, $num: Int!) {
 	return numbers, nil
 }
 
+// ClosingReferences asks GitHub what its own body parser made of the pull
+// request: the issues the merge will close. One page is the whole answer —
+// a PR's closing references are a handful by construction, and a body that
+// somehow declared more than fifty has a larger problem than this note.
+func (GitHub) ClosingReferences(repo string, number int) ([]TitledIssue, error) {
+	owner, name, ok := strings.Cut(repo, "/")
+	if !ok {
+		return nil, fmt.Errorf("bad repo ref %q", repo)
+	}
+	var resp struct {
+		Data struct {
+			Repository struct {
+				PullRequest struct {
+					Refs struct {
+						Nodes []struct {
+							Number     int    `json:"number"`
+							Title      string `json:"title"`
+							Repository struct {
+								NameWithOwner string `json:"nameWithOwner"`
+							} `json:"repository"`
+						} `json:"nodes"`
+					} `json:"closingIssuesReferences"`
+				} `json:"pullRequest"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+	query := `
+query($owner: String!, $repo: String!, $num: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $num) {
+      closingIssuesReferences(first: 50) {
+        nodes { number title repository { nameWithOwner } }
+      }
+    }
+  }
+}`
+	if err := gh.JSON(&resp, "api", "graphql",
+		"-f", "query="+query,
+		"-f", "owner="+owner,
+		"-f", "repo="+name,
+		"-F", fmt.Sprintf("num=%d", number)); err != nil {
+		return nil, err
+	}
+	var refs []TitledIssue
+	for _, n := range resp.Data.Repository.PullRequest.Refs.Nodes {
+		refs = append(refs, TitledIssue{
+			Ref:   IssueRef{Repo: n.Repository.NameWithOwner, Number: n.Number},
+			Title: n.Title,
+		})
+	}
+	return refs, nil
+}
+
 func (GitHub) PRInfo(repo string, number int) (PR, error) {
 	var view struct {
 		State          string `json:"state"`
