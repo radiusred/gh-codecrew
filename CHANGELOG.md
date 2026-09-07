@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The venue is one interface, and a test keeps it that way
+
+- **Every invocation of `gh` and every GitHub REST or GraphQL call now goes
+  through `tracker.Tracker`**, the one venue seam, in the one package that
+  holds it. The calls `internal/cli` used to make past it — the `gh` version
+  and the current repository, a team's members, an account's type, the
+  App-manifest exchange, the App-JWT transport behind the mint and the webhook
+  verbs, the record-link reachability check, and the branch-rule probe `init`
+  runs, which was a raw `exec.Command("gh", …)` — are venue methods, and the
+  venue's URL grammar is the venue's. `internal/gh` has exactly one importer.
+  A test reads the source of every other package and fails on an
+  `internal/gh` import, a `gh` exec, an `api.github.com` literal or a
+  `github.com` URL, with one recorded exception: the documentation base URL
+  `init` writes into the scaffold. Nothing an operator or a seat sees changes:
+  no verb's arguments, output, writes or refusal codes move, and `GitHub` is
+  the only implementation by design — another venue waits on community demand
+  (#194), and nothing names one. (#326)
+- **A fake venue for the tests** — `internal/tracker/faketracker` — implements
+  the whole interface, records every call with its arguments, and answers from
+  a per-method field a test scripts. The team-membership and evidence-walk
+  tests use it in place of the stubs they kept of their own. (#326)
+
 ### Working offline
 
 - `docs/working-offline.md` — which verbs run with no network (`version`,
