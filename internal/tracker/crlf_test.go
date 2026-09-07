@@ -13,15 +13,19 @@ import (
 // of those through the GitHub reader that fetches the text, and then the
 // CRLF one again straight into the scanner with no reader in the path.
 //
-// The three readings pin the two layers separately, which is the whole
-// reason there are two (NormalizeLineEndings):
+// The three readings cover the two layers, which is the whole reason there
+// are two (NormalizeLineEndings):
 //
 //   - through the reader — the path a body actually takes into the
-//     package. Delete the normalisation in github.go and these fail.
+//     package. These rows do not fail on their own when github.go is
+//     stripped: the scanner layer catches the body behind it, which is
+//     exactly what having two layers buys. TestReadersNormaliseAtTheBoundary
+//     is what pins that layer, by asserting the readers hand the package
+//     no CR at all.
 //   - straight into the scanner — the seam Tracker is: a string reaching
 //     an exported scanner from another backend, a fake tracker or a
-//     caller's own hand. Delete the normalisation at the scanner entries
-//     in tracker.go and these fail, github.go untouched.
+//     caller's own hand. Strip the scanner entries in tracker.go, leave
+//     github.go alone, and these fail.
 //
 // Measured, one layer removed at a time:
 //
