@@ -244,6 +244,7 @@ type taskNewFake struct {
 	rCalls  int
 	created []string
 	body    string   // the body of the issue CreateIssue was last given
+	labels  []string // the labels CreateIssue was last given
 	linked  []string // "<parent> <- <child>" per AddSubIssue
 	posted  []string // "<ref>: <body>" per Comment
 }
@@ -273,9 +274,10 @@ func (f *taskNewFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
 	}
 	return t, nil
 }
-func (f *taskNewFake) CreateIssue(repo, title, body string, _ []string) (tracker.IssueRef, error) {
+func (f *taskNewFake) CreateIssue(repo, title, body string, labels []string) (tracker.IssueRef, error) {
 	f.created = append(f.created, title)
 	f.body = body
+	f.labels = labels
 	return tracker.IssueRef{Repo: repo, Number: 21}, nil
 }
 func (f *taskNewFake) Comment(ref tracker.IssueRef, body string) error {
@@ -323,6 +325,26 @@ func TestTaskNewFindsTheMilestoneFirstTime(t *testing.T) {
 	}
 	if len(f.linked) != 1 || f.linked[0] != "o/hub#233 <- o/spoke#21" {
 		t.Errorf("linked %v", f.linked)
+	}
+}
+
+// Every downstream gate reads the label task new applies: task start and
+// task finish refuse an issue that is not a task, and status and milestone
+// close walk the sub-issues by it. Nothing asserted it was applied at
+// creation, so a regression would have passed the suite and surfaced at
+// the first refused task start (#297). The created issue carries cc:task,
+// exactly that one label, and never the milestone's.
+func TestTaskNewAppliesTheTaskLabel(t *testing.T) {
+	recordSleeps(t)
+	f := &taskNewFake{open: [][]tracker.Milestone{{openMilestone(233, "M11: Housekeeping")}}}
+	if err := runTaskNew(taskNewCtx(f), &bytes.Buffer{}, 11, "o/spoke", "Cut the README", "g", "M11-R1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{tracker.LabelTask}; !reflect.DeepEqual(f.labels, want) {
+		t.Errorf("created with labels %v, want %v", f.labels, want)
+	}
+	if tracker.ContainsLabel(f.labels, tracker.LabelMilestone) {
+		t.Errorf("a task must not be created as a milestone: %v", f.labels)
 	}
 }
 
