@@ -6,6 +6,32 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `status` names stale task branches, and nothing closes an issue by accident
+
+- **`status` reports the stale task branches of the repo it runs in** — every
+  `task/<n>-…` branch on the remote whose task issue is closed — beside the
+  contract-drift and delete-on-merge notes. Each is named with the
+  delete-or-keep verdict and reason the next `milestone close` would give
+  it, computed by the very function the close's second sweep judges by, so a
+  report and a sweep can never disagree. One prefix-filtered listing and one
+  issue read per branch; a branch whose task is still open costs that read
+  and nothing more; a branch whose task cannot be read is a `note:` and is
+  left standing; a listing that ran past its page says so. Nothing stale
+  prints nothing. Between milestones this is the only place a skipped sweep
+  is visible at all. (#310)
+- **`task finish` says what else the merge would close.** Before merging —
+  and in `--dry-run`'s listing — it prints `note: this PR would also
+  close …` for every issue in the pull request's closing references that is
+  not the task. GitHub parses the PR body as prose with its own parser, so a
+  closing keyword written near an example ref becomes a real closing
+  reference: PR #294 shipped two nobody intended. A note, never a refusal;
+  no new refusal code. (#310)
+- **The contracts say it too.** The implementer contract now forbids a
+  closing word before any ref but the task's own, anywhere in the body, and
+  names the `gh pr view <n> --json closingIssuesReferences` check to run
+  straight after opening; the reviewer contract makes those references
+  something the review checks. (#310)
+
 ### A body saved with CRLF reads as the LF one
 
 - **The tracker normalises `\r\n` to `\n`.** GitHub's web editor saves an
