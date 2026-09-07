@@ -104,3 +104,10 @@ authentication, base URLs, and enterprise quirks solved for free.
 **Rejected:** Direct REST for v1 — it buys independence from `gh` at the cost
 of owning an auth story, in exactly the multi-harness environments where auth
 friction hurts most. The backend interface keeps direct REST possible later.
+The seam is `tracker.Tracker` in `internal/tracker` — every invocation of `gh`
+and every GitHub REST or GraphQL call the CLI makes goes through it, and
+`internal/gh`, the wrapper over the binary, has exactly one importer; a test
+keeps it that way. `GitHub` is its only implementation and is meant to be:
+another venue is backlog until a community asks for one
+([#194](https://github.com/radiusred/gh-codecrew/issues/194)), so nothing —
+no config key, no flag, no promise in these docs — names a second.
