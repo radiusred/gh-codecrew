@@ -6,6 +6,26 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Every listing read in the tracker walks the whole listing
+
+- `Comments`, `SubIssues` and the milestone issue listing stopped at
+  GitHub's first hundred rows. A milestone issue past a hundred comments
+  therefore lost its *newest* ones — the comments latest-wins reads — and
+  `milestone close` refused `VERDICT_MISSING` for a requirement whose
+  satisfied QA verdict sat on a later page. Those three, and the
+  open-PR-by-head listing the stale-branch sweep keeps a branch under, now
+  page through to the end.
+- **Two reads stay on one page, deliberately, and say so.**
+  `RecentIssues` reads the newest page and only that: it is the
+  created-issue floor of #195, and walking a repo's entire issue history
+  would cost a request per hundred issues for a number the first page
+  already carries. The task-branch listing reports `hasNextPage` instead,
+  which is what the sweep's "swept in part" is built on (SPEC §6).
+- The `gh` fake in the tracker's tests now pages the way the real `gh`
+  does — the whole listing only when the call carried `--paginate` — so a
+  reader that drops the flag fails the suite rather than passing on a
+  fixture that fits in one page. (#308)
+
 ### `task start` does not offer an App as an assignee; `status` names the holder
 
 - **The permanent 403 is gone.** GitHub does not accept a GitHub App as an
