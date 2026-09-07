@@ -602,6 +602,27 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	if err != nil {
 		return nil, nil, err
 	}
+	// What GitHub's own body parser made of the PR, said before the merge
+	// acts on it. GitHub reads the body as prose, so an example ref beside
+	// closing language becomes a closing reference the author never wrote —
+	// PR #294 carried three, two of them unintended (#303). A note, not a
+	// gate: the body is already parsed and merged state is GitHub's to
+	// decide, and a refusal here would stop a finish over an issue that is
+	// very often already closed. The operator gets the list and the choice.
+	closes, err := c.t.ClosingReferences(pr.Repo, pr.Number)
+	if err != nil {
+		return nil, nil, err
+	}
+	var notes []string
+	for _, it := range closes {
+		if it.Ref == ref {
+			continue
+		}
+		notes = append(notes, fmt.Sprintf("note: this PR would also close %s (%s) — not the task", it.Ref, it.Title))
+	}
+	for _, n := range notes {
+		p.remark("%s", n)
+	}
 	for _, m := range posts {
 		p.would("comment on PR #%d: %s", pr.Number, firstLine(m))
 	}
@@ -626,6 +647,9 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	// merged state.
 	planClone(c.t, pr, c.current, false).would(p)
 	run := func(w io.Writer) error {
+		for _, n := range notes {
+			fmt.Fprintln(w, n)
+		}
 		for _, m := range posts {
 			if err := c.t.Comment(prRef, m); err != nil {
 				return err

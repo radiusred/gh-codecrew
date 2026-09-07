@@ -13,6 +13,7 @@ import (
 // with the run (M7-R5, #133).
 type plan struct {
 	gates   []gateResult
+	notes   []string // lines the live verb prints on its way past the gates
 	actions []string
 	refusal error // the first refused gate — the dry run's exit status too
 }
@@ -78,6 +79,15 @@ func (p *plan) would(format string, args ...any) {
 	p.actions = append(p.actions, fmt.Sprintf(format, args...))
 }
 
+// remark records a line that is neither a gate's outcome nor an action:
+// something the live verb says on its way through, once every gate has
+// passed, which the preview must show too. `note` belongs to a gate and
+// prints indented under it; these stand between the gates and the actions,
+// where the live verb prints them.
+func (p *plan) remark(format string, args ...any) {
+	p.notes = append(p.notes, fmt.Sprintf(format, args...))
+}
+
 func (p *plan) print(w io.Writer) {
 	for _, g := range p.gates {
 		switch g.status {
@@ -97,6 +107,9 @@ func (p *plan) print(w io.Writer) {
 	if p.refusal != nil {
 		fmt.Fprintln(w, "dry run: nothing written — the live verb stops at the first refusal above")
 		return
+	}
+	for _, n := range p.notes {
+		fmt.Fprintln(w, n)
 	}
 	for _, a := range p.actions {
 		fmt.Fprintf(w, "would %s\n", a)
