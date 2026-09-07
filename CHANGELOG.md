@@ -6,6 +6,20 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Working offline
+
+- `docs/working-offline.md` — which verbs run with no network (`version`,
+  `help`, `roles show`/`roles diff` in a hub, and — the part that is not
+  obvious — `init` and `migrate`, whose work is local files and one local
+  commit), which wait and exactly what each prints when it cannot reach
+  GitHub, and the recipe for work begun offline: plan and commit locally,
+  then `task start`, then rebase your commits onto the linked branch it
+  created. Every quoted line was read off the binary running in a network
+  namespace with no route out; the branch reconciliation is the one that
+  happened on this task. Named in `docs/introduction.md`'s reading order,
+  and guarded by a test that rebuilds the two texts the page quotes from
+  the code that prints them. No verb changed. (#329)
+
 ### `CLI.md`, the reference for the verbs
 
 - **A reference at the repository root** — `CLI.md`, beside `SPEC.md`: a

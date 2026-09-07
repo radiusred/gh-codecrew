@@ -19,7 +19,7 @@ protocol 1.x one.
 
 | Verb | Offline behaviour |
 | --- | --- |
-| `codecrew version` | Prints the release and protocol version. Nothing is fetched; `gh` never auto-updates an extension, so the answer is local by construction. |
+| `codecrew version` | Prints the release and protocol version. Both are stamped into the binary at build time; nothing is fetched. |
 | `codecrew help`, and `--help` on any verb | Prints usage and exits 0. `--help` is read before the verb runs, so it never reaches a gate or a fetch. |
 | `codecrew roles show <role>` *(in a hub)* | Composes the contract from disk: the hub's `.codecrew/roles/<role>.md`, then its `.local.md` extension. A hub reads its own pointer and its own contracts, so nothing is fetched (SPEC §6). |
 | `codecrew roles show <role> --latest` | Prints the contract embedded in the binary. Works anywhere, hub or spoke. |
@@ -121,9 +121,13 @@ The boundaries of a task are GitHub's; the middle is yours. So:
 
 1. Read the contract — `gh codecrew roles show implementer` in a hub, or the
    copy in `.codecrew/roles/` — and `.codecrew/AGENTS.md`.
-2. Draft the plan in a file. It has to be on the task issue before the first
-   commit (SPEC §4), and `task start` refuses `NO_PLAN` until it is, but
-   writing it is not the same act as posting it.
+2. Draft the plan in a file. Be honest with yourself about what this costs:
+   SPEC §4 wants the plan on the issue *before* the first commit, and
+   offline you cannot put it there. Writing it first and posting it
+   unchanged when you reconnect keeps the substance of the rule — deciding
+   before doing — and posting a plan you have already implemented against,
+   edited to match what you did, does not. `task start` refuses `NO_PLAN`
+   until the section is on the issue either way.
 3. Branch locally, with the name `task start` would create:
    `task/<issue number>-<slug of the title>`. The slug is the title
    lower-cased with every run of non-alphanumeric characters collapsed to a
@@ -142,14 +146,25 @@ The boundaries of a task are GitHub's; the middle is yours. So:
 
 **What step 6 actually does to a branch you already have.** `task start`
 creates the linked branch through GitHub (`gh issue develop`), which knows
-nothing about your machine: a local branch of that name is not consulted, and
-the branch it creates is cut from the default branch's current head and
-carries none of your commits. What you then have is two branches of the same
-name — yours, with the work, and the remote one, linked to the issue and
-empty.
+nothing about your machine. A local branch of that name is not consulted, and
+the branch GitHub creates is cut from the default branch's current head and
+carries none of your commits. The verb reports success and prints the two
+lines it always prints:
 
-Reconciling them is one command, because the remote branch is an ancestor of
-nothing you have: fetch, then rebase your local commits onto it.
+```
+linked branch task/329-working-offline-what-runs-what-waits-and created
+locally: git fetch && git switch task/329-working-offline-what-runs-what-waits-and
+```
+
+Follow that second line literally and nothing happens, which is the part to
+watch for: `git switch` finds the local branch you already have and stays on
+it — "Already on …" — rather than checking out the branch that was just
+created, and because a local branch of the name existed, git set up no
+tracking either. You are on your own commits, with no upstream, next to a
+remote branch of the same name that is linked to the issue and empty.
+
+Reconciling the two is one rebase, and the push that follows sets the
+upstream that is missing:
 
 ```sh
 git fetch origin
@@ -157,26 +172,34 @@ git rebase origin/task/329-…            # your commits, replayed onto the link
 git push -u origin task/329-…
 ```
 
-If your local branch was cut from the same commit the linked branch was
-created at, the rebase is a no-op and the push is a fast-forward; if the
-default branch moved on while you were offline, the rebase is where you find
-that out, and it is the rebase you would have done anyway before opening the
-pull request. Push the branch under its own name: the link between issue and
-branch is the name, so a branch pushed as something else is not the linked
-one and the pull request will not be the one the issue tracks.
+If you branched from the same commit the linked branch was cut from — the
+common case, since both come from the default branch — the rebase is a no-op
+and the push is a fast-forward. If the default branch moved on while you were
+offline, the rebase is where you find that out, and it is the rebase you
+would have done before opening the pull request anyway. Push under the same
+name: the link between the issue and the branch is the name, so a branch
+pushed as something else is not the linked one.
 
-Two things not to do. Do not `git switch` to the fetched branch and then
-cherry-pick onto it — you will have the same commits twice under two
-identities and a rebase to untangle later. And do not push your local branch
-before running `task start`: `gh issue develop` is what creates the *linked*
-branch, and a remote branch of that name it did not create is not linked to
-the issue.
+Two things not to do. Do not `git switch` to the fetched branch under a new
+name and cherry-pick onto it — that is the same commits twice, and a tangle
+to unpick at review. And run `task start` before you push, not after: the
+linked branch is the one `gh issue develop` creates, and what it does with a
+branch already sitting on the remote under that name, put there by something
+else, is not a question this page has tested. Taking the steps in the order
+above never asks it.
+
+Re-running `task start` after the linked branch exists is safe on GitHub's
+side — the call is idempotent, it answers with the existing branch, creates
+no second one and moves nothing — but the verb posts another start record
+every time it runs, since the latest record is what names the task's owner
+(SPEC §4). Run it once.
 
 None of this is `task start` being clever, because today it is not:
 [#324](https://github.com/radiusred/gh-codecrew/issues/324) is the capture
 for making it reconcile a branch begun offline — assign, verify the plan and
-link the branch that is already there — and until that ships, the rebase
-above is the step you do yourself.
+link the branch that is already there rather than create a second — and until
+that ships, the rebase above is the step you do yourself. This page describes
+what the CLI does today, and promises nothing of #324.
 
 ## Why there is no offline mode
 

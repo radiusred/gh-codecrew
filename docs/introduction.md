@@ -30,13 +30,15 @@ prerequisite.
 6. [CLI.md](../CLI.md) — the CLI reference: every verb's synopsis, options,
    what it reads and writes, refusal codes and exit status. Read it before
    the SPEC if you are running the verbs.
-7. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
+7. [Working offline](working-offline.md) — which verbs run with no network,
+   how the rest refuse, and the recipe for work begun offline.
+8. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
    configuration, verbs, roles, gates.
-8. [Founding decisions](founding-decisions.md) and the per-milestone
+9. [Founding decisions](founding-decisions.md) and the per-milestone
    records in [milestones/](milestones/) — the "why", as it was recorded.
-9. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
-   — the essay that started the project: one person's experience with GSD
-   across several projects, kept as the motivation, not a verdict on GSD.
+10. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
+    — the essay that started the project: one person's experience with GSD
+    across several projects, kept as the motivation, not a verdict on GSD.
 
 ## Three parts
 
