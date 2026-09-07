@@ -44,9 +44,15 @@ func statusReport(w io.Writer, c *ctx) error {
 
 	// The repo's own branch hygiene setting: advisory, like routing — the
 	// verbs clean up regardless (task finish deletes the merged head,
-	// milestone close sweeps), so an unreadable setting is skipped.
-	if info, err := c.t.RepoInfo(c.current); err == nil && !info.DeleteBranchOnMerge {
+	// milestone close sweeps), so an unreadable setting is skipped. The
+	// same read serves the stale-branch report below, which needs the
+	// default branch's name.
+	info, err := c.t.RepoInfo(c.current)
+	if err == nil && !info.DeleteBranchOnMerge {
 		fmt.Fprintf(w, "note: %s does not delete branches on merge (GitHub setting) — task finish and milestone close clean up task branches; enable it for other PRs\n", c.current)
+	}
+	if err == nil {
+		staleBranches(w, c.t, c.current, info.DefaultBranch)
 	}
 
 	// Contract drift: purely local — the embedded contracts ride the
@@ -60,6 +66,48 @@ func statusReport(w io.Writer, c *ctx) error {
 	}
 
 	return nil
+}
+
+// staleBranches reports the task branches this repo still carries whose
+// task issue has closed — a sweep that never ran, or one that declined
+// (#295). `milestone close` reaches these branches only when a milestone
+// closes; between closes nothing looks, and this is the only place a solo
+// operator with no open milestone would ever see one. The verdict and its
+// reason come from staleBranchAction, the close's own second pass, so the
+// report can never promise a deletion the close would decline.
+//
+// Every line is advisory, like the two notes it sits beside: a listing
+// GitHub will not give up is one note: and the verb carries on. Nothing to
+// report says nothing at all.
+func staleBranches(w io.Writer, t tracker.Tracker, repo, defaultBranch string) {
+	items, listed, truncated, err := planStaleReport(t, repo, defaultBranch)
+	if err != nil {
+		fmt.Fprintf(w, "note: stale task branches not listed for %s (%v)\n", repo, err)
+		return
+	}
+	for _, it := range items {
+		switch {
+		case it.Note != "":
+			// Worded by the sweep, printed unchanged: an unreadable task
+			// issue is named the same way wherever it is met.
+			fmt.Fprintln(w, it.Note)
+		case it.TaskOpen:
+			// Nothing has finished with this branch; it is not stale.
+		case it.Delete:
+			fmt.Fprintf(w, "stale branch: %s — %s is closed; %s — the next milestone close would delete it\n", it.Name, staleRef(it), it.Reason)
+		default:
+			fmt.Fprintf(w, "stale branch: %s — %s is closed; %s — kept by the next milestone close\n", it.Name, staleRef(it), it.Reason)
+		}
+	}
+	if truncated {
+		fmt.Fprintf(w, "note: %s carries more task branches than one listing holds; this report saw %d of them\n", repo, listed)
+	}
+}
+
+// staleRef names the task issue a reported branch belongs to, read back
+// out of the branch name by the one function the sweep reads it with.
+func staleRef(it sweepItem) tracker.IssueRef {
+	return tracker.IssueRef{Repo: it.Repo, Number: taskNumber(it.Name)}
 }
 
 // milestoneBoard prints the board itself — every open milestone with its
