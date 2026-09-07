@@ -32,6 +32,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   verbs with the same synopsis lines; the other parses `CLI.md`'s per-verb
   refusal lists and SPEC §10's "Raised by" column and requires them to agree
   in both directions. (#327)
+- **The streams, as they are.** The reference says which stream each line
+  goes to, per verb: a verb's `note:` and `warning:` lines are on its stdout
+  beside its report, and stderr carries three things — the
+  `refused[CODE]: detail` line, the notes raised while the pointer is read,
+  and `identity token`'s receipt. SPEC §6's channel paragraph says notes are
+  on stderr and is left as it stands; the disagreement is capture #337. (#327)
 
 ### Docs-only pull requests: the self-gating workflow, and why `[skip ci]` cannot pass the gate
 
