@@ -53,6 +53,12 @@ func statusReport(w io.Writer, c *ctx) error {
 	}
 	if err == nil {
 		staleBranches(w, c.t, c.current, info.DefaultBranch)
+	} else {
+		// The two are not symmetric on this error. The delete-on-merge
+		// note's absence claims nothing — it prints only when the setting
+		// is off. The report's absence claims the repo carries no stale
+		// branch, and that claim must not be made by a read that failed.
+		fmt.Fprintf(w, "note: stale task branches not listed for %s (%v)\n", c.current, err)
 	}
 
 	// Contract drift: purely local — the embedded contracts ride the

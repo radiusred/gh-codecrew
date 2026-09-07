@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -29,32 +31,42 @@ type statusFake struct {
 	branches  []string
 	truncated bool
 	branchErr error
+	repoErr   error
 	taskErr   map[int]error
 	prs       map[int][]int
 	prInfo    map[int]tracker.PR
 	ahead     map[string]int
 	tips      map[string]string
 	openPRs   map[string][]int
+	calls     []string // every lookup the report makes, in order, so its cost can be asserted
 }
 
 func (f *statusFake) OpenMilestones(string) ([]tracker.Milestone, error) { return f.milestones, nil }
 func (f *statusFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	f.calls = append(f.calls, fmt.Sprintf("task %d", ref.Number))
 	if err := f.taskErr[ref.Number]; err != nil {
 		return tracker.Task{}, err
 	}
 	return f.issues[ref.Number], nil
 }
 func (f *statusFake) TaskBranches(string) ([]string, bool, error) {
+	f.calls = append(f.calls, "branches")
 	return f.branches, f.truncated, f.branchErr
 }
 func (f *statusFake) ClosingPRs(ref tracker.IssueRef, _ bool) ([]int, error) {
+	f.calls = append(f.calls, fmt.Sprintf("prs %d", ref.Number))
 	return f.prs[ref.Number], nil
 }
-func (f *statusFake) PRInfo(_ string, n int) (tracker.PR, error) { return f.prInfo[n], nil }
+func (f *statusFake) PRInfo(_ string, n int) (tracker.PR, error) {
+	f.calls = append(f.calls, fmt.Sprintf("pr %d", n))
+	return f.prInfo[n], nil
+}
 func (f *statusFake) OpenPRsForBranch(_, branch string) ([]int, error) {
+	f.calls = append(f.calls, "open "+branch)
 	return f.openPRs[branch], nil
 }
 func (f *statusFake) BranchAhead(_, b string) (int, string, error) {
+	f.calls = append(f.calls, "ahead "+b)
 	n, ok := f.ahead[b]
 	if !ok {
 		return 0, "", errors.New("branch not found")
@@ -75,6 +87,9 @@ func (f *statusFake) Comments(ref tracker.IssueRef) ([]tracker.Comment, error) {
 	return f.comments[ref.Number], nil
 }
 func (f *statusFake) RepoInfo(string) (tracker.RepoInfo, error) {
+	if f.repoErr != nil {
+		return tracker.RepoInfo{}, f.repoErr
+	}
 	return tracker.RepoInfo{DefaultBranch: "main", DeleteBranchOnMerge: !f.keepBranches}, nil
 }
 
@@ -405,17 +420,46 @@ func TestStatusReportsStaleBranchesWithTheSweepsVerdict(t *testing.T) {
 
 // The reason a report costs what it does: the verdict is only computed for
 // a branch whose task has closed. An open task's branch costs the one issue
-// read and stops there — no PR listing, no comparison.
+// read and stops there — no PR listing, no comparison. The claim is about
+// cost, so the calls are what is asserted: an empty report is also what a
+// broken early return produces, and an output-only assertion passed with
+// the behaviour deleted (checky, PR #317).
 func TestStatusStaleReportStopsAtAnOpenTask(t *testing.T) {
 	f := staleFake()
 	f.branches = []string{"task/9-open"}
-	f.ahead = nil // a comparison would fail outright if one were made
 	var out bytes.Buffer
 	if err := statusReport(&out, statusCtx(t, f)); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); strings.Contains(got, "stale branch") {
 		t.Errorf("nothing stale must print nothing:\n%s", got)
+	}
+	want := []string{"branches", "task 9"}
+	if !slices.Equal(f.calls, want) {
+		t.Errorf("an open task's branch cost %v, want %v — the listing, the issue read, nothing more", f.calls, want)
+	}
+}
+
+// The report's absence is a claim — that the repo carries nothing stale —
+// so the read that gates it may not fail quietly. The delete-on-merge
+// note's absence claims nothing and is right to stay silent on the same
+// error; this one is not (checky, PR #317).
+func TestStatusSaysWhenTheRepoCouldNotBeRead(t *testing.T) {
+	f := staleFake()
+	f.repoErr = errors.New("403")
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatalf("an unreadable repo must not fail the verb: %v", err)
+	}
+	got := out.String()
+	if want := "note: stale task branches not listed for o/r (403)\n"; !strings.Contains(got, want) {
+		t.Errorf("status output lacks %q:\n%s", want, got)
+	}
+	if strings.Contains(got, "does not delete branches on merge") {
+		t.Errorf("the setting was never read, so nothing may be claimed of it:\n%s", got)
+	}
+	if slices.Contains(f.calls, "branches") {
+		t.Errorf("the listing ran without a default branch to compare against: %v", f.calls)
 	}
 }
 
