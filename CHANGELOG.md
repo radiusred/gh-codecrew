@@ -27,7 +27,9 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   not the task. GitHub parses the PR body as prose with its own parser, so a
   closing keyword written near an example ref becomes a real closing
   reference: PR #294 shipped two nobody intended. A note, never a refusal;
-  no new refusal code. (#310)
+  no new refusal code. The read is advisory and so is its failure — a
+  lookup that cannot complete is another `note:` naming the command that
+  answers it by hand, and the merge goes ahead. (#310)
 - **The contracts say it too.** The implementer contract now forbids a
   closing word before any ref but the task's own, anywhere in the body, and
   names the `gh pr view <n> --json closingIssuesReferences` check to run

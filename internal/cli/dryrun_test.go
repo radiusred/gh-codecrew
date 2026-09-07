@@ -14,17 +14,18 @@ import (
 // of every write — a dry run must leave that record empty.
 type finishFake struct {
 	tracker.Tracker
-	task     tracker.Task
-	body     string               // the task issue body — its ## Adopts section is what finish reads
-	issues   map[int]tracker.Task // adopted captures, by number; anything else answers f.task
-	mergeSHA string
-	comments []tracker.Comment
-	viewer   string
-	prs      []int
-	pr       tracker.PR
-	closes   []tracker.TitledIssue // what GitHub says the PR would close
-	writes   []string
-	closed   []string // the closing comment of every CloseIssue, in order
+	task      tracker.Task
+	body      string               // the task issue body — its ## Adopts section is what finish reads
+	issues    map[int]tracker.Task // adopted captures, by number; anything else answers f.task
+	mergeSHA  string
+	comments  []tracker.Comment
+	viewer    string
+	prs       []int
+	pr        tracker.PR
+	closes    []tracker.TitledIssue // what GitHub says the PR would close
+	closesErr error                 // when set, what the closing-references read fails with
+	writes    []string
+	closed    []string // the closing comment of every CloseIssue, in order
 }
 
 func (f *finishFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
@@ -45,6 +46,9 @@ func (f *finishFake) Viewer() (string, error)                              { ret
 func (f *finishFake) ClosingPRs(tracker.IssueRef, bool) ([]int, error)     { return f.prs, nil }
 func (f *finishFake) PRInfo(string, int) (tracker.PR, error)               { return f.pr, nil }
 func (f *finishFake) ClosingReferences(string, int) ([]tracker.TitledIssue, error) {
+	if f.closesErr != nil {
+		return nil, f.closesErr
+	}
 	return f.closes, nil
 }
 func (f *finishFake) Comment(_ tracker.IssueRef, body string) error {
@@ -789,5 +793,35 @@ func TestFinishSaysNothingWhenThePRClosesOnlyTheTask(t *testing.T) {
 		if strings.Contains(out, "would also close") {
 			t.Errorf("%s: nothing beyond the task is closed, so nothing is said:\n%s", name, out)
 		}
+	}
+}
+
+// The read behind the note is advisory, and so is its failure: every gate
+// has passed by the time it runs, and a GraphQL hiccup on an informational
+// line must not abort a merge nothing else objects to. It says what it
+// could not read and names the command that answers it by hand (checky,
+// PR #317).
+func TestFinishNotesAnUnreadableClosingReference(t *testing.T) {
+	f := cleanFinish()
+	f.closesErr = errors.New("502")
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil || run == nil {
+		t.Fatalf("an advisory read must not abort the finish: err %v refusal %v", err, p.refusal)
+	}
+	want := "note: could not read what else PR #9 would close (502) — check with gh pr view 9 --json closingIssuesReferences\n"
+	var dry bytes.Buffer
+	p.print(&dry)
+	if !strings.Contains(dry.String(), want) {
+		t.Errorf("the dry run's listing lacks %q:\n%s", want, dry.String())
+	}
+	var live bytes.Buffer
+	if err := run(&live); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(live.String(), want) {
+		t.Errorf("the live run lacks %q:\n%s", want, live.String())
+	}
+	if !strings.Contains(live.String(), "merged PR #9") {
+		t.Errorf("the merge must still happen:\n%s", live.String())
 	}
 }

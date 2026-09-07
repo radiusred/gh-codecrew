@@ -609,11 +609,17 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	// gate: the body is already parsed and merged state is GitHub's to
 	// decide, and a refusal here would stop a finish over an issue that is
 	// very often already closed. The operator gets the list and the choice.
+	// The read is advisory, so its failure is too: every gate has passed by
+	// here, and a GraphQL hiccup on an informational line is no reason to
+	// abort a merge nothing else objects to. It says what it could not read
+	// and names the command that answers it by hand — the same shape
+	// `status` uses for its own unreadable listing, and the same principle
+	// deleteHead follows after the merge (checky, PR #317).
+	var notes []string
 	closes, err := c.t.ClosingReferences(pr.Repo, pr.Number)
 	if err != nil {
-		return nil, nil, err
+		notes = append(notes, fmt.Sprintf("note: could not read what else PR #%d would close (%v) — check with gh pr view %d --json closingIssuesReferences", pr.Number, err, pr.Number))
 	}
-	var notes []string
 	for _, it := range closes {
 		if it.Ref == ref {
 			continue
