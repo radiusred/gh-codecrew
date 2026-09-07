@@ -572,7 +572,7 @@ page is not read as a finished story.
   pull requests — so the scaffold is the last commit before the protocol
   starts rather than a PR with no task behind it, and delete-on-merge sweeps
   the branch the run found stranded
-  ([SPEC §6](../SPEC.md)'s `init` row;
+  ([CLI.md](../CLI.md)'s `init` section;
   [#183](https://github.com/radiusred/gh-codecrew/issues/183),
   [PR #184](https://github.com/radiusred/gh-codecrew/pull/184), which closed
   the capture the run's findings opened). What remains: behind a ruleset the
