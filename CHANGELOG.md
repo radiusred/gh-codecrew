@@ -6,6 +6,25 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `migrate` writes the root entry points a 1.x repo never had
+- `init` writes a root `AGENTS.md` and `CLAUDE.md` when they are absent, and
+  `migrate` did not: it named an absent one under `action needed` and asked
+  the operator to create it by hand. A protocol 1.x spoke never had either
+  file, so five of the twelve repos in the v2.0.0 fleet migration landed on
+  the 2.0 layout in a state a fresh scaffold would never produce.
+- **An absent root entry point is CodeCrew's to write.** `migrate` now writes
+  it from the same constants `init` writes it from — the mapping is stated
+  once, so neither verb carries a copy of the bytes — in the same pathspec
+  commit as the rest of the move, listed by `--dry-run` beside
+  `.codecrew/AGENTS.md`.
+- **The `action needed` block is for prose, not for missing files.** It names
+  only a root file the repo already has that does not reach
+  `.codecrew/AGENTS.md`: that one is the project's, and `migrate` still never
+  rewrites it. With one condition left, `init` and `migrate` print the same
+  block, and a kept `CLAUDE.md` whose `@AGENTS.md` import lands on an
+  `AGENTS.md` the migration is about to write is not asked for — so the dry
+  run and the live run report the same thing. (#306)
+
 ### Every listing read in the tracker walks the whole listing
 
 - `Comments`, `SubIssues` and the milestone issue listing stopped at
@@ -106,7 +125,9 @@ upgraded and stays stopped until it is migrated.
 5. If the output ends with an `action needed` block, paste the lines it
    prints into each root `AGENTS.md` or `CLAUDE.md` it names. A 1.x root
    entry point holds the old instructions and does not reach
-   `.codecrew/AGENTS.md`; `migrate` never edits a file the project owns.
+   `.codecrew/AGENTS.md`; `migrate` never edits a file the project owns. A
+   root entry point the repo does not have is written for you, from the
+   same scaffold `init` uses (2.0.1, #306).
 
 The move also brings the repository's `cc:` labels to the protocol's
 defaults, and that step alone needs GitHub: a repository it cannot reach
@@ -520,11 +541,13 @@ its own milestone's number. Each has its own entry below.
   git push -u origin HEAD           # migrate never pushes; open the PR yourself
   ```
 
-  `migrate` ends with an `action needed` block whenever the repo's root
-  `AGENTS.md` or `CLAUDE.md` does not yet reach `.codecrew/AGENTS.md` — a
-  1.x root entry point holds the old instructions, so it usually does not.
-  Paste the two lines it prints into each file it names; migrate does not
-  edit them itself.
+  `migrate` ends with an `action needed` block whenever a root `AGENTS.md`
+  or `CLAUDE.md` the repo already has does not yet reach
+  `.codecrew/AGENTS.md` — a 1.x root entry point holds the old
+  instructions, so it usually does not. Paste the two lines it prints into
+  each file it names; migrate does not edit them itself. One the repo does
+  not have it writes itself, from `init`'s scaffold (2.0.1, #306; 2.0.0
+  reported an absent file under the same block).
 
   The move also brings the repo's `cc:` labels to the protocol's defaults —
   created where missing, restyled where a 1.x repo had them from implicit
