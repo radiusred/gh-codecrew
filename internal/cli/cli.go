@@ -1,4 +1,4 @@
-// Package cli dispatches the codecrew workflow verbs (SPEC.md §6).
+// Package cli dispatches the codecrew workflow verbs (CLI.md).
 package cli
 
 import (
@@ -50,6 +50,8 @@ verbs:
   version                                    installed release tag (dev for source builds)
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
+Every verb in full — options, reads and writes, refusals, exit status — is in
+CLI.md: https://github.com/radiusred/gh-codecrew/blob/main/CLI.md
 `
 
 // Run executes one verb. --help on any verb prints its usage and is not
