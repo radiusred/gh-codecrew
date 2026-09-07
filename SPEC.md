@@ -382,6 +382,10 @@ not a verdict, exactly as a URL in code is not a citation (§6, `milestone
 evidence`). Those are the shapes a form quoted from a contract and an
 earlier verdict shown verbatim take.
 
+Line endings are not part of the grammar: a body saved with CRLF — what a
+web editor writes — is read exactly as the same body written with LF, in
+the record scans and the `## Adopts` section alike.
+
 ### Summary
 
 The PR description, finalized at merge time: what was done, which requirements
