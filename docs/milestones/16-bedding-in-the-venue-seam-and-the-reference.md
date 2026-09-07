@@ -20,10 +20,10 @@ spoke ([radiusred/codecrew-www#30](https://github.com/radiusred/codecrew-www/iss
 plus [#340](https://github.com/radiusred/gh-codecrew/issues/340), the task this
 document is; their **eight merged pull requests** and the **twenty-seven
 commits** on them — twenty-four here and three in the spoke; the **twenty-five
-Decision records and seven Deviation records** across the milestone issue and
+Decision records and eight Deviation records** across the milestone issue and
 all nine of its task issues, of which **twenty-three and seven** are on the
-milestone issue and the eight delivery tasks and the remaining **two** on this
-document's own; the **twelve review submissions** on the eight pull requests —
+milestone issue and the eight delivery tasks and the remaining **two and one**
+on this document's own; the **twelve review submissions** on the eight pull requests —
 **four change requests** and **eight approvals, every one of which stands**,
 none dismissed; the **six** adopted backlog captures the merges closed; and the
 **six** captures the milestone filed and left open — five in this hub and one in
@@ -47,47 +47,58 @@ the milestone issue's `userContentEdits`.
 counted as one here; it is also counted as a gate
 in the gates section below, and it is the same record both times.
 
-**Counted at 2026-09-07T14:09:08Z, against a trail frozen from this document's
+**Counted at 2026-09-07T14:39:55Z, against a trail frozen from this document's
 dispatch.** The coordination layer posted nothing on the milestone after the QA
 comment at 14:01:10Z and posts nothing further before this pull request merges.
-This document's own task's **two Decisions** were written before the count was
-taken and are inside every total above, so a reader running the same queries
-gets the same numbers.
+This document's own task's **two Decisions and one Deviation** were written
+before the count was taken and are inside every total above, so a reader running
+the same queries gets the same numbers.
 [M15's record](15-v2-0-1-what-the-fleet-migration-taught.md) had its counts
 expire between its first commit and its review and gave both figures;
 [M14's](14-adoption-tidy-and-the-v2-0-0-release.md) left its own task's records
-out. This one has one figure because the records were written first.
+out. This one has one figure because the records were written first, and the
+instant moved once, when the review round on this document's own pull request
+produced the eighth Deviation — the last record the milestone takes. The first
+count, at 14:09:08Z, differed from this one by that record alone.
 
-**The requirements were amended once, and the amendment is the milestone's
-first Decision.** #325's `userContentEdits` query returns a total count of
-**two** — the body as it was created at 12:05:54Z and one edit at 12:09:53Z,
-two seconds before the Decision that explains it. Nothing else in the body
-moved. The seven requirements a reader would have seen at 12:05:54Z are not the
-six the issue carries now, and the section below on the withdrawn requirement is
-the whole of that difference.
+**The body was amended once, and the amendment is the milestone's first
+Decision.** #325's `userContentEdits` query returns a total count of **two** —
+the body as it was created at 12:05:54Z and one edit at 12:09:53Z, two seconds
+before the Decision that explains it. Diffing the two revisions gives **three
+hunks**: the Goal's capture list loses `, the OpenGSD migration recipe (#36)`;
+M16-R6 is struck and M16-R7 renumbered to M16-R6; and a trailing newline is
+added. The seven requirements a reader would have seen at 12:05:54Z are not the
+six the issue carries now, and the section below on the withdrawn requirement
+carries the second hunk and the Goal clause that went with it.
 
 **The trail this record is compiled from is checked by the verb the milestone
 did not change.** `gh codecrew milestone evidence` walks the milestone issue and
 its sub-issues — bodies and comments, which is where every citation below comes
 from — and refuses when a github.com citation does not resolve. The installed
-extension reports `v2.0.1 (protocol 2.0)`, which is also what a binary built
-from `main` at [42ab6f8](https://github.com/radiusred/gh-codecrew/commit/42ab6f8)
-reports, because M16 cut no release. Run from this repository at the same
-instant as the counts above:
+extension reports `v2.0.1 (protocol 2.0)`, and that is still the shipped
+version, because M16 cut no release. A binary built from `main` at
+[42ab6f8](https://github.com/radiusred/gh-codecrew/commit/42ab6f8) reports
+something else — `dev (protocol 2.0)` — because `internal/cli/version.go`
+declares `var version = "dev"` and the release value is stamped in at build
+time through `-ldflags -X`; both were run for this record. Run from this
+repository at the same instant as the counts above:
 
 ```
 $ gh codecrew milestone evidence 16
 requirements counted: M16-R1, M16-R2, M16-R3, M16-R4, M16-R5, M16-R6 (6)
-all 4 cited links resolve across 10 issues — evidence is reachable
+all 6 cited links resolve across 10 issues — evidence is reachable
 ```
 
 Ten issues: the milestone and its nine sub-issues — the eight delivery tasks,
-and this document's own. Four links, because this milestone's prose cites
-almost entirely by bare `#N` reference: the only github.com URLs in the whole
-trail outside code are one in the QA comment and three in this document's own
-Decision comments. The QA seat ran the same verb before those three existed and
-recorded `all 0 cited links resolve across 9 issues`; both readings are correct
-at their own instant, and the difference is this task.
+and this document's own. Six links, because this milestone's prose cites almost
+entirely by bare `#N` reference: the only github.com URLs in the whole trail
+outside code are one in the QA comment and five in this document's own task's
+three records. The count is the clearest measure of how much this record's
+citations owe to the trail rather than the other way round, and it moved twice
+as this task wrote: the QA seat ran the same verb before any of the five existed
+and recorded `all 0 cited links resolve across 9 issues`, and this document's
+first commit was made when there were four. Every reading is correct at its own
+instant, and every difference between them is this task.
 
 The gather from `gh codecrew milestone close 16 --dry-run` is again not part of
 the raw material, for the reason
@@ -280,6 +291,12 @@ one from M15's own record, and this document's.
 The milestone opened with seven requirements. Three minutes and fifty-nine
 seconds later it had six, and the whole of the change is on the record twice —
 once as the body edit, once as the Decision that explains it.
+
+The Goal's own capture list named it too, and lost it in the same edit: the
+created body read "external contributors (#31), the OpenGSD migration recipe
+(#36) — plus one site-mechanics fix in the spoke (codecrew-www#29)", and the
+clause `, the OpenGSD migration recipe (#36)` is the first of the edit's three
+hunks.
 
 The requirement first declared as M16-R6 was "migrating an OpenGSD project to
 CodeCrew": a `docs/migrating-from-opengsd.md` with a cutover half and an
@@ -658,12 +675,17 @@ discharges the refresh obligation by reading `README.md` and
 because both were made true by the milestone's own merges. It is in the
 protocol-discipline section below, with what was checked.
 
+The first Decision's argument for one figure survived its own test and its
+premise did not: the review round produced an eighth Deviation, the instant
+moved from 14:09:08Z to 14:39:55Z, and the header names both because the
+difference between them is one record and a reader can check that.
+
 ## Deviations
 
-Seven Deviation records: two on the milestone issue, both the operator's and
-both about a harness, and five on the task issues — three on #328, one on #326
-and one on #329, all five by the implementer seat. This document's own task
-carries none.
+Eight Deviation records: two on the milestone issue, both the operator's and
+both about a harness; five on the delivery tasks — three on #328, one on #326
+and one on #329, all five by the implementer seat; and one on this document's
+own, written after the review round on its pull request.
 
 **[Three test moves the plan did not name](https://github.com/radiusred/gh-codecrew/issues/326#issuecomment-5570681911).**
 Four unit tests left `internal/cli` for `internal/tracker/venue_test.go` when
@@ -747,6 +769,20 @@ seat's last round did." **Why:** "the identity gates the verdict, the harness
 does not; waiting nine hours to close a milestone whose last merge landed at
 13:44Z buys nothing the record needs." The QA comment says the same in its own
 closing line.
+
+**[This record's own claims moved after its review](https://github.com/radiusred/gh-codecrew/issues/340#issuecomment-5572245485).**
+The eighth Deviation is this document's, and it is the last record the milestone
+takes. The review round on PR #341 found two claims a reader following the
+citation could not reproduce — a "first milestone body edited on this hub" where
+the query returns twelve, and a built-binary version string that is `dev` and
+not `v2.0.1` — and two smaller ones, a diff described as one hunk where it is
+three and a sentence attributed to a capture that is the file's. **Why:** the
+standard this record is held to is that every count and every claim re-derives
+from the source; two of them did not, so they are corrected to what the queries
+return and the correction is recorded rather than made silently. The Deviation
+also records that the review's own suggested replacement for the first claim —
+that #254's strike "carries no such record" — is wrong, and cites the record it
+carries; a correction is worth no more than the checking behind it.
 
 ## The gates
 
@@ -1136,16 +1172,29 @@ restatement of the sections above.
   a side effect of a flag that exists to keep captures and tasks linked. It cost
   four minutes and one Decision, and it is the strongest argument in this
   milestone for adopting by verb rather than by prose.
-- **A milestone body was edited after creation for the first time on this hub,
-  and the edit is a Decision's own subject.**
-  [M15's record](15-v2-0-1-what-the-fleet-migration-taught.md) reports #305's
-  `userContentEdits` count as zero and says "the requirements a reader sees are
-  the requirements that were written". #325's count is two — the body as created
-  and one edit — and the operator's Decision names the edit as its own trade-off
-  before any task started. The protocol has no verb that amends a requirement
-  and no rule about when a body may be edited; what stood in for one here was a
-  Decision written two seconds after the edit, and the `userContentEdits` query
-  that makes the difference recoverable by anyone.
+- **Striking a requirement from a milestone body is a thing this hub has now
+  done twice, and both times the record was a Decision written seconds after
+  the edit.** The operator's Trade-off on #325 says the edit is "which the M15
+  record noted as a thing this hub had not done", and
+  [M15's record](15-v2-0-1-what-the-fleet-migration-taught.md) does say of #305
+  that its `userContentEdits` count is zero, so "the requirements a reader sees
+  are the requirements that were written". That is a fact about #305. Run over
+  the sixteen milestone issues `ROADMAP.md` names, `userContentEdits
+  { totalCount }` returns 13, 7, 2, 2, 3, 8, 5, 0, 2, 3, 3, 0, 2, 3, 0 and 2 —
+  so twelve milestone bodies before this one were edited after creation, and
+  the precedent for this one is
+  [#254](https://github.com/radiusred/gh-codecrew/issues/254), whose edit at
+  2026-09-06T11:31:54Z struck M13-R8 and whose
+  [Decision](https://github.com/radiusred/gh-codecrew/issues/254#issuecomment-5558926520)
+  one second later says so: "M13-R8 is struck from the Requirements above (R9
+  keeps its number; the close gate reads the IDs present)".
+  [M13's record](13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md#requirement-outcomes)
+  carries the struck requirement's text in full. #269's two edits went the other
+  way, adding M14-R4 and then M14-R5. What the protocol still has is no verb
+  that amends a requirement and no rule about when a body may be edited; what
+  has twice stood in for one is a Decision written within two seconds of the
+  edit, and the `userContentEdits` query that makes the difference recoverable
+  by anyone — which is how this bullet was corrected after review.
 - **The gate verb was used, and the label it applies did the reporting.** #327
   raised its ask-the-human point with `gh codecrew checkpoint` before its first
   commit, and the `cc:needs-decision` label put the task in `status`'s
@@ -1189,8 +1238,9 @@ restatement of the sections above.
 - **A capture was answered by a merge fourteen minutes before it was filed.**
   [#338](https://github.com/radiusred/gh-codecrew/issues/338) asks for a clause
   naming `migrate` as the fourth `--dry-run` verb in `docs/introduction.md`,
-  quoting the sentence "`milestone new`, `task finish` and `milestone close`
-  take `--dry-run`". That sentence is in the file at
+  describing the page as one that "lists three verbs as taking `--dry-run`".
+  The page's own sentence was "`milestone new`, `task finish` and `milestone
+  close` take `--dry-run`", and it is in the file at
   [00b254b](https://github.com/radiusred/gh-codecrew/commit/00b254b) and is not
   in it at [67256a3](https://github.com/radiusred/gh-codecrew/commit/67256a3),
   PR #335's merge at 13:09:16Z; the capture was filed at 13:23:31Z from a review

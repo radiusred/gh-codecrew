@@ -13,7 +13,7 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   replacing SPEC §6, the self-gating workflow for docs-only pull requests, the
   working-offline page, the external-contributor conventions and the blog's nav
   label, under a Goal whose rule was that nothing an operator or a seat sees
-  changes. Twenty-five Decisions and seven Deviations, the requirement a verb
+  changes. Twenty-five Decisions and eight Deviations, the requirement a verb
   refused into withdrawal, the milestone's one `checkpoint` gate, twelve review
   rounds and six `satisfied` verdicts, counted at a stated instant. `ROADMAP.md`
   gains the M16 row. No release: v2.0.1 is still the shipped version. (#340)
