@@ -20,7 +20,9 @@ site, and carries the [blog](https://codecrew.works/blog/). This page is the
 technical entry point: it is written for whoever wants more detail than the
 site gives — someone running a coding harness, or the agent reading on their
 behalf — and every reference it links is at source in this repository rather
-than on the site.
+than on the site. The two references are [CLI.md](CLI.md) — every verb, its
+options, what it reads and writes, and what it refuses — and
+[SPEC.md](SPEC.md), the protocol those verbs enforce.
 
 ## The routing table
 
@@ -136,6 +138,8 @@ under [.codecrew/roles/](.codecrew/roles/):
   the design was chosen against
 - [docs/milestones/](docs/milestones/) — one record per delivered milestone,
   synthesized from the decisions recorded while it was built
+- [CLI.md](CLI.md) — the CLI reference: every verb's synopsis, options,
+  reads and writes, refusal codes and exit status
 - [SPEC.md](SPEC.md) — the protocol: topology, state model, configuration,
   verbs, roles, gates
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md)

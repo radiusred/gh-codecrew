@@ -27,11 +27,14 @@ prerequisite.
 5. [Platform interop](platform-interop.md) — the ladder's last rung: how an
    orchestration platform hosts the whole crew, written from four cycles of
    doing it.
-6. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
+6. [CLI.md](../CLI.md) — the CLI reference: every verb's synopsis, options,
+   what it reads and writes, refusal codes and exit status. Read it before
+   the SPEC if you are running the verbs.
+7. [SPEC.md](../SPEC.md) — the protocol itself: topology, state model,
    configuration, verbs, roles, gates.
-7. [Founding decisions](founding-decisions.md) and the per-milestone
+8. [Founding decisions](founding-decisions.md) and the per-milestone
    records in [milestones/](milestones/) — the "why", as it was recorded.
-8. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
+9. [GSD vs. "just let the model orchestrate"](gsd-vs-frontier-orchestration.md)
    — the essay that started the project: one person's experience with GSD
    across several projects, kept as the motivation, not a verdict on GSD.
 
@@ -66,20 +69,9 @@ later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 `task new/start/finish`, `checkpoint`,
 `role`, `roles diff/show`, `identity new/token/webhook`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
-when a gate blocks. `task start` is role-aware: roles whose contracts forbid
-commits (qa, reviewer) get no linked development branch; `roles show <role>`
-prints a contract with its `.codecrew/roles/<role>.local.md` extensions
-appended; `task finish` deletes the branch it merged, tidies the clone it ran
-in, closes the backlog captures the task adopted with `task new --adopts`
-and names any issue its merge would close besides the task, and
-`milestone close` sweeps what its tasks left, then the task branches earlier
-closes left behind; `status` names the holder of a task in flight from its
-start record and reports the repository's stale task branches with the
-verdict the next close would give them; `init`, `checkpoint` and
-`migrate` bring the `cc:` labels into existence with fixed colours and
-descriptions; `milestone new`, `task finish` and `milestone
-close` take `--dry-run` — every gate in order with its outcome, then what the
-verb would do, nothing written, the same refusal code. What changed and when:
+when a gate blocks. What each verb takes, what it reads and writes, which
+codes it can refuse with and what `--dry-run` does where it has one is
+[CLI.md](../CLI.md), a section per verb. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
 
@@ -216,7 +208,9 @@ this page carried a second one until protocol 2.0, and keeping two in step
 across a milestone's worth of new codes proved to be exactly the drift the
 table exists to prevent. The source of record behind both is `refuse("CODE"`
 in `internal/cli/`, and a test fails the build when the table and the source
-disagree.
+disagree. The other direction — which codes a given verb can exit with — is
+that verb's section in [CLI.md](../CLI.md), and a test fails the build when
+those two disagree too.
 
 The fix for a refusal is in the detail line the CLI prints, which names the
 condition met and the way out — read it before reaching for a code table.
