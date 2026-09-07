@@ -63,7 +63,9 @@ func TestHelperGH(t *testing.T) {
 	}
 	// The open-PR-by-head listing: the fake echoes the head filter it was
 	// given, so the test can assert the `<owner>:<ref>` grammar reached gh.
-	if len(args) >= 2 && args[0] == "api" && strings.HasSuffix(args[1], "/pulls") {
+	// The path is matched wherever it sits in the argument list, because
+	// the call carries --paginate ahead of it.
+	if len(args) >= 2 && args[0] == "api" && slices.ContainsFunc(args, func(a string) bool { return strings.HasSuffix(a, "/pulls") }) {
 		if slices.Contains(args, "head=radiusred:task/8-cycle-1-record") {
 			fmt.Print(`[{"number":41},{"number":42}]`)
 			os.Exit(0)
@@ -245,5 +247,193 @@ func TestLabelCalls(t *testing.T) {
 	}
 	if strings.Contains(line, "new_name") {
 		t.Errorf("the restyle renamed the label: %q", line)
+	}
+}
+
+// listingPage is the hundred GitHub's own first page holds, and what the
+// paging fake truncates an unpaginated read to.
+const listingPage = 100
+
+// pagingGH stands a gh behind gh.Command that pages the way the real one
+// does: with --paginate the whole listing comes back as one JSON array —
+// gh joins a REST array endpoint's pages — and without it the read stops
+// at the first hundred, exactly as GitHub's first page does. A reader that
+// drops the flag therefore fails here rather than passing on a fixture
+// that fits in one page (#264). items are the listing's JSON objects, in
+// the order GitHub returns them; the recorded calls let a test assert the
+// flag reached gh.
+func pagingGH(t *testing.T, items []string) *[][]string {
+	t.Helper()
+	orig := gh.Command
+	var calls [][]string
+	gh.Command = func(_ string, args ...string) *exec.Cmd {
+		calls = append(calls, args)
+		page := items
+		if !slices.Contains(args, "--paginate") && len(page) > listingPage {
+			page = page[:listingPage]
+		}
+		return exec.Command("printf", "%s", "["+strings.Join(page, ",")+"]")
+	}
+	t.Cleanup(func() { gh.Command = orig })
+	return &calls
+}
+
+// Comments walks the whole listing, in GitHub's oldest-first order. The
+// capture is exact: latest-wins reads the newest verdict, so a milestone
+// issue whose satisfied verdict landed past comment one hundred had
+// `milestone close` refusing VERDICT_MISSING for a requirement QA had
+// signed off (#264). The fixture is the 101-comment issue that capture
+// asked for, carrying a superseded verdict on page one and the live one
+// last.
+func TestCommentsPaginatesInOrder(t *testing.T) {
+	var raw []string
+	for i := 1; i <= 101; i++ {
+		body := fmt.Sprintf("comment %d", i)
+		switch i {
+		case 7:
+			body = "**M15-R3 — not satisfied** the first pass"
+		case 101:
+			body = "**M15-R3 — satisfied** the re-run"
+		}
+		raw = append(raw, fmt.Sprintf(`{"body":%q,"html_url":"https://x/%d","user":{"login":"myorg-qa"}}`, body, i))
+	}
+	calls := pagingGH(t, raw)
+	got, err := GitHub{}.Comments(IssueRef{Repo: "o/r", Number: 5})
+	if err != nil {
+		t.Fatalf("Comments: %v", err)
+	}
+	if len(got) != 101 {
+		t.Fatalf("Comments returned %d of 101 comments — the listing stopped at a page boundary", len(got))
+	}
+	if got[0].Body != "comment 1" || got[len(got)-1].Body != "**M15-R3 — satisfied** the re-run" {
+		t.Errorf("oldest-first order not preserved across pages: first %q, last %q", got[0].Body, got[len(got)-1].Body)
+	}
+	for i, c := range got {
+		if c.Author != "myorg-qa" || c.URL != fmt.Sprintf("https://x/%d", i+1) {
+			t.Fatalf("comment %d arrived out of order or half-mapped: %+v", i, c)
+		}
+	}
+	// What the gate does with them: the newest verdict wins, which is only
+	// true if the newest comment is in hand.
+	latest := map[string]string{}
+	for _, v := range ParseVerdicts(got) {
+		latest[v.ID] = v.State
+	}
+	if latest["M15-R3"] != "satisfied" {
+		t.Errorf("latest-wins verdict = %q, want satisfied — the newest verdict was dropped", latest["M15-R3"])
+	}
+	if len(*calls) != 1 {
+		t.Fatalf("calls = %v", *calls)
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, want := range []string{"--paginate", "repos/o/r/issues/5/comments?per_page=100"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the comments call %q is missing %q", line, want)
+		}
+	}
+}
+
+// SubIssues walks the whole listing too: a milestone past a page of tasks
+// must not read as having only its first hundred, or every gate counting
+// tasks counts the wrong set.
+func TestSubIssuesPaginates(t *testing.T) {
+	var raw []string
+	for i := 1; i <= 150; i++ {
+		repo := "https://api.github.com/repos/o/r"
+		if i == 150 {
+			repo = "https://api.github.com/repos/o/spoke"
+		}
+		raw = append(raw, fmt.Sprintf(`{"number":%d,"repository_url":%q}`, i, repo))
+	}
+	calls := pagingGH(t, raw)
+	got, err := GitHub{}.SubIssues(IssueRef{Repo: "o/r", Number: 5})
+	if err != nil {
+		t.Fatalf("SubIssues: %v", err)
+	}
+	if len(got) != 150 {
+		t.Fatalf("SubIssues returned %d of 150 sub-issues", len(got))
+	}
+	if got[0] != (IssueRef{Repo: "o/r", Number: 1}) {
+		t.Errorf("first sub-issue = %+v", got[0])
+	}
+	// The last one is on the second page, and in a spoke: both survive.
+	if got[149] != (IssueRef{Repo: "o/spoke", Number: 150}) {
+		t.Errorf("last sub-issue = %+v, want o/spoke#150", got[149])
+	}
+	if line := strings.Join((*calls)[0], " "); !strings.Contains(line, "--paginate") {
+		t.Errorf("the sub-issue call %q is not paginated", line)
+	}
+}
+
+// The milestone listing walks every page — the hundred-and-first milestone
+// is not absent — and pull requests stay dropped wherever they fall. Its
+// unpaginated sibling is RecentIssues, which wants the newest page and
+// only that: the floor fallback of #195 would otherwise walk a repo's
+// whole issue history for a number the first page already carries.
+func TestMilestoneIssuesPaginateAndRecentIssuesDoesNot(t *testing.T) {
+	var raw []string
+	for i := 1; i <= 150; i++ {
+		if i == 120 {
+			raw = append(raw, fmt.Sprintf(`{"number":%d,"title":"a PR","pull_request":{}}`, i))
+			continue
+		}
+		raw = append(raw, fmt.Sprintf(`{"number":%d,"title":"M%d"}`, i, i))
+	}
+	calls := pagingGH(t, raw)
+	got, err := GitHub{}.MilestoneIssues("o/r")
+	if err != nil {
+		t.Fatalf("MilestoneIssues: %v", err)
+	}
+	if len(got) != 149 {
+		t.Fatalf("MilestoneIssues returned %d of the 149 issues in a 150-row listing", len(got))
+	}
+	if got[len(got)-1].Ref.Number != 150 || got[len(got)-1].Title != "M150" {
+		t.Errorf("last milestone = %+v, want #150", got[len(got)-1])
+	}
+	for _, g := range got {
+		if g.Ref.Number == 120 {
+			t.Error("a pull request on the second page reached the milestone listing")
+		}
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, want := range []string{"--paginate", "repos/o/r/issues?labels=cc:milestone&state=all&per_page=100"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the milestone listing call %q is missing %q", line, want)
+		}
+	}
+
+	calls = pagingGH(t, raw)
+	recent, err := GitHub{}.RecentIssues("o/r")
+	if err != nil {
+		t.Fatalf("RecentIssues: %v", err)
+	}
+	if len(recent) != listingPage {
+		t.Errorf("RecentIssues read %d rows: it is the deliberate exception and reads the newest page only", len(recent))
+	}
+	if line := strings.Join((*calls)[0], " "); strings.Contains(line, "--paginate") {
+		t.Errorf("RecentIssues paginated: %q", line)
+	}
+}
+
+// The sweep keeps a branch that carries an open PR, so the PR listing it
+// asks must be the whole one: a PR on page two is still a PR.
+func TestOpenPRsForBranchPaginates(t *testing.T) {
+	var raw []string
+	for i := 1; i <= 150; i++ {
+		raw = append(raw, fmt.Sprintf(`{"number":%d}`, i))
+	}
+	calls := pagingGH(t, raw)
+	got, err := GitHub{}.OpenPRsForBranch("o/r", "task/8-x")
+	if err != nil {
+		t.Fatalf("OpenPRsForBranch: %v", err)
+	}
+	if len(got) != 150 || got[0] != 1 || got[149] != 150 {
+		t.Fatalf("OpenPRsForBranch returned %d PRs (first %d, last %d)", len(got), got[0], got[len(got)-1])
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, want := range []string{"--paginate", "head=o:task/8-x"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the pulls call %q is missing %q", line, want)
+		}
 	}
 }

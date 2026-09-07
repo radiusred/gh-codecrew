@@ -38,16 +38,30 @@ func listMilestones(hub, state string) ([]Milestone, error) {
 	return milestones, nil
 }
 
-// listIssues is one page of repo's issue listing under query, pull requests
-// dropped: the REST listing returns both, marked by a pull_request object.
+// listIssues walks the whole of repo's issue listing under query, pull
+// requests dropped: the REST listing returns both, marked by a
+// pull_request object. A read that stopped at the first hundred would
+// report the hundred-and-first milestone as absent (#264).
 func listIssues(repo, query string) ([]TitledIssue, error) {
+	return issueListing(repo, query, true)
+}
+
+// issueListing reads repo's issue listing under query. With paginate the
+// read walks every page — gh joins a REST array endpoint's pages into one
+// JSON array, so the whole listing unmarshals as it stands — and without
+// it the read stops at the first page, which only RecentIssues wants.
+func issueListing(repo, query string, paginate bool) ([]TitledIssue, error) {
 	var items []struct {
 		Number      int       `json:"number"`
 		Title       string    `json:"title"`
 		PullRequest *struct{} `json:"pull_request"`
 	}
-	path := fmt.Sprintf("repos/%s/issues?%s&per_page=100", repo, query)
-	if err := gh.JSON(&items, "api", path); err != nil {
+	args := []string{"api"}
+	if paginate {
+		args = append(args, "--paginate")
+	}
+	args = append(args, fmt.Sprintf("repos/%s/issues?%s&per_page=100", repo, query))
+	if err := gh.JSON(&items, args...); err != nil {
 		return nil, err
 	}
 	issues := make([]TitledIssue, 0, len(items))
@@ -73,13 +87,15 @@ func (GitHub) AddSubIssue(parent, child IssueRef) error {
 	return err
 }
 
+// SubIssues lists every sub-issue of parent, paginated: a milestone past
+// a page of tasks must not read as having only the first hundred (#264).
 func (GitHub) SubIssues(parent IssueRef) ([]IssueRef, error) {
 	var subs []struct {
 		Number        int    `json:"number"`
 		RepositoryURL string `json:"repository_url"`
 	}
 	path := fmt.Sprintf("repos/%s/issues/%d/sub_issues?per_page=100", parent.Repo, parent.Number)
-	if err := gh.JSON(&subs, "api", path); err != nil {
+	if err := gh.JSON(&subs, "api", "--paginate", path); err != nil {
 		return nil, err
 	}
 	refs := make([]IssueRef, 0, len(subs))
@@ -101,8 +117,13 @@ func (GitHub) MilestoneIssues(hub string) ([]TitledIssue, error) {
 // label-filtered listing lagged an issue created seconds earlier and three
 // milestones came back as M2 (#195); the unfiltered listing is a second
 // source for the floor, not a guarantee — the post-create check is that.
+// It is deliberately unpaginated — one of the two reads here that stay on
+// a single page, the other being TaskBranches: the newest page is the
+// whole point, and walking a repo's entire issue history to raise a floor
+// would cost a request per hundred issues for a number the first page
+// already carries.
 func (GitHub) RecentIssues(repo string) ([]TitledIssue, error) {
-	return listIssues(repo, "state=all&sort=created&direction=desc")
+	return issueListing(repo, "state=all&sort=created&direction=desc", false)
 }
 
 func (GitHub) IssueBody(ref IssueRef) (string, error) {
@@ -388,6 +409,12 @@ func (GitHub) CloseIssue(ref IssueRef, comment string) error {
 	return err
 }
 
+// Comments returns every comment on ref in GitHub's oldest-first order,
+// paginated: latest-wins reads the newest verdict, and a milestone issue
+// past a hundred comments carries it on a later page, where an unwalked
+// listing left `milestone close` reporting VERDICT_MISSING for a
+// requirement that was satisfied (#264). gh joins the pages in request
+// order, so the concatenation is still oldest first.
 func (GitHub) Comments(ref IssueRef) ([]Comment, error) {
 	var raw []struct {
 		Body string `json:"body"`
@@ -397,7 +424,7 @@ func (GitHub) Comments(ref IssueRef) ([]Comment, error) {
 		} `json:"user"`
 	}
 	path := fmt.Sprintf("repos/%s/issues/%d/comments?per_page=100", ref.Repo, ref.Number)
-	if err := gh.JSON(&raw, "api", path); err != nil {
+	if err := gh.JSON(&raw, "api", "--paginate", path); err != nil {
 		return nil, err
 	}
 	comments := make([]Comment, len(raw))
@@ -567,6 +594,9 @@ func (GitHub) TaskBranches(repo string) ([]string, bool, error) {
 			} `json:"repository"`
 		} `json:"data"`
 	}
+	// Deliberately one page: this listing reports hasNextPage instead of
+	// walking the cursor, and the sweep that reads it says "swept in part"
+	// when a repo carries more task branches than a page holds (SPEC §6).
 	query := `
 query($owner: String!, $repo: String!, $prefix: String!) {
   repository(owner: $owner, name: $repo) {
@@ -594,7 +624,9 @@ query($owner: String!, $repo: String!, $prefix: String!) {
 
 // OpenPRsForBranch asks the pulls listing for open PRs with this head. gh
 // builds the query string, so a branch name's slashes need no escaping of
-// ours; the `head` filter's own grammar is `<owner>:<ref>`.
+// ours; the `head` filter's own grammar is `<owner>:<ref>`. The listing is
+// paginated: a branch the sweep would keep for its open PR must not lose
+// that PR to a page boundary (#264).
 func (GitHub) OpenPRsForBranch(repo, branch string) ([]int, error) {
 	owner, _, ok := strings.Cut(repo, "/")
 	if !ok {
@@ -603,7 +635,7 @@ func (GitHub) OpenPRsForBranch(repo, branch string) ([]int, error) {
 	var prs []struct {
 		Number int `json:"number"`
 	}
-	if err := gh.JSON(&prs, "api", "repos/"+repo+"/pulls", "-X", "GET",
+	if err := gh.JSON(&prs, "api", "--paginate", "repos/"+repo+"/pulls", "-X", "GET",
 		"-f", "state=open", "-f", "per_page=100",
 		"-f", "head="+owner+":"+branch); err != nil {
 		return nil, err
