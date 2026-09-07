@@ -21,7 +21,7 @@ protocol 1.x one.
 | --- | --- |
 | `codecrew version` | Prints the release and protocol version. Both are stamped into the binary at build time; nothing is fetched. |
 | `codecrew help`, and `--help` on any verb | Prints usage and exits 0. `--help` is read before the verb runs, so it never reaches a gate or a fetch. |
-| `codecrew roles show <role>` *(in a hub)* | Composes the contract from disk: the hub's `.codecrew/roles/<role>.md`, then its `.local.md` extension. A hub reads its own pointer and its own contracts, so nothing is fetched (SPEC §6). |
+| `codecrew roles show <role>` *(in a hub)* | Composes the contract from disk: the hub's `.codecrew/roles/<role>.md`, then its `.local.md` extension. A hub reads its own pointer and its own contracts, so nothing is fetched ([CLI.md](../CLI.md)). |
 | `codecrew roles show <role> --latest` | Prints the contract embedded in the binary. Works anywhere, hub or spoke. |
 | `codecrew roles diff <role>` *(in a hub)* | Compares the local contract with the embedded one. Both sides are on this machine. |
 | `codecrew init` | Scaffolds the files and makes the one local commit. See the note below: it completes, with two `note:` lines. |
@@ -81,7 +81,8 @@ The parenthesis is `gh`'s own message, so the wording there varies with how
 the network is failing — no route, no DNS, no credentials all land here. The
 code does not: `GH_UNREACHABLE` is raised for exactly this condition and is
 never folded into another one, which is what lets an orchestrator tell
-"offline" apart from "that issue does not exist" (SPEC §6, §10).
+"offline" apart from "that issue does not exist" (SPEC §10, and the verb's
+own row in [CLI.md](../CLI.md)).
 
 | Verb | Where it stops |
 | --- | --- |
