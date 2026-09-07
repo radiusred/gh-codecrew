@@ -3,21 +3,27 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	codecrew "github.com/radiusred/gh-codecrew"
 
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // docs/working-offline.md tells an operator what the CLI prints when it
 // cannot reach GitHub, and a page that quotes output is only worth reading
-// while the quotation is true. These tests build the two texts it quotes
-// from the code that prints them and fail when the page has stopped
-// carrying them — the shape TestRefusalCodesMatchTheSpecTable uses for
-// SPEC §10's catalogue. They assert nothing about GitHub and run offline
-// themselves.
+// while the quotation is true. Each test below produces one of the five
+// texts the page quotes verbatim from the code that prints it, and fails
+// when the page has stopped carrying it — the shape
+// TestRefusalCodesMatchTheSpecTable uses for SPEC §10's catalogue. They
+// assert nothing about GitHub and run offline themselves.
+//
+// Five, because checky's review of PR #333 counted them: the first pass
+// guarded two and the page quoted five.
 const offlineDoc = "working-offline.md"
 
 func readOfflineDoc(t *testing.T) string {
@@ -29,28 +35,41 @@ func readOfflineDoc(t *testing.T) string {
 	return string(data)
 }
 
-// quoted checks the page carries a line the CLI prints. The `gh` message
-// interpolated into a refusal varies with how the network is failing, so
-// the check is on the static halves the CLI itself writes, either side of
-// whatever gh said.
-func quoted(t *testing.T, doc, printed, variable string) {
+// quoted checks the page carries a line the CLI prints. Everything the
+// caller names as variable — the gh message interpolated into a refusal, a
+// branch name, a login — is cut out first, leaving the static text the CLI
+// itself writes; whitespace is flattened on both sides, since the page
+// wraps its prose at 80 columns and a quotation may straddle a line break.
+func quoted(t *testing.T, doc, printed string, variable ...string) {
 	t.Helper()
-	for _, part := range strings.Split(printed, variable) {
-		part = strings.TrimSpace(part)
+	parts := []string{printed}
+	for _, v := range variable {
+		var next []string
+		for _, p := range parts {
+			next = append(next, strings.Split(p, v)...)
+		}
+		parts = next
+	}
+	flat := strings.Join(strings.Fields(doc), " ")
+	for _, part := range parts {
+		part = strings.Join(strings.Fields(part), " ")
 		if part == "" {
 			continue
 		}
-		if !strings.Contains(doc, part) {
+		if !strings.Contains(flat, part) {
 			t.Errorf("docs/%s does not quote what the CLI prints:\n%q", offlineDoc, part)
 		}
 	}
 }
 
+// ghSaid stands in for whatever gh prints when the network is gone. The
+// page says in prose that this part varies, so no test pins it.
+const ghSaid = "gh repo: error connecting to api.github.com"
+
 // TestOfflineDocQuotesTheUnreachableRefusal guards the refusal every verb
 // that transacts with the record stops at when it is offline — the one the
 // page's "What waits" section is built around.
 func TestOfflineDocQuotesTheUnreachableRefusal(t *testing.T) {
-	const ghSaid = "gh repo: error connecting to api.github.com"
 	err := unreachable(errors.New(ghSaid))
 	if err == nil {
 		t.Fatal("unreachable() did not classify a gh connection failure")
@@ -67,7 +86,6 @@ func TestOfflineDocQuotesTheUnreachableRefusal(t *testing.T) {
 // note is produced here the way an offline run produces it — the label
 // step's target lookup failing — rather than copied into the test.
 func TestOfflineDocQuotesTheLabelNote(t *testing.T) {
-	const ghSaid = "gh repo: error connecting to api.github.com"
 	restore := labelTarget
 	labelTarget = func() (tracker.Tracker, string, error) {
 		return nil, "", errors.New(ghSaid)
@@ -83,4 +101,70 @@ func TestOfflineDocQuotesTheLabelNote(t *testing.T) {
 		t.Fatal("an unreachable GitHub produced no note from the label step")
 	}
 	quoted(t, readOfflineDoc(t), note, ghSaid)
+}
+
+// TestOfflineDocQuotesTheBootstrapNote guards the second thing `init` says
+// offline: the branch-protection probe went unanswered, so the scaffold was
+// committed on the bootstrap branch rather than the one the operator was
+// on. The page's claim that an offline `init` behaves differently from an
+// online one in an unprotected repo rests on this line.
+func TestOfflineDocQuotesTheBootstrapNote(t *testing.T) {
+	stubProtection(t, false, false) // asked, and GitHub did not answer
+	dir := gitRepo(t)
+	// A born branch: an unborn HEAD cannot be branched from, so the
+	// bootstrap path — and this note with it — needs a commit to exist.
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := git(dir, "add", "README.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := git(dir, "commit", "-q", "-m", "initial"); err != nil {
+		t.Fatal(err)
+	}
+	written, _, err := scaffold(dir, "self", fakeContracts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	commitScaffold(&out, dir, written)
+
+	note := ""
+	for _, line := range strings.Split(out.String(), "\n") {
+		if strings.HasPrefix(line, "note:") {
+			note = line
+		}
+	}
+	if note == "" {
+		t.Fatalf("an unanswered branch-protection probe produced no note:\n%s", out.String())
+	}
+	quoted(t, readOfflineDoc(t), note)
+}
+
+// TestOfflineDocQuotesTheSpokeDiffMessage guards the one line in the
+// "what waits" section that is not a network condition at all: `roles diff`
+// in a repo holding no contracts fails the same way online and offline, and
+// the page says so to keep an operator from reading it as being offline.
+func TestOfflineDocQuotesTheSpokeDiffMessage(t *testing.T) {
+	err := rolesDiff(io.Discard, t.TempDir(), codecrew.Roles, "implementer")
+	if err == nil {
+		t.Fatal("roles diff found a contract in a directory holding none")
+	}
+	quoted(t, readOfflineDoc(t), err.Error())
+}
+
+// TestOfflineDocQuotesTaskStartsReceipt guards the load-bearing quotation:
+// the whole "what step 6 does to a branch you already have" section turns
+// on `locally: git fetch && git switch <branch>` being what the verb
+// prints, since following that line is the step that silently does nothing.
+func TestOfflineDocQuotesTaskStartsReceipt(t *testing.T) {
+	f := &startFake{task: startingTask(), viewer: "someone"}
+	var out bytes.Buffer
+	if err := runTaskStart(startCtx(f, crewRoles), &out, f.task.Ref); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.branches) != 1 {
+		t.Fatalf("task start created %v, not one linked branch", f.branches)
+	}
+	quoted(t, readOfflineDoc(t), out.String(), f.branches[0], f.task.Ref.String(), f.viewer)
 }
