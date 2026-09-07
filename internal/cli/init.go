@@ -108,10 +108,21 @@ const agentsPointerScaffold = `# Agents
 
 ` + entryPointLines
 
-// rootEntryPoints are the two root files a harness discovers on its own.
-// init never overwrites one; when it keeps one that does not already reach
-// the instructions it prints the lines to add (reachesInstructions).
+// rootEntryPoints are the two root files a harness discovers on its own,
+// in the order both verbs report them. Neither init nor migrate ever
+// overwrites one; when either keeps one that does not already reach the
+// instructions it prints the lines to add (reachesInstructions).
 var rootEntryPoints = []string{"AGENTS.md", "CLAUDE.md"}
+
+// rootEntryPointScaffolds is what each root entry point is written from
+// when it is absent — the one statement of that mapping, so init and
+// migrate write the same bytes rather than each carrying a copy. An absent
+// file is CodeCrew's to write; a file already there is the project's, and
+// is only ever reported (#301).
+var rootEntryPointScaffolds = map[string]string{
+	"AGENTS.md": agentsPointerScaffold,
+	"CLAUDE.md": claudeScaffold,
+}
 
 // reachesInstructions reports whether a root entry point already leads to
 // .codecrew/AGENTS.md: by naming the path — the sentence and the @-import
@@ -119,17 +130,31 @@ var rootEntryPoints = []string{"AGENTS.md", "CLAUDE.md"}
 // AGENTS.md that does. A file that already arrives needs no line pasted
 // into it, so a rerun in a repo init itself scaffolded reports a plain
 // skip and asks for nothing (SPEC §6, idempotency).
-func reachesInstructions(dir, name string) bool {
-	data, err := os.ReadFile(filepath.Join(dir, name))
-	if err != nil {
-		return false
+//
+// pending names the root files the caller is about to write and has not
+// written yet, so a verb can judge the state it is creating rather than
+// the one it found: every one of them is written from
+// rootEntryPointScaffolds, which reaches by construction. init passes nil
+// — it judges only what it kept — and migrate passes what its dry run
+// would write, which is how the preview and the live run agree.
+func reachesInstructions(dir, name string, pending map[string]bool) bool {
+	// A pending file is not on disk yet, so judge the bytes that are about
+	// to be there: the question is about the repository the verb is
+	// making, not the one it found.
+	content, ok := rootEntryPointScaffolds[name], pending[name]
+	if !ok {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return false
+		}
+		content = string(data)
 	}
-	if strings.Contains(string(data), config.AgentsFile) {
+	if strings.Contains(content, config.AgentsFile) {
 		return true
 	}
 	// One hop, and only this one: CLAUDE.md's own scaffold reaches the
 	// instructions through the root pointer rather than naming them.
-	return name == "CLAUDE.md" && strings.Contains(string(data), "@AGENTS.md") && reachesInstructions(dir, "AGENTS.md")
+	return name == "CLAUDE.md" && strings.Contains(content, "@AGENTS.md") && reachesInstructions(dir, "AGENTS.md", pending)
 }
 
 // claudeScaffold bridges Claude Code to the harness-neutral entry point:
@@ -174,8 +199,9 @@ func scaffold(dir, hub string, contracts fs.FS) (written, skipped []string, err 
 	files := map[string]string{
 		pointer:                               fmt.Sprintf(hubConfigScaffold, protocolVersion),
 		filepath.FromSlash(config.AgentsFile): agentsScaffold,
-		"AGENTS.md":                           agentsPointerScaffold,
-		"CLAUDE.md":                           claudeScaffold,
+	}
+	for _, name := range rootEntryPoints {
+		files[name] = rootEntryPointScaffolds[name]
 	}
 	if hub != "self" {
 		files[pointer] = fmt.Sprintf("codecrew: \"%s\" # protocol version (SPEC.md §5): a different major is refused; not the CLI release\nhub: %s\n", protocolVersion, hub)
@@ -274,7 +300,7 @@ func initCmd(w io.Writer, args []string) error {
 	// them (a rerun on what init wrote) is a plain skip and asks nothing.
 	var stranded []string
 	for _, f := range rootEntryPoints {
-		if slices.Contains(skipped, f) && !reachesInstructions(".", f) {
+		if slices.Contains(skipped, f) && !reachesInstructions(".", f, nil) {
 			stranded = append(stranded, f)
 		}
 	}
@@ -301,22 +327,24 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	// Last, so the one thing needing a human is the last thing on screen.
 	if len(stranded) > 0 {
-		entryPointAction(w, "a kept entry point does not reach CodeCrew's instructions.", "Kept: "+strings.Join(stranded, ", "))
+		entryPointAction(w, stranded)
 	}
 	return nil
 }
 
 // entryPointAction prints the one thing these verbs cannot do for the
-// operator: the root entry points that do not reach .codecrew/AGENTS.md,
-// and the exact lines to paste into each — entryPointLines verbatim, so
-// what is pasted is what the scaffold would have written. init and migrate
-// both end with it, because instructions on disk that nothing arrives at
-// are the same incomplete project either way. The two find the files in
-// different states, so each passes its own headline and list line; the
-// payload below them is shared and must stay so.
-func entryPointAction(w io.Writer, headline, list string) {
-	fmt.Fprintf(w, "\naction needed — %s\n", headline)
-	fmt.Fprintf(w, "%s\n", list)
+// operator: the root entry points they KEPT that do not reach
+// .codecrew/AGENTS.md, and the exact lines to paste into each —
+// entryPointLines verbatim, so what is pasted is what the scaffold would
+// have written. init and migrate both end with it, because instructions on
+// disk that nothing arrives at are the same incomplete project either way,
+// and both reach it in the same state: an absent root file is written from
+// the scaffold by whichever verb found it missing, so the only file either
+// can list here is one whose prose belongs to the project (#301). One
+// condition, one message — the block takes no wording from its caller.
+func entryPointAction(w io.Writer, kept []string) {
+	fmt.Fprint(w, "\naction needed — a kept entry point does not reach CodeCrew's instructions.\n")
+	fmt.Fprintf(w, "Kept: %s\n", strings.Join(kept, ", "))
 	fmt.Fprintf(w, "Add these lines to each, so an agent dispatched here finds %s:\n\n", config.AgentsFile)
 	fmt.Fprint(w, entryPointLines)
 }
