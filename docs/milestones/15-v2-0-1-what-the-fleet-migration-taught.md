@@ -6,8 +6,8 @@ Synthesized 2026-09-07 by the doc-synthesizer role
 milestone's own trail: #305's **seven** requirements as opened, **none
 added, none struck and none amended** — the issue's `userContentEdits`
 query returns a total count of zero, so the requirements a reader sees are
-the requirements that were written; its Gates section; its **three
-comments**, carrying **one Deviation record, the operator's verification of
+the requirements that were written; its Gates section; its **four
+comments**, carrying **two Deviation records, the operator's verification of
 the release, and one QA comment holding all seven verdicts**; the **seven**
 delivery task issues, six in this repository
 ([#306](https://github.com/radiusred/gh-codecrew/issues/306),
@@ -19,8 +19,10 @@ delivery task issues, six in this repository
 spoke ([radiusred/codecrew-www#27](https://github.com/radiusred/codecrew-www/issues/27)),
 plus [#321](https://github.com/radiusred/gh-codecrew/issues/321), the task
 this document is; their **seven merged pull requests** and the **twenty-four
-commits** on them; the **twenty-five Decision records and six Deviation
-records** across the milestone issue and those task issues; the **fourteen
+commits** on them; the **twenty-nine Decision records and eight Deviation
+records** across the milestone issue and all eight of its task issues, of
+which **twenty-six and seven** are on the milestone issue and the seven
+delivery tasks and the rest on this document's own; the **fourteen
 review submissions** on the seven pull requests — **four change requests**,
 **ten approvals submitted of which seven stand and three were dismissed by a
 rebase**; the **eight** adopted backlog captures the merges closed; and the
@@ -40,12 +42,29 @@ parenthetically qualified), review states from each pull request's reviews
 API and timeline, and the release from the git, releases and actions APIs
 rather than from the evidence comment that reports it.
 
+**Counted at 2026-09-07T02:26:50Z, against a trail that is frozen from
+there.** Two records landed on the milestone after this document's first
+commit and before its review: the operator's
+[Decision](https://github.com/radiusred/gh-codecrew/issues/306#issuecomment-5564002686)
+on #306 at 02:09:01Z, and a second
+[Deviation](https://github.com/radiusred/gh-codecrew/issues/305#issuecomment-5564026934)
+on #305 at 02:11:36Z, about this document's own review round. The counts
+above are re-derived as of that instant and include this document's own
+task, whose three Decisions and whose
+[Deviation](https://github.com/radiusred/gh-codecrew/issues/321#issuecomment-5564196823)
+recording the recount are the last records the milestone takes — the
+coordination layer posts nothing further on it before this pull request
+merges.
+[M14's record](14-adoption-tidy-and-the-v2-0-0-release.md) left its own
+task's records out of its totals; this one gives both figures rather than
+choose one in silence.
+
 **The trail this record is compiled from is checked by the release this
 milestone cut.** `gh codecrew milestone evidence` walks the milestone issue
 and its sub-issues — bodies and comments, which is where every citation
 below comes from — and refuses when a github.com citation does not resolve.
 The installed extension reports `v2.0.1 (protocol 2.0)`, and run from this
-repository while this document was being written it printed:
+repository at the same instant as the counts above it printed:
 
 ```
 $ gh codecrew milestone evidence 15
@@ -64,7 +83,8 @@ material, for the reason
 [M13's](13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md) and
 [M14's](14-adoption-tidy-and-the-v2-0-0-release.md) records all give:
 `--dry-run` stops at the gate that counts tasks, naming the task that writes
-this file.
+this file. It is quoted as it read before this document's own pull request
+opened; with that pull request open the same gate names #321 `(in review)`.
 
 ```
 gate milestone open: ok
@@ -156,8 +176,8 @@ The seven delivery tasks, in merge order:
 - **[#306](https://github.com/radiusred/gh-codecrew/issues/306) / PR
   [#315](https://github.com/radiusred/gh-codecrew/pull/315)** — M15-R1. Four
   commits, two review rounds, merged 00:29:53Z
-  ([9e225d9](https://github.com/radiusred/gh-codecrew/commit/9e225d9)). Four
-  Decisions. Adopts
+  ([9e225d9](https://github.com/radiusred/gh-codecrew/commit/9e225d9)). Five
+  Decisions, the fifth the operator's and recorded after the merge. Adopts
   [#301](https://github.com/radiusred/gh-codecrew/issues/301).
 - **[#309](https://github.com/radiusred/gh-codecrew/issues/309) / PR
   [#314](https://github.com/radiusred/gh-codecrew/pull/314)** — M15-R4. Six
@@ -304,10 +324,11 @@ was published at 01:09:55Z, the task
 started at 01:14:35Z, its pull request opened at 01:19:34Z and merged at
 01:25:44Z. The post is
 `docs/blog/posts/2026-09-07-protocol-2-0-and-the-migration.md`, titled
-"Protocol 2.0: CodeCrew Moves Out of Your Repository's Root", in six sections
-that follow the adopted capture's shape: why a protocol major, what changed,
-what an adopter does, what deliberately did not change, and what the fleet
-migration taught, ending on the seven captures v2.0.1 answers. Its generated
+"Protocol 2.0: CodeCrew Moves Out of Your Repository's Root", an unheaded
+opening and five sections that follow the adopted capture's shape: why a
+protocol major, what changed, what an adopter does, what deliberately did not
+change, and what the migration taught, the last of them ending on the seven
+captures v2.0.1 answers. Its generated
 artefacts — the nav block between `BEGIN_BLOG_POSTS` and `END_BLOG_POSTS` in
 `zensical.toml`, `docs/blog/archive.md` and `docs/blog/atom.xml` — ride in
 the same single commit, because all three are tracked. The QA seat fetched
@@ -320,17 +341,23 @@ change that asks every adopter to do something".
 
 ## Decisions
 
-Twenty-five Decision records: twenty-two on the six task issues in this hub
-— the milestone issue itself carries none — and three on the spoke's task.
-One of the
-twenty-five is the operator's — the linked-branch Decision on #311; the other
-twenty-four were written by the seat doing the work, `radiusred-cody[bot]`
-for the six code and release tasks and `radiusred-wordy[bot]` for the post.
-None carries a parenthetical qualifier: every record in this milestone is a
-bare `**Decision:**` or `**Deviation:**` label, which is not true of
-[M14's](14-adoption-tidy-and-the-v2-0-0-release.md#decisions), where two
-qualified labels were invisible to a plain search. They group by the question
-each task had to settle.
+Twenty-nine Decision records: twenty-three on the six task issues in this
+hub, three on the spoke's task, and three on this document's own — the
+milestone issue itself carries none. Two of the twenty-nine are the
+operator's, both on the trail after the work they judge: the linked-branch
+Decision on #311, and the
+[declined marker](https://github.com/radiusred/gh-codecrew/issues/306#issuecomment-5564002686)
+on #306, written after that task had closed. The rest were written by the
+seat doing the work — `radiusred-cody[bot]` for the six code and release
+tasks, `radiusred-wordy[bot]` for the post and for this document.
+
+One carries a parenthetical qualifier rather than the bare label, and it
+matters to the count: `**Decision (operator, after the merge):**` on #306 is
+a record under `ExtractRecords`' rule and is invisible to a search for
+`**Decision:**` alone, exactly as
+[M14's](14-adoption-tidy-and-the-v2-0-0-release.md#decisions) two qualified
+labels were. The other twenty-eight are bare. They group by the question each
+task had to settle.
 
 ### A migrated spoke, and a released changelog section edited to describe it
 
@@ -349,9 +376,9 @@ because there is none: "a root entry point is either the project's file or
 one CodeCrew wrote, and the second never needs a human."
 
 The [second](https://github.com/radiusred/gh-codecrew/issues/306#issuecomment-5563218057)
-is the one the review then went after, and it is the sharpest statement of
-what a dry run is for in this codebase: "the dry run is judged against the
-state it previews, not the state it starts from." `reachesInstructions` takes
+is the one the review then went after, and it is this milestone's clearest
+statement of what a dry run is for: "the dry run is judged against the state
+it previews, not the state it starts from." `reachesInstructions` takes
 the set of files the caller is about to write, so an absent root `AGENTS.md`
 beside a kept `CLAUDE.md` holding `@AGENTS.md` is judged against the
 `AGENTS.md` the migration is about to create. **Trade-off:** one more
@@ -388,6 +415,21 @@ decided and shipped, not documentation of the current verb", even though
 capture #301 in the first place. **Trade-off:** "a reader who greps `docs/` for `action needed`
 finds prose describing a behaviour the CLI no longer has. That is what a
 record is."
+
+A [fifth Decision](https://github.com/radiusred/gh-codecrew/issues/306#issuecomment-5564002686),
+the operator's, arrived long after the task closed — three minutes after this
+document's first commit, which had recorded its absence as a gap. The
+reviewer's round-two note on PR #315 had observed that a third passage of the
+2.0.0 section, the `**What it writes.**` bullet, states the same behaviour
+without a `(2.0.1, #306)` marker, and left it to the author. The Decision
+declines it rather than leaving it, on a ground the note had not weighed:
+"That passage describes what the 2.0.0 binary wrote, which is true of 2.0.0;
+the two marked passages are the adopter's migration steps, which had to
+change because the steps a reader follows today are 2.0.1's. The 2.0.1
+section's own entry says what changed." **Trade-off:** "a reader of the 2.0.0
+section alone sees behaviour the current release has improved on; the marked
+steps beside it say so." **Rejected:** marking the third passage, which
+"would turn a description of a released version into a running commentary."
 
 ### An App is not an assignee, and the board reads the record instead
 
@@ -641,10 +683,12 @@ to do it."
 
 ## Deviations
 
-Six Deviation records: one by the operator on #305, three on #309 and one
-each on #310 and #311, all by the implementer seat. None is recorded on #306,
-#307, #308 or the spoke's task, and the bodies of PR #312 and PR #315 each
-say "No deviations from the plan" in as many words.
+Eight Deviation records. Seven are on the milestone issue and the delivery
+tasks — two by the operator on #305, three on #309 and one each on #310 and
+#311, those five by the implementer seat — and the eighth is on this
+document's own task. None is recorded on #306, #307, #308 or the spoke's
+task, and the bodies of PR #312 and PR #315 each say "No deviations from the
+plan" in as many words.
 
 **[The reviewer seat ran on a different harness again — for a different
 reason](https://github.com/radiusred/gh-codecrew/issues/305#issuecomment-5563478569).**
@@ -661,7 +705,22 @@ failed." The last clause is the difference from
 which were both about a usage limit: this one is a resource failure on
 the operator's own hardware. The Deviation also names which rounds are
 unaffected — "#312 r1 and r2, #314 r3" — which is the only harness
-attribution anywhere in the milestone.
+attribution anywhere in the milestone's delivery.
+
+**[And again, on this record's own review round](https://github.com/radiusred/gh-codecrew/issues/305#issuecomment-5564026934).**
+The operator's second Deviation, at 02:11:36Z, reports the same failure on
+PR #322's first round — `codex exec` "stopped by the operator's machine for
+low memory before posting anything, this time with 28 GiB free, so the
+earlier explanation (page cache read as pressure) is incomplete" — and the
+round ran in a Claude Code session under the same identity. **Why:**
+"unchanged — the identity gates, the harness does not; a third codex attempt
+in the same session state is not worth the round." Two things follow it. The
+reviewer's declared harness has now been stood down twice in this milestone
+alone, both times for the operator's machine rather than for a quota, and the
+first of the two explanations is withdrawn on the record rather than left
+standing. And this is a record
+about the review of the document you are reading, which is why the counts in
+its opening paragraph name the instant they were taken.
 
 **[The two layers are now pinned by tests, and a claim is made good rather
 than withdrawn](https://github.com/radiusred/gh-codecrew/issues/309#issuecomment-5563303825).**
@@ -741,6 +800,24 @@ Deviation on #272 lists what was tried against the API before concluding the
 link had no public handle; #311's cites it and moves on. The cost of the
 second occurrence of a known protocol wrinkle is one comment and one answer.
 
+**[The counts moved because the trail moved](https://github.com/radiusred/gh-codecrew/issues/321#issuecomment-5564196823).**
+The eighth Deviation is this document's own, and it is the reason the numbers
+above are what they are. The first commit of this record counted twenty-five
+Decisions and six Deviations; the operator's #306 Decision landed three
+minutes later and the second #305 Deviation five minutes after that, and the
+review found both — "the record's whole claim on a reader is that its counts
+are re-derivable from the trail, and two of them stopped being so at
+02:09:01Z". **Why:** a count taken at synthesis and left alone is true only
+until the next comment, and this milestone's trail kept moving after
+synthesis where
+[M14's](14-adoption-tidy-and-the-v2-0-0-release.md) did not. **Trade-off:**
+the totals now cover this document's own task, where M14's record left its
+own out — so both figures are stated. **Rejected:** dating the snapshot and
+shipping it, "a first paragraph that a reader re-deriving it on merge day
+finds wrong by two, with a note explaining why that is acceptable — in a
+document whose subject includes a seat correcting its own recorded claim
+rather than leaving it standing".
+
 ## The gates
 
 **#305's Gates section was left as the scaffold's placeholder** — the
@@ -803,7 +880,8 @@ rebase force-push.**
   that `status`'s new comments read will walk a long task's whole history
   once #308 paginates `Comments`, and that `crewIdentity` now answers two
   questions that are the same set today and are not the same concept — and a
-  third is the reading that became capture #316.
+  third reaches the same reading as capture #316, which the operator had
+  already filed four minutes earlier from the implementer's own report.
 - **PR [#312](https://github.com/radiusred/gh-codecrew/pull/312)** — two
   rounds, the second a rebase check. Round one
   [approved](https://github.com/radiusred/gh-codecrew/pull/312#pullrequestreview-5127116465)
@@ -998,7 +1076,7 @@ the standing verdict is the only one.
 
 | Requirement | Delivered by | QA status | Notes |
 |-------------|--------------|-----------|-------|
-| M15-R1 — `migrate` writes an absent root `AGENTS.md` or `CLAUDE.md` from the same scaffold constants `init` writes, in the same pathspec commit as the rest of the move, and `--dry-run` lists each file it would write; the `action needed` block names only a kept root file that does not reach `.codecrew/AGENTS.md`, so a migrated spoke is indistinguishable from a fresh 2.0 scaffold; a kept root file is still never rewritten; SPEC §6's `migrate` row follows (adopts [#301](https://github.com/radiusred/gh-codecrew/issues/301)) | [#306](https://github.com/radiusred/gh-codecrew/issues/306) / PR [#315](https://github.com/radiusred/gh-codecrew/pull/315) | `satisfied` | Task closed; verdicted on a scratch 1.x hub probe — dry run, live run and a kept non-reaching file — against a fresh `init --hub` scaffold. Two review rounds; round one blocked on the one mechanism the PR invented having no test that failed without it. Four Decisions, including the edit to the released 2.0.0 changelog section, marked `(2.0.1, #306)` in both passages it touched |
+| M15-R1 — `migrate` writes an absent root `AGENTS.md` or `CLAUDE.md` from the same scaffold constants `init` writes, in the same pathspec commit as the rest of the move, and `--dry-run` lists each file it would write; the `action needed` block names only a kept root file that does not reach `.codecrew/AGENTS.md`, so a migrated spoke is indistinguishable from a fresh 2.0 scaffold; a kept root file is still never rewritten; SPEC §6's `migrate` row follows (adopts [#301](https://github.com/radiusred/gh-codecrew/issues/301)) | [#306](https://github.com/radiusred/gh-codecrew/issues/306) / PR [#315](https://github.com/radiusred/gh-codecrew/pull/315) | `satisfied` | Task closed; verdicted on a scratch 1.x hub probe — dry run, live run and a kept non-reaching file — against a fresh `init --hub` scaffold. Two review rounds; round one blocked on the one mechanism the PR invented having no test that failed without it. Five Decisions, including the edit to the released 2.0.0 changelog section — marked `(2.0.1, #306)` in the two passages it touched — and the operator's, after this record's first commit, declining the marker for the third |
 | M15-R2 — `task start` does not try to assign an `app:`-typed caller and prints no note about it — the routing table says the kind — while a `user:`-typed caller is still assigned; `status` shows who holds an in-progress or in-review task from its latest **Started by** record rather than from the assignee list, so an App-run task names its holder; SPEC §6's `task start` and `status` rows follow (adopts [#287](https://github.com/radiusred/gh-codecrew/issues/287)) | [#307](https://github.com/radiusred/gh-codecrew/issues/307) / PR [#313](https://github.com/radiusred/gh-codecrew/pull/313) | `satisfied` | Task closed; verdicted on the targeted tests, SPEC §6's rows and the operator's live `status` naming an App-held in-review task from its start record. Approved first round, with the review running the built binary against this hub to see the capture's symptom gone. Three Decisions; the third declines to teach `InferState` the start record because that is SPEC §4's lifecycle table, and is captured as [#316](https://github.com/radiusred/gh-codecrew/issues/316) |
 | M15-R3 — every listing read in the tracker is paginated — `Comments`, `SubIssues`, `listIssues` and any other first-page read — so a milestone issue past a hundred comments keeps its newest QA verdicts and `milestone close` cannot report `VERDICT_MISSING` for a requirement whose satisfied verdict sits on a later page; a test drives each paginated reader with a synthetic listing longer than one page (adopts [#264](https://github.com/radiusred/gh-codecrew/issues/264)) | [#308](https://github.com/radiusred/gh-codecrew/issues/308) / PR [#312](https://github.com/radiusred/gh-codecrew/pull/312) | `satisfied` | Task closed; verdicted on the source reads and the paging tests — 101 comments and 150-row listings — with the verdict stating that no live issue past a hundred comments exists to check against. Two review rounds, the second a rebase check; the first approval was dismissed two minutes and thirteen seconds after it was submitted. Three Decisions, two of them scope boundaries: `--paginate` over cursor loops, and the GraphQL relations left unpaginated |
 | M15-R4 — the tracker normalises CRLF line endings to LF once at its boundary — every issue body and comment body it reads — so each line-anchored scan reads a body GitHub's web editor saved with CRLF exactly as it reads the LF one, with a table test per scanner on a CRLF fixture and no regexp changes; and the `task new` tests assert the created issue carries exactly the `cc:task` label (adopts [#296](https://github.com/radiusred/gh-codecrew/issues/296), [#297](https://github.com/radiusred/gh-codecrew/issues/297)) | [#309](https://github.com/radiusred/gh-codecrew/issues/309) / PR [#314](https://github.com/radiusred/gh-codecrew/pull/314) | `satisfied` | Task closed; verdicted on rows read both through the GitHub readers and directly at scanner entry, SPEC §4's new sentence, and the label assertion. Three review rounds, the third a rebase check; round one found the second layer held by no test and a Decision's claim about it false. Four Decisions and three Deviations — the normalisation is applied twice where the requirement says once, and the record says why |
@@ -1031,9 +1109,10 @@ all three come out of M15-R2's and M15-R5's tasks.
 [#316](https://github.com/radiusred/gh-codecrew/issues/316) — an App-run task
 without a pull request reads `[ready]`, because SPEC §4's lifecycle table
 infers "in progress" from the assignee that an App can never be — comes from
-the implementer's third Decision on #307 and the reviewer's confirmation of
-it, and the capture is explicit that the fix "is a protocol minor (2.1), or
-folded into the next major".
+the implementer's third Decision on #307, filed at 00:06:27Z from the seat's
+own report and four minutes before the review that independently reached the
+same reading; the capture is explicit that the fix "is a protocol minor
+(2.1), or folded into the next major".
 [#318](https://github.com/radiusred/gh-codecrew/issues/318) — `task finish`
 does not say when the pull request's closing references *omit* the task —
 comes from the reviewer's round-one finding 5 on PR #317, which observed that
@@ -1050,7 +1129,7 @@ before, because "`docs/blog/posts/` was empty until #27".
 
 ## Protocol-discipline observations
 
-Eight things the milestone showed about the protocol itself, none of them a
+Nine things the milestone showed about the protocol itself, none of them a
 restatement of the sections above.
 
 - **The adoption link M14 shipped closed every capture this milestone
@@ -1132,6 +1211,20 @@ restatement of the sections above.
   precisely, because the gap between what the shipped rule says and what the
   dispatch asked for is the gap a future reader will otherwise have to
   reconstruct.
+- **A milestone record's counts have a shelf life, and this one's expired
+  between its commit and its review.** The document was committed at
+  02:06:04Z with twenty-five Decisions and six Deviations counted; the
+  operator's #306 Decision landed at 02:09:01Z and a second #305 Deviation at
+  02:11:36Z, and the review that found them opened on the observation that
+  "the record's whole claim on a reader is that its counts are re-derivable
+  from the trail". Nothing comparable happened to
+  [M14's record](14-adoption-tidy-and-the-v2-0-0-release.md): the only
+  comment its milestone issue gained after synthesis was `milestone close`'s
+  own, and that came after the record had merged. The protocol has no verb
+  that freezes a trail, and no rule about when a record is counted; this one
+  was settled by the coordination layer holding the milestone still and by
+  the record naming the instant it counted. Both are conventions this
+  milestone invented on the spot.
 - **The refresh obligation found two incomplete sentences and nothing false.**
   Both version claims — `docs/introduction.md`'s `**Shipped:**` line and its
   `version` example, and `README.md`'s "Already running CodeCrew?" paragraph
@@ -1178,16 +1271,20 @@ rather than a gap in the work.
   and [M13's](13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md#what-the-record-does-not-contain)
   report of their own.
 - **A third passage of the released 2.0.0 changelog section still describes
-  the old behaviour, and nothing on the trail says whether that was
-  deliberate.** PR #315's round-two approval named it as a non-blocking note:
-  the `**What it writes.**` bullet under
+  the old behaviour — and this is the one gap in this list that was closed
+  after the list was written.** PR #315's round-two approval named it as a
+  non-blocking note: the `**What it writes.**` bullet under
   `### gh codecrew migrate: the one-shot move to the 2.0 layout` says an
   absent root entry point "is named under an `action needed` heading", it
   sits *between* the two passages that were corrected, and it is the only one
-  of the three without a `(2.0.1, #306)` marker. It is still there. The
-  review left it explicitly to the author — "take it or leave it, and either
-  is defensible" — and no Decision records the leaving. A blessing and a
-  deferral are both decisions, and this is recorded as neither.
+  of the three without a `(2.0.1, #306)` marker. It is still there, and this
+  document's first commit recorded that no Decision said whether that was
+  deliberate. The operator's
+  [Decision](https://github.com/radiusred/gh-codecrew/issues/306#issuecomment-5564002686)
+  three minutes later is that Decision: the marker is declined, because the
+  unmarked passage describes what the 2.0.0 binary wrote and is still true of
+  2.0.0, while the two that carry markers are the adopter's steps. The bullet
+  stays to say so, because the paragraph it replaces asserted the opposite.
 - **M15-R3's live boundary was never crossed.** The QA verdict says so in its
   own words: no issue in this hub is past a hundred comments — "highest issue
   comment count is #119 with 69" — so the requirement is verdicted from the
