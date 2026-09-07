@@ -6,6 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [2.0.1] — 2026-09-07
+
+The first release after 2.0, and the first shaped by running it: every fix
+below came out of migrating ten repositories onto the `.codecrew/` layout and
+then working the new verbs on a milestone of their own — a permanent 403 on
+every App-held seat, listing reads that stopped at GitHub's first hundred
+rows, a body the web editor saved with CRLF that the record scans could not
+read, a migration that left a spoke short of the root entry points `init`
+writes, a skipped stale-branch sweep nothing made visible, and a pull request
+body that closed two issues nobody intended. Every one of them an
+implementation correction: the protocol stays at 2.0, nothing already recorded
+on GitHub is reclassified, and a repository already on the 2.0 layout has no
+migration step to take — `gh extension upgrade codecrew` and carry on.
+
 ### `status` names stale task branches, and nothing closes an issue by accident
 
 - **`status` reports the stale task branches of the repo it runs in** — every
@@ -1275,7 +1291,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/radiusred/gh-codecrew/compare/v1.0.3...v1.1.0
