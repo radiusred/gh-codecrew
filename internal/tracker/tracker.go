@@ -697,7 +697,10 @@ func ParseVerdicts(comments []Comment) []Verdict {
 // blank line, each paragraph trimmed and the empty ones dropped. The body
 // arrives with LF line endings — its two callers are exported scanners,
 // and both normalise at their entry (NormalizeLineEndings) — so the split
-// does not do it again.
+// does not do it again. The precondition is not prose alone: both callers
+// are read with a CRLF fixture handed straight to them, no reader in the
+// path, so a third caller that skipped the normalisation would fail those
+// rows rather than quietly reopening #296.
 func paragraphs(body string) []string {
 	var out []string
 	for _, para := range paragraphBreak.Split(strings.TrimSpace(body), -1) {

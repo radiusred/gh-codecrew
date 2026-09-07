@@ -7,23 +7,43 @@ import (
 	"testing"
 )
 
-// The fixtures below are written with LF and read twice: as they stand,
-// and with every line ending turned into CRLF — what GitHub's web editor
-// saves when a human edits an issue, a comment or a PR body. Both readings
-// go through the GitHub reader that fetches the text (IssueBody,
-// Comments), so what the tests walk is the path a body actually takes into
-// the package, not a scanner called with a hand-made string.
+// The fixtures below are written with LF and read three ways: as they
+// stand, and with every line ending turned into CRLF — what GitHub's web
+// editor saves when a human edits an issue, a comment or a PR body — each
+// of those through the GitHub reader that fetches the text, and then the
+// CRLF one again straight into the scanner with no reader in the path.
 //
-// Measured against the code before this change, with the normalisation
-// taken out everywhere: the CRLF task body yielded no adoptions at all —
-// the `## Adopts` heading is matched by a `(?m)…$` line, and Go's `$`
-// matches only before `\n`, so `task finish` would have closed none of the
-// captures the task adopted — and the record and gate scans collapsed each
-// comment into one paragraph, so a Decision swallowed the gate raised
-// after it and the gate scan lost the paragraph boundary it reads
-// (#296). The rest — the two `## `-section cuts, the verdict line and the
-// start record — read a CRLF body correctly already, by not being anchored
-// to a line's end; their rows are the guard that keeps it that way.
+// The three readings pin the two layers separately, which is the whole
+// reason there are two (NormalizeLineEndings):
+//
+//   - through the reader — the path a body actually takes into the
+//     package. Delete the normalisation in github.go and these fail.
+//   - straight into the scanner — the seam Tracker is: a string reaching
+//     an exported scanner from another backend, a fake tracker or a
+//     caller's own hand. Delete the normalisation at the scanner entries
+//     in tracker.go and these fail, github.go untouched.
+//
+// Measured, one layer removed at a time:
+//
+//   - github.go's two calls removed, tracker.go untouched:
+//     TestReadersNormaliseAtTheBoundary fails — the package is handed a
+//     body carrying CR, and everything downstream of the readers, the
+//     citation walk in internal/cli included, sees two shapes of body.
+//   - tracker.go's seven calls removed, github.go untouched: the
+//     AdoptedRefs, ExtractRecords and UnresolvedGates rows fail on their
+//     direct reading.
+//
+// Three of the eight rows, because only three of the scans can be
+// defeated by a CR at all. The `## Adopts` heading is matched by a
+// `(?m)…$` line and Go's `$` matches only before `\n`, so a browser-edited
+// task body yielded no adoptions and `task finish` would have shut none of
+// the captures the task carried (#296); the paragraph split collapses such
+// a comment into one paragraph, so a Decision swallows the gate raised
+// after it. The other five scans — the two `## `-section cuts, the verdict
+// line and the start record — read a CRLF body correctly already, by not
+// being anchored to a line's end. Their rows are guards rather than pins:
+// they assert the property the second layer exists to make unconditional,
+// and they are what fails if one of those scans grows a line-end anchor.
 
 func toCRLF(s string) string { return strings.ReplaceAll(s, "\n", "\r\n") }
 
@@ -74,6 +94,20 @@ var commentFixtures = []struct{ author, body string }{
 	{"darrendavison", "**Gate resolved (operator):** at the boundary and at each scanner's entry."},
 	{"radiusred-testy", "**M15-R4 — satisfied.** The table test drives every scanner twice.\n\nA verdict quoted in code — `**M15-R5 — satisfied.**` — is content, not a verdict."},
 	{"radiusred-cody", "**Decision:** normalise at the boundary and at each exported scanner's entry.\n**Trade-off:** two passes over a body instead of one.\n\n**Gate raised:** does SPEC §4 need a sentence about line endings?"},
+}
+
+// rawComments builds the fixtures into Comment values directly, with
+// ending applied to each body — a scanner reached without a reader.
+func rawComments(ending func(string) string) []Comment {
+	out := make([]Comment, len(commentFixtures))
+	for i, c := range commentFixtures {
+		out[i] = Comment{
+			Author: c.author,
+			Body:   ending(c.body),
+			URL:    "https://github.com/o/r/issues/1#issuecomment-" + string(rune('a'+i)),
+		}
+	}
+	return out
 }
 
 // issueBodyVia serves body as the issue JSON and reads it back through
@@ -154,7 +188,11 @@ func TestBodyScannersReadCRLFAsLF(t *testing.T) {
 			}
 			crlf := tc.scan(issueBodyVia(t, toCRLF(tc.body)))
 			if !reflect.DeepEqual(crlf, lf) {
-				t.Errorf("CRLF body: got %#v, want the LF reading %#v", crlf, lf)
+				t.Errorf("CRLF body through the reader: got %#v, want the LF reading %#v", crlf, lf)
+			}
+			direct := tc.scan(toCRLF(tc.body))
+			if !reflect.DeepEqual(direct, lf) {
+				t.Errorf("CRLF body straight into the scanner: got %#v, want the LF reading %#v", direct, lf)
 			}
 		})
 	}
@@ -172,10 +210,16 @@ func TestCommentScannersReadCRLFAsLF(t *testing.T) {
 		}
 		return out
 	}
+	// UnresolvedGates hands back the Comment values it was given rather
+	// than normalised copies — scanning is its job, rewriting its input is
+	// not — so the row projects what task finish reads off the result, the
+	// author and the URL identifying which comment carries the open gate.
+	// That the gate was found in that comment's *second* paragraph is the
+	// assertion: it is the paragraph split being read right.
 	gates := func(cs []Comment) any {
 		var out []string
 		for _, c := range UnresolvedGates(cs) {
-			out = append(out, c.Author+"|"+c.Body)
+			out = append(out, c.Author+"|"+c.URL)
 		}
 		return out
 	}
@@ -196,7 +240,7 @@ func TestCommentScannersReadCRLFAsLF(t *testing.T) {
 			"Decision|radiusred-cody|**Decision:** normalise at the boundary and at each exported scanner's entry.\n**Trade-off:** two passes over a body instead of one.",
 		}},
 		{"UnresolvedGates", gates, []string{
-			"radiusred-cody|**Decision:** normalise at the boundary and at each exported scanner's entry.\n**Trade-off:** two passes over a body instead of one.\n\n**Gate raised:** does SPEC §4 need a sentence about line endings?",
+			"radiusred-cody|https://github.com/o/r/issues/1#issuecomment-f",
 		}},
 		{"ParseVerdicts", verdicts, []string{"M15-R4|satisfied|radiusred-testy"}},
 		{"StartedBy", func(cs []Comment) any { return StartedBy(cs) }, "radiusred-cody"},
@@ -209,7 +253,11 @@ func TestCommentScannersReadCRLFAsLF(t *testing.T) {
 			}
 			crlf := tc.scan(commentsVia(t, toCRLF))
 			if !reflect.DeepEqual(crlf, lf) {
-				t.Errorf("CRLF comments: got %#v, want the LF reading %#v", crlf, lf)
+				t.Errorf("CRLF comments through the reader: got %#v, want the LF reading %#v", crlf, lf)
+			}
+			direct := tc.scan(rawComments(toCRLF))
+			if !reflect.DeepEqual(direct, lf) {
+				t.Errorf("CRLF comments straight into the scanner: got %#v, want the LF reading %#v", direct, lf)
 			}
 		})
 	}

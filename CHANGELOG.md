@@ -19,10 +19,11 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   GitHub-backed readers normalise where a body enters the package
   (`IssueBody`, `Comments`), and each exported scanner normalises at its
   entry, so a scanner reached with a body from anywhere else reads it the
-  same way. No regexp changed; a table test drives every scanner over an
-  LF fixture and its CRLF twin, both fetched through the reader that
-  fetches a body from GitHub. SPEC §4 says line endings are not part of
-  the record grammar.
+  same way. No regexp changed; a table test reads every scanner three
+  ways — an LF fixture and its CRLF twin, both fetched through the reader
+  that fetches a body from GitHub, and the CRLF one again handed straight
+  to the scanner — so each layer fails on its own when it is taken out.
+  SPEC §4 says line endings are not part of the record grammar.
 - **`task new` applies `cc:task`, and a test says so.** Every downstream
   gate reads that label; nothing asserted it was applied at creation, so a
   regression would have passed the suite and surfaced at the first refused
