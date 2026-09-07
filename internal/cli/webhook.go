@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // defaultWebhookEvents is what --with-webhook subscribes an App to: the
@@ -88,31 +89,18 @@ func noWebhook(settings string) error {
 	return refuse("NO_WEBHOOK", "this App was minted without a webhook and GitHub's API cannot create one — activate it under Webhook on the App's settings page (%s), give it the receiver's URL there, then set the secret with identity webhook --secret and tick the events under Subscribe to events", settings)
 }
 
+// appRequest is the venue's App-JWT call with this CLI's condition on top:
+// a 401 is the one status no caller here can do anything about, and it is
+// named the same way wherever it appears.
 func appRequest(client *http.Client, jwt, method, path string, body any) (int, []byte, error) {
-	var payload io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return 0, nil, err
-		}
-		payload = bytes.NewReader(data)
-	}
-	req, _ := http.NewRequest(method, githubAPI+path, payload)
-	req.Header.Set("Authorization", "Bearer "+jwt)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := client.Do(req)
+	status, data, err := tracker.GitHub{}.AppRequest(client, jwt, method, path, body)
 	if err != nil {
-		return 0, nil, err
+		return status, data, err
 	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode == http.StatusUnauthorized {
-		return resp.StatusCode, data, refuse("BAD_CREDENTIALS", "GitHub rejected the App JWT (401): the private key and the App id do not belong to the same App, or the key was revoked — check the id against gh api /apps/<slug> --jq .id; retrying will not help")
+	if status == http.StatusUnauthorized {
+		return status, data, refuse("BAD_CREDENTIALS", "GitHub rejected the App JWT (401): the private key and the App id do not belong to the same App, or the key was revoked — check the id against gh api /apps/<slug> --jq .id; retrying will not help")
 	}
-	return resp.StatusCode, data, nil
+	return status, data, nil
 }
 
 // getHookConfig reads the App's webhook configuration.
@@ -233,7 +221,7 @@ func runIdentityWebhook(w io.Writer, getenv func(string) string, configDir strin
 	if err != nil {
 		return err
 	}
-	settings := appSettingsURL(ownerLogin, ownerType, appSlug)
+	settings := tracker.AppSettingsURL(ownerLogin, ownerType, appSlug)
 	if *events != "" {
 		return fmt.Errorf("an existing App's event subscriptions cannot be set through the API (GitHub offers no endpoint; they are set by the manifest at creation, or by hand) — tick them under Subscribe to events at %s/permissions; subscribed now: %s", settings, strings.Join(subscribed, ", "))
 	}

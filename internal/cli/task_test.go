@@ -528,6 +528,7 @@ type startFake struct {
 	assigned  []string // the logins Assign was called with
 	posted    []string // the comment bodies posted
 	branches  []string // the branch names DevelopBranch was called with
+	team      []string // the members of whatever team is asked for
 }
 
 func (f *startFake) Task(tracker.IssueRef) (tracker.Task, error) { return f.task, nil }
@@ -535,6 +536,9 @@ func (f *startFake) IssueBody(tracker.IssueRef) (string, error) {
 	return "## Plan\n\nDo the thing.\n", nil
 }
 func (f *startFake) Viewer() (string, error) { return f.viewer, nil }
+func (f *startFake) TeamMembers(string, string) ([]string, error) {
+	return f.team, nil
+}
 func (f *startFake) Comment(_ tracker.IssueRef, b string) error {
 	f.posted = append(f.posted, b)
 	return nil
@@ -605,7 +609,6 @@ func TestTaskStartDoesNotAssignAnUnroutedBotLogin(t *testing.T) {
 // one, and the operator holding no seat at all — is still assigned, which
 // is the courtesy the call exists for.
 func TestTaskStartAssignsAHumanCaller(t *testing.T) {
-	stubTeams(t, map[string]bool{"bob": true})
 	roles := map[string]config.Role{
 		"implementer": {Identity: config.ParseIdentity("user:alice")},
 		"qa":          {Identity: config.ParseIdentity("team:myorg/review-crew")},
@@ -614,7 +617,7 @@ func TestTaskStartAssignsAHumanCaller(t *testing.T) {
 	// alice holds a user:-typed seat, bob a team-held one, davison no seat
 	// at all — three humans, all assignable.
 	for _, viewer := range []string{"alice", "bob", "davison"} {
-		f := &startFake{task: startingTask(), viewer: viewer}
+		f := &startFake{task: startingTask(), viewer: viewer, team: []string{"bob"}}
 		var out bytes.Buffer
 		if err := runTaskStart(startCtx(f, roles), &out, f.task.Ref); err != nil {
 			t.Fatalf("%s: %v", viewer, err)

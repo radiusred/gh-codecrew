@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
-	"github.com/radiusred/gh-codecrew/internal/gh"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -84,8 +83,11 @@ func refuseLegacyLayout(dir string, found []string, fix string) error {
 // it here, in one place, when a verb comes to need a newer gh.
 const ghFloor = "2.50.0"
 
-// ghVersion is a func var so tests can stand in for the installed gh.
-var ghVersion = gh.Version
+// ghVersion is a func var so tests can stand in for the installed gh. It
+// reads the version through the venue, like every other call: the check
+// runs before any ctx exists, so it holds its own GitHub rather than one
+// a verb hands it.
+var ghVersion = tracker.GitHub{}.ClientVersion
 
 // checkGH refuses GH_TOO_OLD below the floor. A banner that does not parse
 // proceeds with a note — an unexpected build must not lock the operator
@@ -96,7 +98,7 @@ func checkGH(notes io.Writer) error {
 		fmt.Fprintf(notes, "note: could not read the gh version (%v); CodeCrew needs gh %s or later\n", err, ghFloor)
 		return nil
 	}
-	if gh.CompareVersions(v, ghFloor) < 0 {
+	if tracker.CompareVersions(v, ghFloor) < 0 {
 		return refuse("GH_TOO_OLD", "gh %s installed; CodeCrew needs %s or later (gh pr checks --json, cli/cli#9079) — upgrade gh", v, ghFloor)
 	}
 	return nil
@@ -122,7 +124,7 @@ func load() (*ctx, error) {
 	if err != nil {
 		return nil, err
 	}
-	current, err := gh.CurrentRepo()
+	current, err := tracker.GitHub{}.CurrentRepo()
 	if err != nil {
 		if ghErr := unreachable(err); ghErr != nil {
 			return nil, ghErr
@@ -211,7 +213,7 @@ func (c *ctx) resolveRoles(notes io.Writer) error {
 // everything else so the caller can name its own condition. GitHub
 // answering 403 or 404 is not this: the API was reached (SPEC §6).
 func unreachable(err error) error {
-	if !gh.Unreachable(err) {
+	if !tracker.Unreachable(err) {
 		return nil
 	}
 	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (SPEC §6)", err)
@@ -222,23 +224,6 @@ func unreachable(err error) error {
 // a verb has a table.
 func (c *ctx) rolesConfig() *config.Config {
 	return c.roles
-}
-
-// teamMembers fetches a team's member logins — child-team members
-// included, per the API contract. A func var so tests stub it (the
-// convertManifest pattern).
-var teamMembers = func(org, team string) (map[string]bool, error) {
-	var members []struct {
-		Login string `json:"login"`
-	}
-	if err := gh.JSON(&members, "api", "--paginate", fmt.Sprintf("/orgs/%s/teams/%s/members", org, team)); err != nil {
-		return nil, err
-	}
-	set := make(map[string]bool, len(members))
-	for _, m := range members {
-		set[m.Login] = true
-	}
-	return set, nil
 }
 
 // inTeam reports whether login is a member of the team identity, through
@@ -258,10 +243,26 @@ func (c *ctx) inTeam(identity config.Identity, login string) bool {
 		if !valid {
 			return false
 		}
-		set, _ = teamMembers(org, team)
+		set = c.teamMembers(org, team)
 		c.teams[identity.Value] = set
 	}
 	return set[login]
+}
+
+// teamMembers reads a team's members through the venue and returns them
+// as the set inTeam tests against. An unreadable team is no members: the
+// verbs that gate on a holder then refuse for absence, the same direction
+// resolveRoles fails in.
+func (c *ctx) teamMembers(org, team string) map[string]bool {
+	logins, err := c.t.TeamMembers(org, team)
+	if err != nil {
+		return nil
+	}
+	set := make(map[string]bool, len(logins))
+	for _, l := range logins {
+		set[l] = true
+	}
+	return set
 }
 
 // roleFor resolves a viewer login to its role name via the routing table —

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/radiusred/gh-codecrew/internal/tracker"
+	"github.com/radiusred/gh-codecrew/internal/tracker/faketracker"
 )
 
 func TestExtractURLs(t *testing.T) {
@@ -31,41 +32,20 @@ func TestExtractURLs(t *testing.T) {
 	}
 }
 
-func TestGithubAPIPath(t *testing.T) {
-	for _, tc := range []struct {
-		url, path string
-		ok        bool
-	}{
-		{"https://github.com/o/r/issues/68", "repos/o/r/issues/68", true},
-		{"https://github.com/o/r/pull/100", "repos/o/r/issues/100", true},
-		{"https://github.com/o/r/issues/68#issuecomment-99", "repos/o/r/issues/68", true},
-		{"https://github.com/o/r/commit/abc123", "repos/o/r/commits/abc123", true},
-		{"https://github.com/o/r/blob/main/docs/x.md", "repos/o/r/contents/docs/x.md?ref=main", true},
-		{"https://github.com/apps/some-app", "", false}, // App pages: plain HTTP
-		{"https://github.com/o/r", "", false},           // bare repo page
-		{"https://docs.github.com/en/apps", "", false},  // not github.com
-		{"https://example.com/o/r/issues/1", "", false},
-	} {
-		path, ok := githubAPIPath(tc.url)
-		if path != tc.path || ok != tc.ok {
-			t.Errorf("githubAPIPath(%q) = %q,%v want %q,%v", tc.url, path, ok, tc.path, tc.ok)
-		}
-	}
-}
-
 func TestCheckURLRouting(t *testing.T) {
-	origAPI, origHTTP := checkAPI, checkHTTP
-	t.Cleanup(func() { checkAPI, checkHTTP = origAPI, origHTTP })
-	var apiPaths, httpURLs []string
-	checkAPI = func(path string) error { apiPaths = append(apiPaths, path); return nil }
+	origHTTP := checkHTTP
+	t.Cleanup(func() { checkHTTP = origHTTP })
+	var httpURLs []string
 	checkHTTP = func(url string) error { httpURLs = append(httpURLs, url); return fmt.Errorf("HTTP 404") }
+	v := &faketracker.Venue{}
 
-	if err := checkURL("https://github.com/o/r/issues/5"); err != nil {
+	if err := checkURL(v, "https://github.com/o/r/issues/5"); err != nil {
 		t.Errorf("API-mapped link errored: %v", err)
 	}
-	if err := checkURL("https://example.com/gone"); err == nil {
+	if err := checkURL(v, "https://example.com/gone"); err == nil {
 		t.Error("dead HTTP link resolved")
 	}
+	apiPaths := venuePaths(v)
 	if len(apiPaths) != 1 || apiPaths[0] != "repos/o/r/issues/5" {
 		t.Errorf("API routing = %v", apiPaths)
 	}
@@ -186,22 +166,6 @@ func TestExtractURLsSkipsCode(t *testing.T) {
 	}
 }
 
-func TestIsGitHubLink(t *testing.T) {
-	for url, want := range map[string]bool{
-		"https://github.com/o/r/issues/1":      true,
-		"https://github.com/apps/some-app":     true,
-		"http://github.com/o/r":                true,
-		"https://docs.github.com/en/apps":      false,
-		"https://github.community/x":           false,
-		"https://example.com/github.com/o/r":   false,
-		"https://codecrew.works/docs/protocol": false,
-	} {
-		if got := isGitHubLink(url); got != want {
-			t.Errorf("isGitHubLink(%q) = %v, want %v", url, got, want)
-		}
-	}
-}
-
 // The walk over a record, with the network stubbed where it would reach
 // GitHub and a real server standing in for the external host: URLs in code
 // are never checked; a dead external link is a warning and the verb still
@@ -216,15 +180,13 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	origAPI := checkAPI
-	t.Cleanup(func() { checkAPI = origAPI })
-	var apiPaths []string
-	checkAPI = func(path string) error {
-		apiPaths = append(apiPaths, path)
-		if strings.HasSuffix(path, "/issues/404") {
-			return fmt.Errorf("HTTP 404")
-		}
-		return nil
+	v := &faketracker.Venue{
+		APIReachableFn: func(path string) error {
+			if strings.HasSuffix(path, "/issues/404") {
+				return fmt.Errorf("HTTP 404")
+			}
+			return nil
+		},
 	}
 
 	ref := tracker.IssueRef{Repo: "o/r", Number: 5}
@@ -232,7 +194,7 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 	codeOnly := []evidenceRecord{{Ref: hub, Texts: []string{
 		"Baseline: `curl https://hooks.example.test/` and\n```\ncurl https://zoo.example.test/\n```\nare NXDOMAIN by design.",
 	}}}
-	rep := checkEvidence(codeOnly)
+	rep := checkEvidence(v, codeOnly)
 	if rep.Total != 0 || len(rep.Unreachable) != 0 || len(rep.Warnings) != 0 {
 		t.Errorf("code-only record was scanned: %+v", rep)
 	}
@@ -241,7 +203,7 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 		{Ref: hub, Texts: []string{"tracked in https://github.com/o/r/issues/7"}},
 		{Ref: ref, Texts: []string{"see [the page](" + srv.URL + "/gone) and " + srv.URL + "/alive, plus `" + srv.URL + "/in-code`"}},
 	}
-	rep = checkEvidence(external)
+	rep = checkEvidence(v, external)
 	if rep.Total != 3 {
 		t.Errorf("total = %d, want 3 (in-code URL must not count): %+v", rep.Total, rep)
 	}
@@ -260,7 +222,7 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 	}
 
 	github := append(external, evidenceRecord{Ref: ref, Texts: []string{"and [the gate](https://github.com/o/r/issues/404)"}})
-	rep = checkEvidence(github)
+	rep = checkEvidence(v, github)
 	if len(rep.Unreachable) != 1 || !strings.HasPrefix(rep.Unreachable[0], "https://github.com/o/r/issues/404 (HTTP 404) — cited on o/r#5") {
 		t.Errorf("unreachable = %v", rep.Unreachable)
 	}
@@ -276,11 +238,21 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 	if !strings.Contains(out.String(), "unreachable: https://github.com/o/r/issues/404") || !strings.Contains(out.String(), "warning: external link") {
 		t.Errorf("report:\n%s", out.String())
 	}
-	for _, p := range apiPaths {
+	for _, p := range venuePaths(v) {
 		if strings.Contains(p, "example.test") || strings.Contains(p, "in-code") {
 			t.Errorf("a URL inside code reached the network: %s", p)
 		}
 	}
+}
+
+// venuePaths is every API path the walk asked the venue to resolve, in
+// order — the fake records them, so no stub of its own is needed.
+func venuePaths(v *faketracker.Venue) []string {
+	var paths []string
+	for _, c := range v.CallsTo("APIReachable") {
+		paths = append(paths, c.Args[0].(string))
+	}
+	return paths
 }
 
 // evidenceFake serves the walk from a state=all milestone listing: the

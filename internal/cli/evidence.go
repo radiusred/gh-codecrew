@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/radiusred/gh-codecrew/internal/gh"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -59,44 +58,10 @@ func trimURL(u string) string {
 	}
 }
 
-// githubAPIPath maps a github.com record link — issue, PR, comment anchor,
-// commit, blob — to its API path, so reachability is checked with the
-// caller's auth (private repos included) instead of an anonymous page
-// fetch. Links it cannot map check as plain HTTP.
-func githubAPIPath(url string) (string, bool) {
-	rest, ok := strings.CutPrefix(url, "https://github.com/")
-	if !ok {
-		return "", false
-	}
-	rest, _, _ = strings.Cut(rest, "#") // comment anchors resolve via the issue
-	parts := strings.Split(rest, "/")
-	if len(parts) < 4 {
-		return "", false
-	}
-	owner, repo, kind := parts[0], parts[1], parts[2]
-	tail := parts[3:]
-	switch kind {
-	case "issues", "pull":
-		return fmt.Sprintf("repos/%s/%s/issues/%s", owner, repo, tail[0]), true
-	case "commit":
-		return fmt.Sprintf("repos/%s/%s/commits/%s", owner, repo, tail[0]), true
-	case "blob", "tree":
-		if len(tail) < 2 {
-			return "", false
-		}
-		ref, path := tail[0], strings.Join(tail[1:], "/")
-		return fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), true
-	}
-	return "", false
-}
-
-// checkAPI and checkHTTP are stubbable (the convertManifest pattern) so the
-// verb's walk is tested without a network.
-var checkAPI = func(path string) error {
-	_, err := gh.Run("api", path)
-	return err
-}
-
+// checkHTTP is stubbable (the convertManifest pattern) so the verb's walk
+// is tested without a network. There is no checkAPI beside it: a record
+// link is resolved by the venue itself — tracker.RecordAPIPath, then
+// APIReachable — and a test substitutes the venue for that half.
 var checkHTTP = func(url string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(url)
@@ -110,21 +75,14 @@ var checkHTTP = func(url string) error {
 	return nil
 }
 
-// checkURL resolves one link by the right mechanism.
-func checkURL(url string) error {
-	if path, ok := githubAPIPath(url); ok {
-		return checkAPI(path)
+// checkURL resolves one link by the right mechanism: a record link
+// through the venue's own API, with the caller's auth and private
+// repositories included; anything else as a plain HTTP fetch.
+func checkURL(v tracker.Tracker, url string) error {
+	if path, ok := tracker.RecordAPIPath(url); ok {
+		return v.APIReachable(path)
 	}
 	return checkHTTP(url)
-}
-
-// isGitHubLink says whether a citation points at github.com — the record
-// itself: issues, PRs, comments, commits, blobs, runs, App pages. Those
-// are what QA tests against, so one that does not resolve refuses; any
-// other host is external content whose death is reported as a warning
-// for the qa seat to weigh (#222, the third shape).
-func isGitHubLink(url string) bool {
-	return strings.HasPrefix(url, "https://github.com/") || strings.HasPrefix(url, "http://github.com/")
 }
 
 // evidenceRecord is one issue's texts — body first, then comments — as
@@ -145,7 +103,7 @@ type evidenceReport struct {
 
 // checkEvidence resolves every citation across the records once, in the
 // order first cited, and sorts the two failure lists for a stable report.
-func checkEvidence(records []evidenceRecord) evidenceReport {
+func checkEvidence(v tracker.Tracker, records []evidenceRecord) evidenceReport {
 	var rep evidenceReport
 	seen := map[string]bool{}
 	for _, rec := range records {
@@ -156,12 +114,12 @@ func checkEvidence(records []evidenceRecord) evidenceReport {
 				}
 				seen[u] = true
 				rep.Total++
-				err := checkURL(u)
+				err := checkURL(v, u)
 				if err == nil {
 					continue
 				}
 				line := fmt.Sprintf("%s (%v) — cited on %s", u, err, rec.Ref)
-				if isGitHubLink(u) {
+				if tracker.IsRecordLink(u) {
 					rep.Unreachable = append(rep.Unreachable, line)
 				} else {
 					rep.Warnings = append(rep.Warnings, line)
@@ -281,5 +239,5 @@ func milestoneEvidenceReport(w io.Writer, c *ctx, n string) error {
 		}
 		records = append(records, rec)
 	}
-	return reportEvidence(w, checkEvidence(records), len(refs))
+	return reportEvidence(w, checkEvidence(c.t, records), len(refs))
 }

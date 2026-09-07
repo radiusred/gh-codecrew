@@ -22,12 +22,8 @@ import (
 	"time"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
-	"github.com/radiusred/gh-codecrew/internal/gh"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
-
-// githubAPI is the REST base the mint talks to — github.com only in 1.x
-// (SPEC §10); a variable so tests point it at a local server.
-var githubAPI = "https://api.github.com"
 
 // appCredential is what a mint needs: the App's private key and the id it
 // signs as (the numeric App ID or the client ID — GitHub accepts either
@@ -179,16 +175,11 @@ type installation struct {
 // listInstallations asks the App itself where it is installed — the one
 // lookup that needs no user credential and cannot be stale.
 func listInstallations(client *http.Client, jwt string) ([]installation, error) {
-	req, _ := http.NewRequest("GET", githubAPI+"/app/installations?per_page=100", nil)
-	req.Header.Set("Authorization", "Bearer "+jwt)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := client.Do(req)
+	status, body, err := tracker.GitHub{}.AppRequest(client, jwt, "GET", "/app/installations?per_page=100", nil)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	switch resp.StatusCode {
+	switch status {
 	case http.StatusOK:
 	case http.StatusUnauthorized:
 		return nil, refuse("BAD_CREDENTIALS", "GitHub rejected the App JWT (401): the private key and the App id do not belong to the same App, or the key was revoked — check the id against gh api /apps/<slug> --jq .id; retrying will not help")
@@ -197,7 +188,7 @@ func listInstallations(client *http.Client, jwt string) ([]installation, error) 
 		// not 401 (checky's live probe on PR #171 with GITHUB_APP_ID=1).
 		return nil, refuse("BAD_CREDENTIALS", "GitHub knows no App by the id the JWT was signed as (404 %s): the App id is wrong for this key — check it against gh api /apps/<slug> --jq .id; retrying will not help", strings.TrimSpace(string(body)))
 	default:
-		return nil, fmt.Errorf("GET /app/installations: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("GET /app/installations: HTTP %d: %s", status, strings.TrimSpace(string(body)))
 	}
 	var list []installation
 	if err := json.Unmarshal(body, &list); err != nil {
@@ -245,17 +236,13 @@ func chooseInstallation(list []installation, hint, owner string, notes io.Writer
 // mintInstallationToken exchanges the App JWT for an installation token —
 // the one-hour credential every verb runs under.
 func mintInstallationToken(client *http.Client, jwt string, id int64) (string, error) {
-	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/app/installations/%d/access_tokens", githubAPI, id), nil)
-	req.Header.Set("Authorization", "Bearer "+jwt)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := client.Do(req)
+	path := fmt.Sprintf("/app/installations/%d/access_tokens", id)
+	status, body, err := tracker.GitHub{}.AppRequest(client, jwt, "POST", path, nil)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("POST /app/installations/%d/access_tokens: HTTP %d: %s", id, resp.StatusCode, strings.TrimSpace(string(body)))
+	if status != http.StatusCreated {
+		return "", fmt.Errorf("POST /app/installations/%d/access_tokens: HTTP %d: %s", id, status, strings.TrimSpace(string(body)))
 	}
 	var out struct {
 		Token string `json:"token"`
@@ -280,7 +267,7 @@ func hubOwner(getenv func(string) string) string {
 	}
 	repo := cfg.Hub
 	if repo == "self" {
-		if repo, err = gh.CurrentRepo(); err != nil {
+		if repo, err = (tracker.GitHub{}).CurrentRepo(); err != nil {
 			return ""
 		}
 	}

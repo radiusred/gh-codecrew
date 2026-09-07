@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // testKey is one RSA key for the whole file — generation is the slow part.
@@ -220,9 +222,9 @@ func inst(id int64, login, slug string) installation {
 
 func mint(t *testing.T, srv *httptest.Server, env map[string]string, configDir, owner string, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
-	prev := githubAPI
-	githubAPI = srv.URL
-	defer func() { githubAPI = prev }()
+	prev := tracker.AppAPIBase
+	tracker.AppAPIBase = srv.URL
+	defer func() { tracker.AppAPIBase = prev }()
 	var out, notes bytes.Buffer
 	err = runIdentityToken(&out, &notes, envOf(env), configDir, owner, srv.Client(), time.Now(), args)
 	return out.String(), notes.String(), err

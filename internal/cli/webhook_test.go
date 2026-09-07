@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // fakeAppAPI serves /app and /app/hook/config the way GitHub does for an
@@ -70,9 +72,9 @@ func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 func runWebhook(t *testing.T, srv *httptest.Server, args ...string) (string, error) {
 	t.Helper()
-	prev := githubAPI
-	githubAPI = srv.URL
-	defer func() { githubAPI = prev }()
+	prev := tracker.AppAPIBase
+	tracker.AppAPIBase = srv.URL
+	defer func() { tracker.AppAPIBase = prev }()
 	env := envOf(map[string]string{"GITHUB_APP_ID": "7", "GITHUB_PEM": string(pkcs1PEM(testKey))})
 	var out bytes.Buffer
 	err := runIdentityWebhook(&out, env, t.TempDir(), srv.Client(), time.Now(), args)
@@ -145,9 +147,9 @@ func TestIdentityWebhookNoHookAndBadKey(t *testing.T) {
 		t.Errorf("a hookless App was written to: %v", *patches)
 	}
 	var err error
-	prev := githubAPI
-	githubAPI = srv.URL
-	defer func() { githubAPI = prev }()
+	prev := tracker.AppAPIBase
+	tracker.AppAPIBase = srv.URL
+	defer func() { tracker.AppAPIBase = prev }()
 	var buf bytes.Buffer
 	err = runIdentityWebhook(&buf, envOf(map[string]string{"GITHUB_APP_ID": "wrong", "GITHUB_PEM": string(pkcs1PEM(testKey))}), t.TempDir(), srv.Client(), time.Now(), []string{"--show"})
 	var r refusal

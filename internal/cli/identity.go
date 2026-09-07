@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
-	"github.com/radiusred/gh-codecrew/internal/gh"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // rolePermissions is the minimal per-role permission set, mirroring the
@@ -93,47 +93,16 @@ func buildManifest(role, name, homepage, redirectURL string, withWebhook bool, w
 	return m, nil
 }
 
-// manifestTarget is the page the manifest form posts to: the App-creation
-// endpoint of the owning account, which differs for orgs and personal
-// accounts.
-func manifestTarget(owner, ownerType string) string {
-	if ownerType == "Organization" {
-		return "https://github.com/organizations/" + owner + "/settings/apps/new"
-	}
-	return "https://github.com/settings/apps/new"
-}
-
-// appSettingsURL is the created App's settings page — where the manual
-// display steps live (the manifest has no avatar field and no API uploads
-// one, so the crew logo is added by hand under Display information).
-func appSettingsURL(owner, ownerType, slug string) string {
-	if ownerType == "Organization" {
-		return "https://github.com/organizations/" + owner + "/settings/apps/" + slug
-	}
-	return "https://github.com/settings/apps/" + slug
-}
-
-// appCreds is what the one-hour conversion exchange returns. client_secret
-// and webhook_secret are printed once and never written to disk.
-type appCreds struct {
-	ID            int64  `json:"id"`
-	Slug          string `json:"slug"`
-	ClientID      string `json:"client_id"`
-	ClientSecret  string `json:"client_secret"`
-	WebhookSecret string `json:"webhook_secret"`
-	PEM           string `json:"pem"`
-	HTMLURL       string `json:"html_url"`
-}
+// appCreds is what the one-hour conversion exchange returns — the venue's
+// own shape, aliased here because it is what half this file passes around.
+// client_secret and webhook_secret are printed once and never written to
+// disk.
+type appCreds = tracker.AppCredentials
 
 // convertManifest exchanges the temporary code GitHub redirects back with
-// for the created App's credentials. Unauthenticated by design on GitHub's
-// side; routed through gh per the founding decision. Stubbed in tests.
+// for the created App's credentials. Stubbed in tests.
 var convertManifest = func(code string) (*appCreds, error) {
-	var creds appCreds
-	if err := gh.JSON(&creds, "api", "--method", "POST", "app-manifests/"+code+"/conversions"); err != nil {
-		return nil, err
-	}
-	return &creds, nil
+	return tracker.GitHub{}.AppManifestConversion(code)
 }
 
 // setWebhookSecret signs as the App just created and sets its hook secret;
@@ -370,13 +339,7 @@ func liveIdentityNewDeps() identityNewDeps {
 			return c.hub, dir, nil
 		},
 		ownerType: func(owner string) (string, error) {
-			var acct struct {
-				Type string `json:"type"`
-			}
-			if err := gh.JSON(&acct, "api", "users/"+owner); err != nil {
-				return "", err
-			}
-			return acct.Type, nil
+			return tracker.GitHub{}.AccountType(owner)
 		},
 		flow:      nil, // the live loopback flow; a test supplies one
 		convert:   func(code string) (*appCreds, error) { return convertManifest(code) },
@@ -438,12 +401,12 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	var code string
 	if deps.flow != nil {
 		// Test seam: the manifest without a live loopback address.
-		manifest, err := buildManifest(role, *name, "https://github.com/"+hub, "http://127.0.0.1/callback", *withWebhook, *webhookURL, events, *withApproval)
+		manifest, err := buildManifest(role, *name, tracker.RepoURL(hub), "http://127.0.0.1/callback", *withWebhook, *webhookURL, events, *withApproval)
 		if err != nil {
 			return err
 		}
 		manifestJSON, _ := json.Marshal(manifest)
-		if code, err = deps.flow(manifestJSON, manifestTarget(*owner, ownerType), w); err != nil {
+		if code, err = deps.flow(manifestJSON, tracker.AppManifestURL(*owner, ownerType), w); err != nil {
 			return err
 		}
 	} else {
@@ -453,7 +416,7 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 		}
 		defer l.Close()
 		local := fmt.Sprintf("http://%s", l.Addr())
-		manifest, err := buildManifest(role, *name, "https://github.com/"+hub, local+"/callback", *withWebhook, *webhookURL, events, *withApproval)
+		manifest, err := buildManifest(role, *name, tracker.RepoURL(hub), local+"/callback", *withWebhook, *webhookURL, events, *withApproval)
 		if err != nil {
 			return err
 		}
@@ -463,7 +426,7 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 		}
 		fmt.Fprintf(w, "open %s — it submits the manifest for %q to %s and GitHub asks you to confirm\n", local, *name, *owner)
 		fmt.Fprintln(w, "waiting for the browser flow…")
-		if code, err = serveFlow(l, manifestJSON, manifestTarget(*owner, ownerType), time.Hour); err != nil {
+		if code, err = serveFlow(l, manifestJSON, tracker.AppManifestURL(*owner, ownerType), time.Hour); err != nil {
 			return err
 		}
 	}
@@ -485,7 +448,7 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 		return err
 	}
 	fmt.Fprintf(w, "\nnext:\n")
-	fmt.Fprintf(w, "  1. install it: https://github.com/apps/%s/installations/new\n", creds.Slug)
+	fmt.Fprintf(w, "  1. install it: %s\n", tracker.AppInstallURL(creds.Slug))
 	fmt.Fprintln(w, "     (installations are per-account — repeat for any other account it must reach)")
 	routed := false
 	if !*noRoute && hubDir != "" {
@@ -497,6 +460,6 @@ func identityNewWith(w io.Writer, args []string, deps identityNewDeps) error {
 	} else {
 		fmt.Fprintf(w, "  2. route the role in the hub's %s: roles.%s.identity: %s\n", config.Pointer, role, typed)
 	}
-	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", appSettingsURL(*owner, ownerType, creds.Slug))
+	fmt.Fprintf(w, "  3. optional: give it the crew logo under Display information: %s\n", tracker.AppSettingsURL(*owner, ownerType, creds.Slug))
 	return nil
 }

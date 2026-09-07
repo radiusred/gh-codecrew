@@ -2,13 +2,12 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os/exec"
 	"strings"
 
-	"github.com/radiusred/gh-codecrew/internal/gh"
+	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
 // bootstrapBranch is where init commits when the default branch requires
@@ -55,30 +54,21 @@ var defaultRequiresPR = func(dir string) (required, known bool, defaultBranch st
 	if _, err := git(dir, "remote", "get-url", "origin"); err != nil {
 		return false, true, ""
 	}
-	var repo struct {
-		NameWithOwner    string `json:"nameWithOwner"`
-		DefaultBranchRef struct {
-			Name string `json:"name"`
-		} `json:"defaultBranchRef"`
-	}
-	cmd := exec.Command("gh", "repo", "view", "--json", "nameWithOwner,defaultBranchRef")
-	cmd.Dir = dir
-	data, err := cmd.Output()
-	if err != nil || json.Unmarshal(data, &repo) != nil || repo.NameWithOwner == "" || repo.DefaultBranchRef.Name == "" {
+	v := tracker.GitHub{}
+	repo, defaultBranch, err := v.RepoInDir(dir)
+	if err != nil {
 		return false, false, ""
 	}
-	var rules []struct {
-		Type string `json:"type"`
+	types, err := v.BranchRuleTypes(repo, defaultBranch)
+	if err != nil {
+		return false, false, defaultBranch
 	}
-	if err := gh.JSON(&rules, "api", fmt.Sprintf("repos/%s/rules/branches/%s", repo.NameWithOwner, repo.DefaultBranchRef.Name)); err != nil {
-		return false, false, repo.DefaultBranchRef.Name
-	}
-	for _, r := range rules {
-		if r.Type == "pull_request" {
-			return true, true, repo.DefaultBranchRef.Name
+	for _, t := range types {
+		if t == "pull_request" {
+			return true, true, defaultBranch
 		}
 	}
-	return false, true, repo.DefaultBranchRef.Name
+	return false, true, defaultBranch
 }
 
 // bootstrapBase is where codecrew-bootstrap is cut from: the default
