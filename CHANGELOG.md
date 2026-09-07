@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A body saved with CRLF reads as the LF one
+
+- **The tracker normalises `\r\n` to `\n`.** GitHub's web editor saves an
+  issue, comment or PR body with CRLF, and the record scans read line by
+  line: the `## Adopts` heading is matched as a line ending in `$`, which
+  in Go matches only before `\n`, so a task body edited in the browser
+  yielded no adoptions at all and `task finish` would have closed none of
+  the captures the task adopted. The paragraph split behind the Decision,
+  Deviation and gate scans had the same blind spot.
+- **Applied in two places, because `Tracker` is an interface.** The
+  GitHub-backed readers normalise where a body enters the package
+  (`IssueBody`, `Comments`), and each exported scanner normalises at its
+  entry, so a scanner reached with a body from anywhere else reads it the
+  same way. No regexp changed; a table test drives every scanner over an
+  LF fixture and its CRLF twin, both fetched through the reader that
+  fetches a body from GitHub. SPEC §4 says line endings are not part of
+  the record grammar.
+- **`task new` applies `cc:task`, and a test says so.** Every downstream
+  gate reads that label; nothing asserted it was applied at creation, so a
+  regression would have passed the suite and surfaced at the first refused
+  `task start`. (#309)
+
 ### `migrate` writes the root entry points a 1.x repo never had
 - `init` writes a root `AGENTS.md` and `CLAUDE.md` when they are absent, and
   `migrate` did not: it named an absent one under `action needed` and asked
