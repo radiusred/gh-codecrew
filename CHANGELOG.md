@@ -6,6 +6,33 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `CLI.md`, the reference for the verbs
+
+- **A reference at the repository root** — `CLI.md`, beside `SPEC.md`: a
+  section per verb carrying its synopsis, a paragraph of what it does, every
+  option with its argument, default and effect, what it reads and what it
+  writes, its `--dry-run` behaviour where it has one, the refusal codes it
+  can exit with, its exit status and an example. Two sections ahead of the
+  verbs carry what they share: the exit status and output channels, and the
+  refusals every pointer-reading verb can raise. It is technical detail and
+  nothing else — the protocol stays in `SPEC.md` and the orientation in
+  `docs/introduction.md`. (#327)
+- **SPEC §6 is a stub.** Its verb table and the gate sentences it carried
+  are now `CLI.md`'s; §6 keeps its number, so §7–§13 keep theirs, and it
+  still carries the exit-code contract and the `refused[CODE]: detail`
+  channel, which are protocol rather than verb detail. The sentences
+  elsewhere in the SPEC that cited §6 for a verb's behaviour cite `CLI.md`,
+  as does `docs/platform-interop.md`. (#327)
+- **Named where a reader is.** `--help`'s last line names `CLI.md` and links
+  it, the README's opening lines and its "Read next" list carry it beside
+  `SPEC.md`, and `docs/introduction.md` places it before the SPEC in the
+  reading order; that page's "What exists" and refusal-code sections now
+  defer the per-verb detail to it rather than restating it. (#327)
+- **Two drift tests.** One parses `--help` and `CLI.md` and requires the same
+  verbs with the same synopsis lines; the other parses `CLI.md`'s per-verb
+  refusal lists and SPEC §10's "Raised by" column and requires them to agree
+  in both directions. (#327)
+
 ### Docs-only pull requests: the self-gating workflow, and why `[skip ci]` cannot pass the gate
 
 - **`docs/first-milestone.md` §5 gains the self-gating workflow shape** —
