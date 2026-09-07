@@ -196,8 +196,8 @@ func keptLine(out string) string {
 // nowhere. A 1.x spoke never had either file, so before #301 five of twelve
 // fleet repos were migrated into a state a fresh init would never produce.
 //
-// The four states a 1.x repo can present are one table, run twice: live,
-// and again on an identical repo with --dry-run, because a preview that
+// The states a 1.x repo can present are one table, run twice: live, and
+// again on an identical repo with --dry-run, because a preview that
 // disagrees with the run it previews is not a preview (M15-R1, #301).
 func TestMigrateWritesTheEntryPoints(t *testing.T) {
 	// A 1.x root AGENTS.md: the instructions themselves, naming the paths
@@ -233,6 +233,16 @@ func TestMigrateWritesTheEntryPoints(t *testing.T) {
 		name:     "a kept AGENTS.md that reaches, and no CLAUDE.md",
 		existing: map[string]string{"AGENTS.md": reachingRoot},
 		write:    []string{"CLAUDE.md"},
+	}, {
+		// The one shape the pending set exists for: the kept file's
+		// import lands on a root AGENTS.md that is not there yet and is
+		// about to be. Judged against disk alone it reaches nothing, and
+		// the migration asks the operator to hand-edit a file that
+		// reaches the instructions the moment it writes the AGENTS.md it
+		// just said it would write (checky's finding 1 on PR #315).
+		name:     "a kept CLAUDE.md reaching through an AGENTS.md the migration writes",
+		existing: map[string]string{"CLAUDE.md": "@AGENTS.md\n"},
+		write:    []string{"AGENTS.md"},
 	}} {
 		for _, dry := range []bool{false, true} {
 			files := map[string]string{"roles/qa.md": "# Role: qa\n"}
