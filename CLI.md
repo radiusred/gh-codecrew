@@ -59,19 +59,28 @@ follows the same rule and exits `1` when it reports a gate that would refuse.
 
 ## Output channels
 
-**stdout** carries what a caller consumes: a minted token, `role <name>`'s
-identity, a report and its `warning:` lines.
+**stdout** carries everything a verb prints as it works: what a caller
+consumes — a minted token, `role <name>`'s identity — and the report or
+receipt, with the `note:` and `warning:` lines that qualify it. A `note:` is
+advisory and never a failure: it stands beside a verb that goes on to
+succeed. Each verb's own section says which lines it writes.
 
-**stderr** carries the machine channel, one line:
+**stderr** carries three things, and only these. The refusal line, once, as
+the verb exits `1`:
 
 ```
 codecrew: refused[CODE]: detail
 ```
 
 The code is a fixed vocabulary, catalogued in [SPEC §10](SPEC.md#10-the-cli);
-the detail is prose for a human and may be reworded in any release. A `note:`
-line is the other thing stderr carries: advisory, never a failure, printed
-alongside a verb that goes on to succeed.
+the detail is prose for a human and may be reworded in any release. The
+`note:` lines raised while the pointer is read — a pointer, or a hub's
+pointer, carrying no `codecrew:` version, and a `gh` whose version could not
+be read — which precede anything the verb itself prints. And `identity
+token`'s receipt, which is on stderr so that stdout carries the token alone.
+
+Under `--dry-run` the gate lines and the plan are stdout; a dry run that ends
+in a refusal prints that one line on stderr like any other.
 
 ## Common refusals
 
@@ -130,10 +139,11 @@ of exactly those paths, on the current branch, or on `codecrew-bootstrap` cut
 from the default branch when the default branch requires pull requests; it
 never pushes. In GitHub: the missing `cc:task`, `cc:milestone` and
 `cc:needs-decision` labels, with the protocol's colour and description; an
-existing label is left exactly as it is. On stdout: a line per file written
-or kept, the commit, a line per label, and last an `action needed` block
-naming any kept root entry point that does not reach `.codecrew/AGENTS.md`,
-with the lines to add to it.
+existing label is left exactly as it is. Everything it prints is on stdout:
+a line per file written or kept, the commit, a line per label, each `note:`,
+and last an `action needed` block naming any kept root entry point that does
+not reach `.codecrew/AGENTS.md`, with the lines to add to it. It reads no
+pointer, so nothing but a refusal reaches stderr.
 
 **Refusals.** [`LAYOUT_LEGACY`](SPEC.md#10-the-cli) — the repo is on the 1.x
 layout; `gh codecrew migrate` moves it. A directory that is not the
@@ -182,9 +192,11 @@ identity (`users/<login>`, then `users/<login>[bot]`).
 **Writes.** The moved and rewritten files above, in one commit of exactly
 those paths on the current branch; it never pushes. In GitHub: the missing
 `cc:` labels created, and the existing ones restyled to the protocol's colour
-and description, each reported; every other label untouched. On stdout: a
-line per step, and last an `action needed` block for a kept root entry point
-that does not reach the instructions.
+and description, each reported; every other label untouched. Everything it
+prints is on stdout: a line per step, each `note:`, and last an `action
+needed` block for a kept root entry point that does not reach the
+instructions. It reads no pointer, so nothing but a refusal reaches
+stderr.
 
 **`--dry-run`.** The same steps in the same order, the same refusals, and the
 same label lines; nothing written.
@@ -234,7 +246,9 @@ remote `task/<n>-…` branches and one issue per branch; the repository's
 delete-branch-on-merge setting; the local `.codecrew/roles/` contracts, for
 the drift note.
 
-**Writes.** Nothing. The report goes to stdout, `note:` lines to stderr.
+**Writes.** Nothing. The report and every `note:` line it carries — the
+delete-on-merge setting, the contract drift, a branch listing it could not
+read or could not finish — go to stdout.
 
 **Refusals.** The [common](#common-refusals) ones. Nothing in the report
 refuses: an ID that is not the milestone's own prints as a line and the
@@ -282,8 +296,9 @@ listing and its newest issues.
 
 **Writes.** One issue in the hub, labelled `cc:milestone`. No file: the
 milestone's `ROADMAP.md` row is added, Done, by its document PR. On stdout:
-the issue reference, the title, the requirement IDs counted, and any
-`renumbered:` line.
+the issue reference, the title, the requirement IDs counted, any
+`renumbered:` line, and a `note:` when the requirements section it wrote
+yields no bold ID.
 
 **`--dry-run`.** The number, title and requirement IDs; no issue.
 
@@ -337,8 +352,8 @@ hub's default branch; the `task/<n>-…` branches of the hub and of every repo
 the tasks name, and the pull requests whose head each candidate branch is.
 
 **Writes.** In GitHub: the closing comment on the milestone issue, the issue
-closed, and the branches the two sweeps delete. Nothing on disk. The report
-goes to stdout.
+closed, and the branches the two sweeps delete. Nothing on disk. The report,
+the gate lines and the sweep's `note:` lines all go to stdout.
 
 **`--dry-run`.** The same gates in the same order, the same sweep verdicts
 and the same closing comment; nothing written.
@@ -389,8 +404,9 @@ closed before the citation report.
 listing in every state; the milestone issue and its sub-issues, bodies and
 comments; each cited URL.
 
-**Writes.** Nothing. The report goes to stdout, including a `warning:` line
-per unresolved external citation.
+**Writes.** Nothing. The report goes to stdout, including the `note:` that
+says the milestone is closed and a `warning:` line per unresolved external
+citation.
 
 **Refusals.** [`NOT_FOUND`](SPEC.md#10-the-cli) — no milestone carries that
 number, open or closed. [`REQUIREMENT_ID_MISMATCH`](SPEC.md#10-the-cli) — an
@@ -442,8 +458,9 @@ listing and newest issues; each adopted issue's state.
 
 **Writes.** In GitHub: one issue in the target repo labelled `cc:task`,
 linked to the milestone as a sub-issue, and one comment on each adopted
-capture. Nothing on disk. On stdout: the issue reference and the adoptions
-recorded.
+capture. Nothing on disk. On stdout: the issue reference, the adoptions
+recorded, and a `note:` for a comment that could not be posted or a milestone
+found by one of the fallback reads.
 
 **Refusals.** [`NOT_FOUND`](SPEC.md#10-the-cli) — no open milestone with that
 number, after all three reads. [`ADOPT_NOT_OPEN`](SPEC.md#10-the-cli) — an
@@ -485,7 +502,8 @@ issue, its labels, its body's `## Plan` section; the caller's login.
 assignment where the caller is human, and the linked branch. Nothing on disk
 — the branch is created on the remote, and the printed line names the
 `git fetch && git switch` that brings it local. On stdout: the branch
-created, the local command, and the start record.
+created, the local command, the start record, and a `note:` for an assignment
+or a branch creation that failed.
 
 **Refusals.** [`CLOSED`](SPEC.md#10-the-cli) — the task issue is already
 closed. [`NOT_A_TASK`](SPEC.md#10-the-cli) — the issue is not labelled
@@ -547,7 +565,9 @@ branch, a fast-forward of it, and the deletion of the local task branch —
 forced, and allowed only when the branch sits at the merge commit or is
 contained in the fetched default branch. A branch carrying anything else is
 named and kept. Run anywhere else, the local half does nothing and prints
-nothing.
+nothing. Everything it prints is on stdout: the gate lines, the merge, the
+`note:` lines about the pull request's other closing references before it,
+and every `note:` after it.
 
 **`--dry-run`.** Every gate and every write above, printed and not performed;
 the same `note:` about the pull request's other closing references; the same
@@ -562,8 +582,10 @@ the task, or nothing records a start. [`NO_PR`](SPEC.md#10-the-cli) — no open
 pull request closes the task.
 [`NO_CHECKS_PERMISSION`](SPEC.md#10-the-cli) — the caller's installation
 token cannot read the pull request's checks at all.
-[`NO_CHECKS`](SPEC.md#10-the-cli) — the pull request reports no checks; there
-is no override. [`CHECKS_PENDING`](SPEC.md#10-the-cli) — its checks are still
+[`NO_CHECKS`](SPEC.md#10-the-cli) — the pull request reports no checks; a
+check reporting `skipping` is a reported check and satisfies the gate, a
+`[skip ci]` commit produces none at all, and there is no override.
+[`CHECKS_PENDING`](SPEC.md#10-the-cli) — its checks are still
 running. [`CHECKS_FAILING`](SPEC.md#10-the-cli) — a check failed.
 [`NO_HOLDER_REVIEW`](SPEC.md#10-the-cli) — the reviewer seat's holder has not
 approved. [`NO_NONDOER_APPROVAL`](SPEC.md#10-the-cli) — the reviewer seat is
@@ -611,7 +633,8 @@ the repository's labels.
 
 **Writes.** In GitHub: the question as a comment on the referenced issue, the
 `cc:needs-decision` label created if absent, and the label applied. Nothing
-on disk. On stdout: the receipt naming the issue and that the gate is raised.
+on disk. On stdout: the receipt naming the issue and that the gate is
+raised, and a `note:` for a label creation that failed.
 
 **Refusals.** The [common](#common-refusals) ones. A missing `--question` or
 `<ref>` exits 1 without a code. A label creation that fails is a `note:` and
