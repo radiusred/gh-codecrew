@@ -175,39 +175,153 @@ func TestMigrateHub(t *testing.T) {
 	}
 }
 
-// A 1.x hub carries CodeCrew's instructions in its root AGENTS.md, which
-// belongs to the project. The migration writes the 2.0 entry point beside
-// the rest of the layout, leaves the root file exactly as it found it, and
-// ends with the lines to paste in — the same block init prints (M13-R3).
-func TestMigrateWritesTheEntryPoint(t *testing.T) {
-	const rootAgents = "# Agents\n\nRead `roles/implementer.md` before doing anything else.\n"
-	dir := legacyRepo(t, legacy1x, map[string]string{
-		"roles/qa.md": "# Role: qa\n",
-		"AGENTS.md":   rootAgents,
-		"CLAUDE.md":   "@AGENTS.md\n",
-	})
+// keptLine is the file list from the action-needed block, or "" when the
+// block is not there. Read off the line itself rather than searched for in
+// the whole output: the skip and write reports above it already name every
+// root file, so a Contains over the output would pass whatever the heading
+// said (checky's finding on PR #278).
+func keptLine(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if after, ok := strings.CutPrefix(line, "Kept: "); ok {
+			return after
+		}
+	}
+	return ""
+}
+
+// The root entry points are migrate's business exactly as they are init's:
+// a file that is not there is CodeCrew's to write — from the same scaffold
+// constant, in the migration's own commit — and a file that is there is the
+// project's prose, kept byte for byte and reported only when it arrives
+// nowhere. A 1.x spoke never had either file, so before #301 five of twelve
+// fleet repos were migrated into a state a fresh init would never produce.
+//
+// The four states a 1.x repo can present are one table, run twice: live,
+// and again on an identical repo with --dry-run, because a preview that
+// disagrees with the run it previews is not a preview (M15-R1, #301).
+func TestMigrateWritesTheEntryPoints(t *testing.T) {
+	// A 1.x root AGENTS.md: the instructions themselves, naming the paths
+	// the migration just moved. It reaches nothing under 2.0.
+	const legacyRoot = "# Agents\n\nRead `roles/implementer.md` before doing anything else.\n"
+	const reachingRoot = "# Agents\n\n" + entryPointLines
+
+	for _, c := range []struct {
+		name string
+		// the root files on disk before the migration
+		existing map[string]string
+		// the root files migrate must write, from their scaffolds
+		write []string
+		// the files the action-needed block must name, exactly; none
+		// means the block must not appear at all
+		kept []string
+	}{{
+		name:  "a 1.x spoke, which never had a root entry point at all",
+		write: []string{"AGENTS.md", "CLAUDE.md"},
+	}, {
+		name:     "a 1.x hub whose root AGENTS.md holds the old instructions",
+		existing: map[string]string{"AGENTS.md": legacyRoot},
+		write:    []string{"CLAUDE.md"},
+		kept:     []string{"AGENTS.md"},
+	}, {
+		name:     "both root files kept, neither reaching",
+		existing: map[string]string{"AGENTS.md": legacyRoot, "CLAUDE.md": "@AGENTS.md\n"},
+		kept:     []string{"AGENTS.md", "CLAUDE.md"},
+	}, {
+		name:     "a kept CLAUDE.md reaching through its AGENTS.md import",
+		existing: map[string]string{"AGENTS.md": reachingRoot, "CLAUDE.md": "@AGENTS.md\n"},
+	}, {
+		name:     "a kept AGENTS.md that reaches, and no CLAUDE.md",
+		existing: map[string]string{"AGENTS.md": reachingRoot},
+		write:    []string{"CLAUDE.md"},
+	}} {
+		for _, dry := range []bool{false, true} {
+			files := map[string]string{"roles/qa.md": "# Role: qa\n"}
+			for name, content := range c.existing {
+				files[name] = content
+			}
+			dir := legacyRepo(t, legacy1x, files)
+			stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
+
+			var out bytes.Buffer
+			if err := migrate(&out, dir, dry); err != nil {
+				t.Fatalf("%s (dry=%v): %v", c.name, dry, err)
+			}
+			got := out.String()
+			label := c.name
+			if dry {
+				label += " (dry run)"
+			}
+
+			// CodeCrew's own entry point, and every root file that was
+			// missing, are written from the constants init writes them
+			// from — or, in a dry run, listed and not written.
+			verb := "wrote "
+			if dry {
+				verb = "would write "
+			}
+			for _, f := range append([]string{config.AgentsFile}, c.write...) {
+				if !strings.Contains(got, verb+f) {
+					t.Errorf("%s: output does not report %q:\n%s", label, verb+f, got)
+				}
+			}
+			for f, want := range map[string]string{
+				config.AgentsFile: agentsScaffold,
+				"AGENTS.md":       rootEntryPointScaffolds["AGENTS.md"],
+				"CLAUDE.md":       rootEntryPointScaffolds["CLAUDE.md"],
+			} {
+				if f != config.AgentsFile && !slices.Contains(c.write, f) {
+					continue
+				}
+				if dry {
+					if exists(t, dir, f) {
+						t.Errorf("%s: the dry run wrote %s", label, f)
+					}
+					continue
+				}
+				if got := read(t, dir, f); got != want {
+					t.Errorf("%s: %s = %q, want the scaffold init writes", label, f, got)
+				}
+			}
+			// A file the project already had is never rewritten.
+			for f, want := range c.existing {
+				if got := read(t, dir, f); got != want {
+					t.Errorf("%s: the project's %s was rewritten: %q", label, f, got)
+				}
+			}
+			// The action needed block names the kept files and nothing
+			// else — an absent one is written, not asked for.
+			if want := strings.Join(c.kept, ", "); keptLine(got) != want {
+				t.Errorf("%s: action needed reads \"Kept: %s\", want %q:\n%s", label, keptLine(got), want, got)
+			}
+			if len(c.kept) == 0 {
+				if strings.Contains(got, "action needed") {
+					t.Errorf("%s: migrate asked for an action it does not need:\n%s", label, got)
+				}
+				continue
+			}
+			if !strings.Contains(got, entryPointLines) {
+				t.Errorf("%s: the block printed no lines to add:\n%s", label, got)
+			}
+		}
+	}
+}
+
+// Everything migrate writes rides the migration's own commit, not the
+// operator's next one, and the commit is still limited to the migration:
+// work the operator had staged or unstaged is untouched.
+func TestMigrateCommitsTheEntryPointsItWrites(t *testing.T) {
+	dir := legacyRepo(t, legacy1x, map[string]string{"roles/qa.md": "# Role: qa\n"})
 	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
 
 	var out bytes.Buffer
 	if err := migrate(&out, dir, false); err != nil {
 		t.Fatal(err)
 	}
-	if got := read(t, dir, config.AgentsFile); got != agentsScaffold {
-		t.Errorf("%s = %q, want the scaffold init writes", config.AgentsFile, got)
-	}
-	if got := read(t, dir, "AGENTS.md"); got != rootAgents {
-		t.Errorf("the project's root AGENTS.md was rewritten: %q", got)
-	}
-	for _, want := range []string{"wrote " + config.AgentsFile, "action needed", "AGENTS.md (kept)", "CLAUDE.md (kept)", entryPointLines} {
-		if !strings.Contains(out.String(), want) {
-			t.Errorf("output does not carry %q:\n%s", want, out.String())
-		}
-	}
-	// The new file rides the migration's own commit, not the operator's
-	// next one.
 	files := committedFiles(t, dir, "HEAD")
-	if !strings.Contains(files, config.AgentsFile) {
-		t.Errorf("%s is not in the migration commit:\n%s", config.AgentsFile, files)
+	for _, f := range append([]string{config.AgentsFile}, rootEntryPoints...) {
+		if !strings.Contains(files, f) {
+			t.Errorf("%s is not in the migration commit:\n%s", f, files)
+		}
 	}
 	status, err := git(dir, "status", "--short")
 	if err != nil {
@@ -215,28 +329,6 @@ func TestMigrateWritesTheEntryPoint(t *testing.T) {
 	}
 	if status != "" {
 		t.Errorf("the migration left work uncommitted: %q", status)
-	}
-}
-
-// A root entry point that already reaches the instructions asks for
-// nothing: the block is for a project that would otherwise be disconnected,
-// not a banner on every migration.
-func TestMigrateSaysNothingWhenTheRootAlreadyReaches(t *testing.T) {
-	dir := legacyRepo(t, legacy1x, map[string]string{
-		"AGENTS.md": "# Agents\n\n" + entryPointLines,
-		"CLAUDE.md": "@AGENTS.md\n",
-	})
-	stubAccounts(t, map[string]string{"myorg-coder[bot]": "Bot", "alice": "User"})
-
-	var out bytes.Buffer
-	if err := migrate(&out, dir, false); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(out.String(), "action needed") {
-		t.Errorf("a reaching root entry point still asked for an action:\n%s", out.String())
-	}
-	if !exists(t, dir, config.AgentsFile) {
-		t.Errorf("%s was not written", config.AgentsFile)
 	}
 }
 
@@ -537,6 +629,8 @@ func TestMigrateDryRun(t *testing.T) {
 		"would move roles/qa.md -> " + config.RolesDir + "/qa.md",
 		"would remove the emptied roles/",
 		"would write " + config.AgentsFile,
+		"would write AGENTS.md",
+		"would write CLAUDE.md",
 		"would rewrite " + config.Pointer,
 		"roles.implementer.identity: myorg-coder -> app:myorg-coder",
 		"roles.coordinator: added",
@@ -548,6 +642,11 @@ func TestMigrateDryRun(t *testing.T) {
 	}
 	if exists(t, dir, config.Pointer) || !exists(t, dir, config.LegacyPointer) || !exists(t, dir, "roles/qa.md") || exists(t, dir, config.AgentsFile) {
 		t.Error("the dry run wrote to disk")
+	}
+	for _, f := range rootEntryPoints {
+		if exists(t, dir, f) {
+			t.Errorf("the dry run wrote %s to disk", f)
+		}
 	}
 	if headSubject(t, dir) != before {
 		t.Error("the dry run committed")

@@ -112,12 +112,11 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 	// nowhere to put: its instructions lived in the root AGENTS.md, which
 	// belongs to the project (M13-R3). Migrating the tree without it would
 	// leave the repo on the 2.0 layout with no 2.0 entry point, so the
-	// scaffold init writes goes in when it is absent — and the root files
-	// are only ever reported, never rewritten.
-	var written []string
-	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(config.AgentsFile))); err != nil {
-		written = append(written, config.AgentsFile)
-	}
+	// scaffold init writes goes in when it is absent — and so do the root
+	// entry points, from the same constants init writes them from. Only a
+	// file that is already there is the project's; that one is reported,
+	// never rewritten.
+	written, kept := entryPointPlan(root)
 	changes, err := rewritePointer(doc)
 	if err != nil {
 		return err
@@ -140,7 +139,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		fmt.Fprintf(w, "%s the emptied %s/\n", removed, config.LegacyRolesDir)
 	}
 	for _, f := range written {
-		fmt.Fprintf(w, "%s %s\n", wrote, f)
+		fmt.Fprintf(w, "%s %s\n", wrote, f.path)
 	}
 	fmt.Fprintf(w, "%s %s:\n", rewrote, config.Pointer)
 	for _, c := range changes {
@@ -151,7 +150,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		fmt.Fprintf(w, "would commit %d paths on %s: %q\n", commitPathCount(moves)+len(written), currentBranch(root), migrateSubject)
 		migrateLabels(w, true)
 		fmt.Fprintln(w, "dry run: nothing written")
-		reportEntryPoint(w, root)
+		reportEntryPoint(w, kept)
 		return nil
 	}
 
@@ -169,7 +168,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		return err
 	}
 	for _, f := range written {
-		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(f)), []byte(agentsScaffold), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(f.path)), []byte(f.content), 0o644); err != nil {
 			return err
 		}
 	}
@@ -208,33 +207,58 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 	migrateLabels(w, false)
 	fmt.Fprintf(w, "next: read it (git show %s), then push and open a pull request — migrate never pushes\n", sha)
 	// Last, so the one thing needing a human is the last thing on screen.
-	reportEntryPoint(w, root)
+	reportEntryPoint(w, kept)
 	return nil
 }
 
-// reportEntryPoint names the root entry points that do not reach
+// scaffolded is a file migrate writes outright rather than moves: the path
+// it goes to, and the bytes init would write there.
+type scaffolded struct{ path, content string }
+
+// entryPointPlan decides what the migration does about the entry points
+// before it writes anything, so the dry run previews the state the live run
+// creates rather than the one both start from. write holds every file that
+// is absent — .codecrew/AGENTS.md, which is CodeCrew's own, and each root
+// entry point, from the constants init writes them from. kept holds the
+// root files that are already there and would still not reach
+// .codecrew/AGENTS.md once write is on disk: those are the project's prose,
+// and the only thing left for a human (#301). A kept CLAUDE.md counts as
+// reaching through an AGENTS.md this migration is about to write, exactly
+// as it would on a rerun once that file exists.
+func entryPointPlan(root string) (write []scaffolded, kept []string) {
+	absent := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+		return err != nil
+	}
+	if absent(config.AgentsFile) {
+		write = append(write, scaffolded{config.AgentsFile, agentsScaffold})
+	}
+	pending := map[string]bool{}
+	for _, f := range rootEntryPoints {
+		if absent(f) {
+			write = append(write, scaffolded{f, rootEntryPointScaffolds[f]})
+			pending[f] = true
+		}
+	}
+	for _, f := range rootEntryPoints {
+		if !pending[f] && !reachesInstructions(root, f, pending) {
+			kept = append(kept, f)
+		}
+	}
+	return write, kept
+}
+
+// reportEntryPoint names the kept root entry points that do not reach
 // .codecrew/AGENTS.md. A 1.x repo's root AGENTS.md holds the instructions
 // themselves and names the paths that just moved, so after a migration it
 // almost always needs the two lines — but it is the project's file, and
-// migrate rewrites nobody's prose. The rule is init's, through the same
-// reachesInstructions, which is false for a file that is absent as well as
-// for one that arrives nowhere: the act asked of the operator is identical.
-func reportEntryPoint(w io.Writer, root string) {
-	var stranded []string
-	for _, f := range rootEntryPoints {
-		if reachesInstructions(root, f) {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(root, f)); err == nil {
-			stranded = append(stranded, f+" (kept)")
-		} else {
-			stranded = append(stranded, f+" (absent)")
-		}
-	}
-	if len(stranded) == 0 {
+// migrate rewrites nobody's prose. An absent one is not the operator's
+// work at all: migrate writes it, as init does, and it never reaches here.
+func reportEntryPoint(w io.Writer, kept []string) {
+	if len(kept) == 0 {
 		return
 	}
-	entryPointAction(w, "a root entry point does not reach CodeCrew's instructions.", "Root: "+strings.Join(stranded, ", "))
+	entryPointAction(w, kept)
 }
 
 // currentBranch is the branch a commit would land on, or "HEAD" when it
@@ -251,7 +275,7 @@ func currentBranch(dir string) string {
 // destination and every file written outright) and the whole pathspec the
 // commit is limited to (the same, plus the sources git already knows, so
 // their removal is recorded in the same commit).
-func commitPaths(moves []move, written []string) (stage, paths []string) {
+func commitPaths(moves []move, written []scaffolded) (stage, paths []string) {
 	for _, m := range moves {
 		stage = append(stage, m.to)
 		paths = append(paths, m.to)
@@ -259,8 +283,10 @@ func commitPaths(moves []move, written []string) (stage, paths []string) {
 			paths = append(paths, m.from)
 		}
 	}
-	stage = append(stage, written...)
-	paths = append(paths, written...)
+	for _, f := range written {
+		stage = append(stage, f.path)
+		paths = append(paths, f.path)
+	}
 	return stage, paths
 }
 

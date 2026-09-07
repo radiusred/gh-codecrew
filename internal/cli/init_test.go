@@ -382,15 +382,8 @@ func TestInitPrintsTheLineToAddForAStrandedEntryPoint(t *testing.T) {
 		if !strings.Contains(got, "action needed") {
 			t.Errorf("%s: init asked for no action:\n%s", c.name, got)
 		}
-		var keptLine string
-		for _, line := range strings.Split(got, "\n") {
-			if after, ok := strings.CutPrefix(line, "Kept: "); ok {
-				keptLine = after
-				break
-			}
-		}
-		if want := strings.Join(c.stranded, ", "); keptLine != want {
-			t.Errorf("%s: the action-needed heading reads \"Kept: %s\", want \"Kept: %s\":\n%s", c.name, keptLine, want, got)
+		if want := strings.Join(c.stranded, ", "); keptLine(got) != want {
+			t.Errorf("%s: the action-needed heading reads \"Kept: %s\", want \"Kept: %s\":\n%s", c.name, keptLine(got), want, got)
 		}
 		// The lines it prints are the ones its own root pointer carries.
 		if !strings.Contains(got, entryPointLines) {
