@@ -8,6 +8,10 @@ import (
 	"os"
 )
 
+// usage is the help screen. Its last line links CLI.md through init.go's
+// U — the documentation base for this repository, which the scaffold
+// already writes into every reference it generates — so the address is
+// spelled once and the venue guard has one literal to allow rather than two.
 const usage = `usage: gh codecrew <verb>
 
 verbs:
@@ -51,7 +55,7 @@ verbs:
 
 Blocked gates exit nonzero with "refused[CODE]: detail".
 Every verb in full — options, reads and writes, refusals, exit status — is in
-CLI.md: https://github.com/radiusred/gh-codecrew/blob/main/CLI.md
+CLI.md: ` + U + `/CLI.md
 `
 
 // Run executes one verb. --help on any verb prints its usage and is not
