@@ -126,12 +126,15 @@ func (GitHub) RecentIssues(repo string) ([]TitledIssue, error) {
 	return issueListing(repo, "state=all&sort=created&direction=desc", false)
 }
 
+// IssueBody returns the body with its line endings normalised: this is the
+// boundary a body crosses into the package, and every scan below it reads
+// line by line (NormalizeLineEndings).
 func (GitHub) IssueBody(ref IssueRef) (string, error) {
 	var issue struct {
 		Body string `json:"body"`
 	}
 	err := gh.JSON(&issue, "api", fmt.Sprintf("repos/%s/issues/%d", ref.Repo, ref.Number))
-	return issue.Body, err
+	return NormalizeLineEndings(issue.Body), err
 }
 
 func (GitHub) IssueLabels(ref IssueRef) ([]string, error) {
@@ -429,7 +432,9 @@ func (GitHub) Comments(ref IssueRef) ([]Comment, error) {
 	}
 	comments := make([]Comment, len(raw))
 	for i, c := range raw {
-		comments[i] = Comment{Author: c.User.Login, Body: c.Body, URL: c.URL}
+		// The boundary, as in IssueBody: a comment body reaches the
+		// record scans with LF line endings whatever GitHub stored.
+		comments[i] = Comment{Author: c.User.Login, Body: NormalizeLineEndings(c.Body), URL: c.URL}
 	}
 	return comments, nil
 }
