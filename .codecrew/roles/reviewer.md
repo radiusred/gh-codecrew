@@ -33,6 +33,14 @@ an agent-gated merge into a self-approval.
   premise is the failure mode gates exist to catch.
 - **Correctness and consequence:** bugs, security issues, and effects on
   callers/consumers outside the diff.
+- **What the PR closes:** `gh pr view <n> --json closingIssuesReferences`
+  must name the task and nothing else. GitHub parses the body as prose, so
+  a closing keyword near an example ref quietly adds an issue the merge
+  will close — PR #294 shipped two of those
+  ([#303](https://github.com/radiusred/gh-codecrew/issues/303)). Adopted
+  captures belong under the task's `## Adopts` section and are closed by
+  `task finish` after the merge, never by a keyword in the body. An extra
+  reference is a finding: the body is the fix.
 - **Documented commands, executed:** run every command the diff documents,
   verbatim — a command that cannot complete as written is a finding, not a
   nit. Reading passes what execution fails: both M4 not-satisfied verdicts

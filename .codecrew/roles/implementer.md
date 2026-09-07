@@ -100,8 +100,28 @@ Then, every run:
   task's `## Adopts` section is adopted, and `task finish` closes it after
   the merge with a comment pointing back at the task and this PR — do not
   add a `Closes` line for one, and do not close it by hand
-  ([#193](https://github.com/radiusred/gh-codecrew/issues/193)). Whether to request a review
-  is the reviewer seat's identity kind, and one command answers it:
+  ([#193](https://github.com/radiusred/gh-codecrew/issues/193)).
+- **No closing word before any other ref, anywhere in the body.** GitHub
+  parses the PR body itself, as prose, and none of the protocol's own
+  readers stand between it and your text: a `close`, `closes`, `closed`,
+  `fix`, `fixes`, `fixed`, `resolve`, `resolves` or `resolved` in the same
+  breath as an `#ref` becomes a real closing reference, whatever you meant
+  by it. PR #294 wrote the example `fix #42 in the parser` near sentences
+  about closing semantics and left GitHub linking #42, #193 and #270 as
+  issues that PR closes — the two extra ones by accident
+  ([#303](https://github.com/radiusred/gh-codecrew/issues/303)). Write an
+  example ref without a keyword next to it, or in a code span. Then check
+  what GitHub actually read, straight after opening:
+
+  ```
+  gh pr view <n> --json closingIssuesReferences
+  ```
+
+  Your task's number, alone. Anything else is a body to edit before the
+  reviewer sees it; `task finish` says the same thing again before it
+  merges, but by then the PR has been reviewed against a lie.
+- **Requesting the review.** Whether to request one at all is the reviewer
+  seat's identity kind, and one command answers it:
 
   ```
   reviewer=$(gh codecrew role reviewer --login)
