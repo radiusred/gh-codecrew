@@ -134,6 +134,8 @@ under [.codecrew/roles/](.codecrew/roles/):
   an orchestration platform: the coordinator seat, wake paths, onboarding
 - [docs/extensions.md](docs/extensions.md) — extending a role contract in
   `.codecrew/roles/<role>.local.md` without forking it
+- [docs/working-offline.md](docs/working-offline.md) — which verbs run with no
+  network, how the rest refuse, and the recipe for work begun offline
 - [docs/founding-decisions.md](docs/founding-decisions.md) — the trade-offs
   the design was chosen against
 - [docs/milestones/](docs/milestones/) — one record per delivered milestone,

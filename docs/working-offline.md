@@ -46,9 +46,11 @@ note: could not ask GitHub which repository this is (…) — the cc: labels are
 
 The first is the branch-protection probe: unanswered, `init` takes the
 cautious branch and commits on `codecrew-bootstrap` rather than on the
-default branch. (A repository with no `origin` at all is a different case —
-that is *known* not to require pull requests, and the commit lands on the
-current branch.) The second is the label step, which is the one thing the
+default branch — which is the one thing an offline `init` does differently
+from an online one in an unprotected repository. Two cases do not reach it:
+a repository with no `origin` at all, which is *known* not to require pull
+requests, and a repository with no commit yet, which has no branch to cut
+from — in both the scaffold lands on the current branch. The second is the label step, which is the one thing the
 scaffold cannot write to disk; the `cc:` labels then get created implicitly,
 with GitHub's own colour, the first time a verb applies one. Running
 `gh codecrew init` again once you are online creates them properly.
@@ -85,17 +87,26 @@ never folded into another one, which is what lets an orchestrator tell
 | --- | --- |
 | `codecrew status` | The load. Nothing of the board is printed. |
 | `codecrew role <name>` | The load — the routing answer is local in a hub, but the verb still asks GitHub to name the current repository first. |
-| `codecrew task new/start/finish` | The load, `--dry-run` included. |
-| `codecrew milestone new/close/evidence` | The load, `--dry-run` included. |
+| `codecrew task new/start/finish` | The load. |
+| `codecrew milestone new/close/evidence` | The load. |
 | `codecrew checkpoint` | The load. The gate is not raised; nothing local records it either. |
 | `codecrew roles show <role>` *(from a spoke)* | The hub's contract has to be fetched, so it refuses `GH_UNREACHABLE` rather than reporting a contract that is merely elsewhere. |
 
-Two conditions in this table are not about the network at all, and reading
-the code rather than the symptom saves the confusion: `roles diff` from a
-spoke fails with `no local .codecrew/roles/implementer.md — run from the hub
-(spokes hold no contracts)` whether or not you are online, and a `--dry-run`
-is a dry run against GitHub's *current* state, so it is a read and needs the
-network as much as the write does.
+A dry run is no way past this. Three verbs take `--dry-run` — `task finish`,
+`milestone new` and `milestone close` — and it means "every gate in order,
+then what the verb would do, nothing written". The gates are read from
+GitHub, so the run needs the network exactly as much as the write does, and
+offline all three stop at the load with the line above. The other three
+verbs in those two rows never had the flag: `task new`, `task start` and
+`milestone evidence` reject it while parsing their arguments, before the
+load and identically online, with `flag provided but not defined: -dry-run`
+or the verb's usage line.
+
+One condition in this table is not about the network at all, and reading the
+code rather than the symptom saves the confusion: `roles diff` from a spoke
+fails with `no local .codecrew/roles/implementer.md — run from the hub
+(spokes hold no contracts)` whether or not you are online — a spoke holds no
+contracts to diff.
 
 **The identity verbs are the exception worth knowing.** `identity token` and
 `identity webhook` talk to `api.github.com` directly rather than through
@@ -138,7 +149,9 @@ The boundaries of a task are GitHub's; the middle is yours. So:
 **Back online.**
 
 5. Put the plan on the task issue.
-6. `gh codecrew task start <ref>` — it assigns the seat, verifies the plan,
+6. `gh codecrew task start <ref>` — it verifies the plan first and refuses
+   `NO_PLAN` without one, then assigns the issue to you (not to an App: GitHub
+   does not accept one as an assignee, so an App-held seat is never offered),
    posts the start record that makes you the owner `task finish` will hold to,
    and creates the linked branch.
 7. Reconcile your local branch with the one it just created, then push, open
@@ -148,13 +161,20 @@ The boundaries of a task are GitHub's; the middle is yours. So:
 creates the linked branch through GitHub (`gh issue develop`), which knows
 nothing about your machine. A local branch of that name is not consulted, and
 the branch GitHub creates is cut from the default branch's current head and
-carries none of your commits. The verb reports success and prints the two
-lines it always prints:
+carries none of your commits. The verb reports success and prints, for a
+seat that commits and a branch GitHub created:
 
 ```
 linked branch task/329-working-offline-what-runs-what-waits-and created
 locally: git fetch && git switch task/329-working-offline-what-runs-what-waits-and
+started radiusred/gh-codecrew#329 as @radiusred-cody[bot]
 ```
+
+The last line is the receipt every start prints. The first two are not
+guaranteed: a `qa` or `reviewer` caller gets `role <name> does not commit …;
+no linked branch created` in their place, because those contracts forbid
+commits, and a `DevelopBranch` that GitHub refuses becomes a `note:` naming
+the branch to create by hand. It is the second line that matters here.
 
 Follow that second line literally and nothing happens, which is the part to
 watch for: `git switch` finds the local branch you already have and stays on
@@ -167,9 +187,10 @@ Reconciling the two is one rebase, and the push that follows sets the
 upstream that is missing:
 
 ```sh
+branch=task/329-working-offline-what-runs-what-waits-and
 git fetch origin
-git rebase origin/task/329-…            # your commits, replayed onto the linked branch
-git push -u origin task/329-…
+git rebase origin/$branch     # your commits, replayed onto the linked branch
+git push -u origin $branch
 ```
 
 If you branched from the same commit the linked branch was cut from — the
