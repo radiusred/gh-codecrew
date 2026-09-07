@@ -141,8 +141,8 @@ func reachesInstructions(dir, name string, pending map[string]bool) bool {
 	// A pending file is not on disk yet, so judge the bytes that are about
 	// to be there: the question is about the repository the verb is
 	// making, not the one it found.
-	content, ok := rootEntryPointScaffolds[name], pending[name]
-	if !ok {
+	content := rootEntryPointScaffolds[name]
+	if !pending[name] {
 		data, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
 			return false
