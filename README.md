@@ -80,12 +80,12 @@ gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, 
                          #  with the lines to add to it printed)
 ```
 
-**Already running CodeCrew?** The current release, v2.0.0, implements
+**Already running CodeCrew?** The current release, v2.0.1, implements
 protocol 2.0 — the `.codecrew/` layout the block above and the rest of this
 page describe. A repo still on the 1.x layout (`.codecrew.yml` and `roles/`
 at the root) is refused, not read: `gh codecrew migrate` moves it forward in
 one local commit, hubs before their spokes. What 2.0 broke and the migration
-steps are at the top of [CHANGELOG.md](CHANGELOG.md).
+steps are in [CHANGELOG.md](CHANGELOG.md)'s 2.0.0 section.
 
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
 are run by the coding agent rather than by the person driving it:
