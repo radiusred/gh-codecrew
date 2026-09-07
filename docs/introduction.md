@@ -70,9 +70,12 @@ when a gate blocks. `task start` is role-aware: roles whose contracts forbid
 commits (qa, reviewer) get no linked development branch; `roles show <role>`
 prints a contract with its `.codecrew/roles/<role>.local.md` extensions
 appended; `task finish` deletes the branch it merged, tidies the clone it ran
-in and closes the backlog captures the task adopted with
-`task new --adopts`, and `milestone close` sweeps what its tasks left, then
-the task branches earlier closes left behind; `init`, `checkpoint` and
+in, closes the backlog captures the task adopted with `task new --adopts`
+and names any issue its merge would close besides the task, and
+`milestone close` sweeps what its tasks left, then the task branches earlier
+closes left behind; `status` names the holder of a task in flight from its
+start record and reports the repository's stale task branches with the
+verdict the next close would give them; `init`, `checkpoint` and
 `migrate` bring the `cc:` labels into existence with fixed colours and
 descriptions; `milestone new`, `task finish` and `milestone
 close` take `--dry-run` — every gate in order with its outcome, then what the
