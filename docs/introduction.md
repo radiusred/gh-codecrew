@@ -224,4 +224,9 @@ condition met and the way out — read it before reaching for a code table.
 project meets first: `NO_PLAN`, `NO_CHECKS`, `VERDICT_MISSING`,
 `DOC_MISSING`.
 
+`NO_CHECKS` is about facts, not effort: a check that reports `skipping`
+satisfies the gate, so a docs-only pull request can be cheap — see [the
+self-gating workflow](first-milestone.md#when-the-gate-is-expensive-let-the-workflow-gate-itself).
+`[skip ci]` produces no check at all, and absence is refused.
+
 Licensed under [Apache 2.0](../LICENSE).
