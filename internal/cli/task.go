@@ -502,7 +502,7 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 		// public one reads it freely (#198). The App is the viewer.
 		e = refuse("NO_CHECKS_PERMISSION", "PR #%d's checks are unreadable by %s: the installation token lacks `%s`, which a private repo requires to read the status check rollup (a public repo reads it without) — add the permission on the App's settings page (Permissions & events → Repository permissions), then accept the change on the installation (Installed GitHub Apps → Configure); GitHub exposes neither through the API (docs/identities.md)", pr.Number, seatName(viewer), pr.ChecksUnreadable)
 	case pr.NoChecks:
-		e = refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run", pr.Number)
+		e = refuse("NO_CHECKS", "PR #%d has no CI checks — the deterministic gate cannot be satisfied by absence (SPEC §8); add a workflow that runs on pull_request, let it report, then re-run (a check reporting `skipping` satisfies the gate, so a docs-only path is a job the workflow skips by `if:`, never `[skip ci]`, which produces no check at all)", pr.Number)
 	case pr.ChecksPending:
 		e = refuse("CHECKS_PENDING", "PR #%d checks still running", pr.Number)
 	case !pr.ChecksOK:

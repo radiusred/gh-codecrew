@@ -481,6 +481,40 @@ func TestPlanCloseRefusesWhileMilestoneIssueIsGated(t *testing.T) {
 	}
 }
 
+// A PR that reports zero checks refuses NO_CHECKS, and the detail names
+// the way a docs-only pull request satisfies the gate cheaply: a job the
+// committed workflow skips, which still reports, rather than `[skip ci]`,
+// which makes GitHub create nothing for the verb to read (#191). The code,
+// the gate's position and the exit status are unchanged — only the detail
+// says more.
+func TestPlanFinishNoChecksNamesTheSkippingPath(t *testing.T) {
+	f := cleanFinish()
+	f.pr.ChecksOK = false
+	f.pr.NoChecks = true
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || run != nil {
+		t.Fatalf("err %v, run %v", err, run != nil)
+	}
+	var r refusal
+	if !errors.As(p.refusal, &r) || r.Code != "NO_CHECKS" {
+		t.Fatalf("refusal = %v", p.refusal)
+	}
+	l := gateLine(p, "CI checks")
+	for _, want := range []string{"refused[NO_CHECKS]", "PR #9", "SPEC §8", "pull_request", "`skipping`", "`if:`", "`[skip ci]`"} {
+		if !strings.Contains(l, want) {
+			t.Errorf("CI checks line lacks %q: %q", want, l)
+		}
+	}
+	for _, g := range []string{"review", "GitHub's required review"} {
+		if gl := gateLine(p, g); !strings.HasSuffix(gl, ": not reached") {
+			t.Errorf("%s: %q", g, gl)
+		}
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("planning wrote: %v", f.writes)
+	}
+}
+
 // An App whose installation token cannot read the checks at all (a private
 // repo, no checks: read or actions: read — #198): the CI checks gate
 // refuses with a code naming the App and the permission, the gates after

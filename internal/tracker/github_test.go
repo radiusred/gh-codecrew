@@ -46,6 +46,10 @@ func TestHelperGH(t *testing.T) {
 			fmt.Print(`{"state":"OPEN","reviewDecision":"","headRefName":"task/1-x","headRefOid":"abc","isCrossRepository":false,"mergedAt":"","author":{"login":"app/myorg-coder"},"reviews":[]}`)
 			os.Exit(0)
 		case "checks":
+			if body := os.Getenv("GH_HELPER_CHECKS_JSON"); body != "" {
+				fmt.Print(body)
+				os.Exit(0)
+			}
 			fmt.Fprint(os.Stderr, os.Getenv("GH_HELPER_CHECKS_STDERR"))
 			os.Exit(1)
 		}
@@ -143,6 +147,35 @@ func TestPRInfoMapsMissingChecksPermission(t *testing.T) {
 	pr, err = GitHub{}.PRInfo("o/r", 9)
 	if err != nil || !pr.NoChecks || pr.ChecksUnreadable != "" {
 		t.Errorf("the checkless shape still maps to NoChecks: err %v pr %+v", err, pr)
+	}
+}
+
+// `skipping` satisfies the CI gate beside `pass`: a job the committed
+// workflow skipped is a check GitHub reported, which is what a docs-only
+// pull request should produce (#191). Absence — the `[skip ci]` outcome —
+// is the separate NoChecks case, and one pending or failing bucket still
+// spoils the whole rollup.
+func TestPRInfoSkippingChecksSatisfyTheGate(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		json              string
+		ok, pending, none bool
+	}{
+		{"all skipped", `[{"bucket":"skipping"},{"bucket":"skipping"}]`, true, false, false},
+		{"skipped beside pass", `[{"bucket":"pass"},{"bucket":"skipping"}]`, true, false, false},
+		{"skipped beside pending", `[{"bucket":"skipping"},{"bucket":"pending"}]`, false, true, false},
+		{"skipped beside fail", `[{"bucket":"skipping"},{"bucket":"fail"}]`, false, false, false},
+		{"nothing reported", `[]`, false, false, true},
+	} {
+		fakeGH(t, "", "GH_HELPER_CHECKS_JSON="+tc.json)
+		pr, err := GitHub{}.PRInfo("o/r", 9)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if pr.ChecksOK != tc.ok || pr.ChecksPending != tc.pending || pr.NoChecks != tc.none {
+			t.Errorf("%s: ChecksOK=%v ChecksPending=%v NoChecks=%v, want %v/%v/%v",
+				tc.name, pr.ChecksOK, pr.ChecksPending, pr.NoChecks, tc.ok, tc.pending, tc.none)
+		}
 	}
 }
 

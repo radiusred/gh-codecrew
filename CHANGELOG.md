@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Docs-only pull requests: the self-gating workflow, and why `[skip ci]` cannot pass the gate
+
+- **`docs/first-milestone.md` §5 gains the self-gating workflow shape** —
+  the recommended form once the gate is expensive: a cheap `changes` job that
+  always reports (checkout, `git diff --name-only <base>...HEAD`, a docs
+  gate measured in seconds) and the heavy job behind `needs:` and `if:` on
+  its output, with the condition computed by the committed workflow from the
+  diff and never from the commit message. Copy-pasteable, with the three
+  things that make it hold up: gate the job and not the workflow (a workflow
+  filtered by `on: … paths:` reports nothing, which is the absence
+  `[skip ci]` produces — and GitHub reads that marker out of a commit
+  message wherever it appears, so a commit that merely mentions it skips the
+  run too), classify by allowlist so an unconsidered path defaults to code,
+  and note that the reviewer reads the classification in the diff either
+  way.
+- **The `NO_CHECKS` refusal and `docs/introduction.md` say what satisfies
+  the gate** — a check reporting `skipping` does, so the cheap path is
+  discoverable from the refusal itself, while `[skip ci]` creates no check
+  and is refused. `SPEC.md` §8 says the same in one sentence: a skipped
+  check is a reported check, the platform's own fact. The code, the gate and
+  the exit status are unchanged; only the detail line says more. (#328)
+
 ### Projects with external contributors
 
 - `docs/introduction.md` gains a conventions section for a project whose
