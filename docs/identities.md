@@ -443,7 +443,11 @@ dispatched reviewer seat does that, whatever else also comments on the PR.
 ### Known quirks
 
 - **Bot identities are not assignable to issues.** `task start` handles this:
-  it records a `**Started by**` comment instead. Expected, not an error.
+  it does not attempt the assignment for an `app:`-typed caller — or any
+  `[bot]` login — and says nothing about it, recording the
+  `**Started by**` comment instead. That record is what `status` names as
+  the holder of a task in progress or in review, so an App-run task shows
+  who holds it despite having no assignee.
 - **The viewer login carries a `[bot]` suffix** (`myorg-coder[bot]`) while
   the routing table names the slug alone (`app:myorg-coder`); the CLI
   normalises this everywhere it resolves roles.
