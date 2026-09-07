@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Projects with external contributors
+
+- `docs/introduction.md` gains a conventions section for a project whose
+  issue list carries community reports beside protocol traffic: no issue
+  template may auto-apply a `cc:` label — GitHub's triage floor keeps a
+  read-only reporter out, and a template's `labels:` front matter is the one
+  path around it — a community report is adopted with
+  `task new --adopts`, never relabelled or rewritten in place, and the
+  `labeled`-event workflow that would revert a `cc:` label applied below
+  `maintain` is described and deliberately not shipped. Documentation only:
+  no protocol change and no verb behaviour change. (#330)
+
 ### The M15 record
 
 - `docs/milestones/15-v2-0-1-what-the-fleet-migration-taught.md` — the
