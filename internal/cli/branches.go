@@ -97,6 +97,12 @@ type sweepItem struct {
 	Reason     string
 	Note       string
 	Stale      bool
+	// TaskOpen marks the one keep the second pass makes without judging
+	// the branch at all: its task issue is still open, so nothing has
+	// finished with it. The sweep reports it like any other keep; a caller
+	// that only wants finished work — `status`'s report — tells it apart
+	// here rather than by reading the reason prose.
+	TaskOpen bool
 }
 
 // planSweep decides, without touching anything, what the sweep would do
@@ -291,7 +297,7 @@ func staleBranchAction(t tracker.Tracker, ref tracker.IssueRef, name string) (sw
 		return skip(err)
 	}
 	if !task.Closed {
-		return sweepItem{Repo: ref.Repo, Name: name, Reason: fmt.Sprintf("%s is open", ref), Stale: true}, true
+		return sweepItem{Repo: ref.Repo, Name: name, Reason: fmt.Sprintf("%s is open", ref), Stale: true, TaskOpen: true}, true
 	}
 	nums, err := t.ClosingPRs(ref, true)
 	if err != nil {
@@ -329,4 +335,35 @@ func staleBranchAction(t tracker.Tracker, ref tracker.IssueRef, name string) (sw
 		}
 	}
 	return sweepItem{Repo: ref.Repo, Name: name, Delete: del, Reason: reason, Stale: true}, true
+}
+
+// planStaleReport judges every task branch one repo carries the way the
+// close's second pass would, and writes nothing — the report `status`
+// prints (#295). It is the same staleBranchAction, so a verdict here and a
+// verdict at the next close can never disagree; only the wording around it
+// differs, a report speaking of what a close would do rather than of what
+// this run is about to.
+//
+// The cost is the reason it was ever an open question: one prefix-filtered
+// listing, then one issue read per task branch — and the PR and comparison
+// lookups only for the branches whose task has closed, which is what
+// staleBranchAction's early return buys. listed is how many branches the
+// listing held, and truncated carries GitHub's hasNextPage back to the
+// caller unworded: the sweep's "a later close reaches the rest" is a
+// promise a report cannot make.
+func planStaleReport(t tracker.Tracker, repo, defaultBranch string) (items []sweepItem, listed int, truncated bool, err error) {
+	branches, truncated, err := t.TaskBranches(repo)
+	if err != nil {
+		return nil, 0, false, err
+	}
+	for _, name := range branches {
+		ref := tracker.IssueRef{Repo: repo, Number: taskNumber(name)}
+		if ref.Number == 0 || name == defaultBranch {
+			continue
+		}
+		if item, ok := staleBranchAction(t, ref, name); ok {
+			items = append(items, item)
+		}
+	}
+	return items, len(branches), truncated, nil
 }

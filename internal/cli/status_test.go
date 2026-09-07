@@ -23,11 +23,43 @@ type statusFake struct {
 	read         []int                     // the task numbers Comments was called for
 	body         string                    // the milestone body; a well-formed one by default
 	keepBranches bool                      // the repo does NOT delete branches on merge
+
+	// The branch side, read only by the stale-branch report: the repo's
+	// task/<n>-… listing and the lookups staleBranchAction makes off it.
+	branches  []string
+	truncated bool
+	branchErr error
+	taskErr   map[int]error
+	prs       map[int][]int
+	prInfo    map[int]tracker.PR
+	ahead     map[string]int
+	tips      map[string]string
+	openPRs   map[string][]int
 }
 
 func (f *statusFake) OpenMilestones(string) ([]tracker.Milestone, error) { return f.milestones, nil }
 func (f *statusFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	if err := f.taskErr[ref.Number]; err != nil {
+		return tracker.Task{}, err
+	}
 	return f.issues[ref.Number], nil
+}
+func (f *statusFake) TaskBranches(string) ([]string, bool, error) {
+	return f.branches, f.truncated, f.branchErr
+}
+func (f *statusFake) ClosingPRs(ref tracker.IssueRef, _ bool) ([]int, error) {
+	return f.prs[ref.Number], nil
+}
+func (f *statusFake) PRInfo(_ string, n int) (tracker.PR, error) { return f.prInfo[n], nil }
+func (f *statusFake) OpenPRsForBranch(_, branch string) ([]int, error) {
+	return f.openPRs[branch], nil
+}
+func (f *statusFake) BranchAhead(_, b string) (int, string, error) {
+	n, ok := f.ahead[b]
+	if !ok {
+		return 0, "", errors.New("branch not found")
+	}
+	return n, f.tips[b], nil
 }
 func (f *statusFake) IssueBody(tracker.IssueRef) (string, error) {
 	if f.body != "" {
@@ -315,5 +347,113 @@ func TestStatusSurvivesAnUnreadableCommentsList(t *testing.T) {
 	got := out.String()
 	if !strings.Contains(got, "Six @davison\n") || !strings.Contains(got, "gates raised: none\n") {
 		t.Errorf("the board must carry on past the failed read:\n%s", got)
+	}
+}
+
+// staleFake is a hub between milestones carrying four task branches: one
+// whose task closed with a merged PR still at the tip, one whose task
+// closed with unmerged work on it, one whose task is still open, and one
+// whose task cannot be read at all.
+func staleFake() *statusFake {
+	return &statusFake{
+		branches: []string{"task/7-merged", "task/8-unmerged", "task/9-open", "task/10-unreadable"},
+		issues: map[int]tracker.Task{
+			7: {Title: "Seven", Closed: true},
+			8: {Title: "Eight", Closed: true},
+			9: {Title: "Nine"},
+		},
+		taskErr: map[int]error{10: errors.New("404")},
+		prs:     map[int][]int{7: {70}},
+		prInfo:  map[int]tracker.PR{70: {HeadRef: "task/7-merged", Merged: true, HeadSHA: "abc"}},
+		ahead:   map[string]int{"task/7-merged": 3, "task/8-unmerged": 2, "task/9-open": 1, "task/10-unreadable": 1},
+		tips:    map[string]string{"task/7-merged": "abc"},
+	}
+}
+
+// The report names a closed task's branch with the verdict and reason
+// branchAction gives it — the same function milestone close's second sweep
+// judges by, so the two can never disagree (#295, M15-R5) — says nothing
+// at all about a branch whose task is still open, and repeats the sweep's
+// own note: for one whose task it could not read.
+func TestStatusReportsStaleBranchesWithTheSweepsVerdict(t *testing.T) {
+	f := staleFake()
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	// The reasons are not written out here: they are asked of the very
+	// function the sweep asks, so a reworded verdict moves both at once.
+	_, merged := branchAction(f.prInfo[70], true, 3, "abc")
+	_, unmerged := branchAction(tracker.PR{}, false, 2, "")
+	for _, want := range []string{
+		"stale branch: task/7-merged — o/r#7 is closed; " + merged + " — the next milestone close would delete it\n",
+		"stale branch: task/8-unmerged — o/r#8 is closed; " + unmerged + " — kept by the next milestone close\n",
+		"note: stale branch task/10-unreadable skipped (404)\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("status output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "task/9-open") {
+		t.Errorf("a branch whose task is still open is not stale and must not be reported:\n%s", got)
+	}
+	if strings.Contains(got, "carries more task branches") {
+		t.Errorf("a complete listing must not be called partial:\n%s", got)
+	}
+}
+
+// The reason a report costs what it does: the verdict is only computed for
+// a branch whose task has closed. An open task's branch costs the one issue
+// read and stops there — no PR listing, no comparison.
+func TestStatusStaleReportStopsAtAnOpenTask(t *testing.T) {
+	f := staleFake()
+	f.branches = []string{"task/9-open"}
+	f.ahead = nil // a comparison would fail outright if one were made
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Contains(got, "stale branch") {
+		t.Errorf("nothing stale must print nothing:\n%s", got)
+	}
+}
+
+// A listing GitHub could not give whole is reported as partial rather than
+// left to read as the repo's complete state.
+func TestStatusSaysWhenTheBranchListingWasPartial(t *testing.T) {
+	f := staleFake()
+	f.truncated = true
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatal(err)
+	}
+	want := "note: o/r carries more task branches than one listing holds; this report saw 4 of them\n"
+	if got := out.String(); !strings.Contains(got, want) {
+		t.Errorf("status output lacks %q:\n%s", want, got)
+	}
+}
+
+// Every check under the board is advisory: a listing that cannot be read is
+// one note: and the rest of the report still prints.
+func TestStatusStaleReportIsAdvisory(t *testing.T) {
+	f := staleFake()
+	f.branchErr = errors.New("403")
+	f.keepBranches = true
+	var out bytes.Buffer
+	if err := statusReport(&out, statusCtx(t, f)); err != nil {
+		t.Fatalf("an unreadable listing must not fail the verb: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"note: stale task branches not listed for o/r (403)\n",
+		"note: o/r does not delete branches on merge",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("status output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "stale branch:") {
+		t.Errorf("no branch was read, so none may be reported:\n%s", got)
 	}
 }
