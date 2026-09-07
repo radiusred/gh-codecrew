@@ -17,13 +17,13 @@ import (
 // docs/working-offline.md tells an operator what the CLI prints when it
 // cannot reach GitHub, and a page that quotes output is only worth reading
 // while the quotation is true. Each test below produces one of the five
-// texts the page quotes verbatim from the code that prints it, and fails
+// texts the page quotes verbatim from the code that prints them, and fails
 // when the page has stopped carrying it — the shape
 // TestRefusalCodesMatchTheSpecTable uses for SPEC §10's catalogue. They
 // assert nothing about GitHub and run offline themselves.
 //
-// Five, because checky's review of PR #333 counted them: the first pass
-// guarded two and the page quoted five.
+// Six, because checky's reviews of PR #333 counted them: the first pass
+// guarded two of five, and round two added migrate's dry-run footer.
 const offlineDoc = "working-offline.md"
 
 func readOfflineDoc(t *testing.T) string {
@@ -86,11 +86,7 @@ func TestOfflineDocQuotesTheUnreachableRefusal(t *testing.T) {
 // note is produced here the way an offline run produces it — the label
 // step's target lookup failing — rather than copied into the test.
 func TestOfflineDocQuotesTheLabelNote(t *testing.T) {
-	restore := labelTarget
-	labelTarget = func() (tracker.Tracker, string, error) {
-		return nil, "", errors.New(ghSaid)
-	}
-	defer func() { labelTarget = restore }()
+	stubLabelTarget(t, nil, "", errors.New(ghSaid))
 
 	var out bytes.Buffer
 	withLabelTarget(&out, func(tracker.Tracker, string) {
@@ -167,4 +163,29 @@ func TestOfflineDocQuotesTaskStartsReceipt(t *testing.T) {
 		t.Fatalf("task start created %v, not one linked branch", f.branches)
 	}
 	quoted(t, readOfflineDoc(t), out.String(), f.branches[0], f.task.Ref.String(), f.viewer)
+}
+
+// TestOfflineDocQuotesTheMigrateDryRunFooter guards the one preview the
+// page tells an operator to reach for offline. `migrate --dry-run` is
+// local — it reads the repo, not GitHub — so it completes with no network
+// and says so on its last line, which is what makes it worth naming beside
+// three dry runs that do not.
+func TestOfflineDocQuotesTheMigrateDryRunFooter(t *testing.T) {
+	// Typed identities: an offline migrate that had to ask GitHub what a
+	// bare 1.0 login is refuses instead, which is the other half of what
+	// the page says about this verb.
+	dir := legacyRepo(t, "codecrew: \"1.0\"\nhub: self\nroles:\n  implementer: {identity: user:alice}\n",
+		map[string]string{"roles/qa.md": "# Role: qa\n"})
+	stubLabelTarget(t, nil, "", errors.New(ghSaid))
+
+	var out bytes.Buffer
+	if err := migrate(&out, dir, true); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	footer := lines[len(lines)-1]
+	if !strings.HasPrefix(footer, "dry run:") {
+		t.Fatalf("the dry run did not end with its footer:\n%s", out.String())
+	}
+	quoted(t, readOfflineDoc(t), footer)
 }
