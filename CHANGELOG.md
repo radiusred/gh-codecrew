@@ -6,6 +6,18 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The M16 record
+
+- `docs/milestones/16-bedding-in-the-venue-seam-and-the-reference.md` — how
+  protocol 2.0 bedded in: the venue seam behind one interface, `CLI.md`
+  replacing SPEC §6, the self-gating workflow for docs-only pull requests, the
+  working-offline page, the external-contributor conventions and the blog's nav
+  label, under a Goal whose rule was that nothing an operator or a seat sees
+  changes. Twenty-five Decisions and seven Deviations, the requirement a verb
+  refused into withdrawal, the milestone's one `checkpoint` gate, twelve review
+  rounds and six `satisfied` verdicts, counted at a stated instant. `ROADMAP.md`
+  gains the M16 row. No release: v2.0.1 is still the shipped version. (#340)
+
 ### The venue is one interface, and a test keeps it that way
 
 - **Every invocation of `gh` and every GitHub REST or GraphQL call now goes

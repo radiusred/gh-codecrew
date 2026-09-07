@@ -17,6 +17,7 @@
 | M13 | Protocol 2.0: the .codecrew/ layout and what rides with it | [#254](https://github.com/radiusred/gh-codecrew/issues/254) | [Done](docs/milestones/13-protocol-2-0-the-codecrew-layout-and-what-rides-with-it.md) |
 | M14 | Adoption, tidy, and the v2.0.0 release | [#269](https://github.com/radiusred/gh-codecrew/issues/269) | [Done](docs/milestones/14-adoption-tidy-and-the-v2-0-0-release.md) |
 | M15 | v2.0.1: what the fleet migration taught | [#305](https://github.com/radiusred/gh-codecrew/issues/305) | [Done](docs/milestones/15-v2-0-1-what-the-fleet-migration-taught.md) |
+| M16 | Bedding in: the venue seam and the reference | [#325](https://github.com/radiusred/gh-codecrew/issues/325) | [Done](docs/milestones/16-bedding-in-the-venue-seam-and-the-reference.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
