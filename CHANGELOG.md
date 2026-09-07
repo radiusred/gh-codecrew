@@ -16,10 +16,11 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   then `task start`, then rebase your commits onto the linked branch it
   created. Every quoted line was read off the binary running in a network
   namespace with no route out; the branch reconciliation is the one that
-  happened on this task. Named in `docs/introduction.md`'s reading order and
-  in the README's reference list, and guarded by a test that rebuilds each of
-  the five texts the page quotes from the code that prints it. No verb
-  changed. (#329)
+  happened on this task, and `migrate --dry-run` is named as the one preview
+  that completes with no network. Named in `docs/introduction.md`'s reading
+  order and in the README's reference list, and guarded by a test that
+  rebuilds each of the six texts the page quotes from the code that prints
+  it. No verb changed. (#329)
 
 ### `CLI.md`, the reference for the verbs
 

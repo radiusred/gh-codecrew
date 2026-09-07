@@ -92,15 +92,23 @@ never folded into another one, which is what lets an orchestrator tell
 | `codecrew checkpoint` | The load. The gate is not raised; nothing local records it either. |
 | `codecrew roles show <role>` *(from a spoke)* | The hub's contract has to be fetched, so it refuses `GH_UNREACHABLE` rather than reporting a contract that is merely elsewhere. |
 
-A dry run is no way past this. Three verbs take `--dry-run` — `task finish`,
-`milestone new` and `milestone close` — and it means "every gate in order,
-then what the verb would do, nothing written". The gates are read from
-GitHub, so the run needs the network exactly as much as the write does, and
-offline all three stop at the load with the line above. The other three
-verbs in those two rows never had the flag: `task new`, `task start` and
-`milestone evidence` reject it while parsing their arguments, before the
-load and identically online, with `flag provided but not defined: -dry-run`
-or the verb's usage line.
+A dry run is no way past this, for the three verbs in the tables above that
+take one. `task finish`, `milestone new` and `milestone close` accept
+`--dry-run`, and it means "every gate in order, then what the verb would do,
+nothing written" — the gates are read from GitHub, so the preview needs the
+network exactly as much as the write does, and offline all three stop at the
+load with the line above. The other three verbs in those two rows never had
+the flag: `task new`, `task start` and `milestone evidence` reject it while
+parsing their arguments, before the load and identically online, with
+`flag provided but not defined: -dry-run` or the verb's usage line.
+
+**`migrate --dry-run` is the exception, and it is the useful one.** It is the
+fourth verb with the flag, and the only preview that completes with no
+network — because what it previews is local. Offline it lists every move,
+write and rewrite it would make, reports the label step it cannot do as the
+same `note:`, ends `dry run: nothing written` and exits 0, working tree
+untouched. Use it: the migration is the one destructive local operation the
+CLI has, and being offline is no reason to run it unseen.
 
 One condition in this table is not about the network at all, and reading the
 code rather than the symptom saves the confusion: `roles diff` from a spoke
