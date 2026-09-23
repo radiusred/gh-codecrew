@@ -262,6 +262,9 @@ func spokeCtx(t *testing.T, fake *hubFake) *ctx {
 // unreadable, protocol skew, unreachable — and "the hub declares no table"
 // is not a failure at all.
 func TestResolveRolesFailsClosed(t *testing.T) {
+	// SPEC §5 carries "failed closed"; the any-verb-in-a-spoke row is
+	// CLI.md's Common refusals table (M18-R2).
+	const hubCitation = "(SPEC §5; CLI.md, Common refusals)"
 	for _, c := range []struct {
 		name    string
 		data    string
@@ -278,7 +281,7 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 			name:    "the hub's pointer 404s (an unmigrated hub, mid-window)",
 			err:     errors.New("gh api: gh: Not Found (HTTP 404)"),
 			code:    "HUB_UNREADABLE",
-			details: []string{"acme/hub", config.Pointer, "404", "gh codecrew migrate", "naming the wrong repo", "not installed on"},
+			details: []string{"acme/hub", config.Pointer, "404", "gh codecrew migrate", "naming the wrong repo", "not installed on", hubCitation},
 		},
 		{
 			// A 403 is a healthy hub this seat may not read — most
@@ -289,14 +292,14 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 			name:    "the spoke cannot see the hub",
 			err:     errors.New("gh api: gh: Resource not accessible by integration (HTTP 403)"),
 			code:    "HUB_UNREADABLE",
-			details: []string{"acme/hub", "403", "contents: read"},
+			details: []string{"acme/hub", "403", "contents: read", hubCitation},
 			absent:  []string{"gh codecrew migrate", "1.x"},
 		},
 		{
 			name:    "the hub's pointer does not parse",
 			data:    "codecrew: \"2.0\"\nhub: self\nroles: [this, is, a, list]\n",
 			code:    "HUB_UNREADABLE",
-			details: []string{"acme/hub", "does not parse"},
+			details: []string{"acme/hub", "does not parse", hubCitation},
 		},
 		{
 			name:    "the hub's pointer has no hub: field",
@@ -326,13 +329,13 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 			name:    "GitHub is not reachable",
 			err:     errors.New(`gh api: Get "https://api.github.com/...": dial tcp: lookup api.github.com: no such host`),
 			code:    "GH_UNREACHABLE",
-			details: []string{"GitHub could not be reached", "gh auth status"},
+			details: []string{"GitHub could not be reached", "gh auth status", "need no network (CLI.md, Common refusals)"},
 		},
 		{
 			name:    "the caller holds no credentials",
 			err:     errors.New("gh api: To get started with GitHub CLI, please run:  gh auth login"),
 			code:    "GH_UNREACHABLE",
-			details: []string{"GitHub could not be reached"},
+			details: []string{"GitHub could not be reached", "(CLI.md, Common refusals)"},
 		},
 	} {
 		c := c
@@ -347,6 +350,11 @@ func TestResolveRolesFailsClosed(t *testing.T) {
 				if !strings.Contains(r.Detail, want) {
 					t.Errorf("detail %q does not name %q", r.Detail, want)
 				}
+			}
+			// SPEC §6 no longer states any of these facts: M16 moved the
+			// every-verb rows into CLI.md (M18-R2, #339).
+			if strings.Contains(r.Detail, "§6") {
+				t.Errorf("detail %q cites SPEC §6, which no longer carries it", r.Detail)
 			}
 			for _, unwanted := range c.absent {
 				if strings.Contains(r.Detail, unwanted) {

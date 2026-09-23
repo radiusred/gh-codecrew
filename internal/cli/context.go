@@ -191,11 +191,11 @@ func (c *ctx) resolveRoles(notes io.Writer) error {
 		if strings.Contains(err.Error(), "HTTP 404") {
 			fix = fmt.Sprintf("%s has no such file that this seat can see, which is three conditions: a hub still on the protocol 1.x layout, moved forward with gh codecrew migrate; a hub: line naming the wrong repo; or a private hub this seat's identity is not installed on, since GitHub answers 404 rather than 403 for a repo a token cannot see", c.hub)
 		}
-		return refuse("HUB_UNREADABLE", "the hub %s's %s could not be read (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved; %s (SPEC §5, §6)", c.hub, config.Pointer, err, fix)
+		return refuse("HUB_UNREADABLE", "the hub %s's %s could not be read (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved; %s (SPEC §5; CLI.md, Common refusals)", c.hub, config.Pointer, err, fix)
 	}
 	hubCfg, err := config.Parse(data)
 	if err != nil {
-		return refuse("HUB_UNREADABLE", "the hub %s's %s does not parse (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved (SPEC §5, §6)", c.hub, config.Pointer, err)
+		return refuse("HUB_UNREADABLE", "the hub %s's %s does not parse (%v) — this repo is a spoke and the hub carries the routing table, so no role can be resolved (SPEC §5; CLI.md, Common refusals)", c.hub, config.Pointer, err)
 	}
 	note, err := config.CompatibleHub(c.hub, hubCfg.Codecrew, protocolVersion)
 	if err != nil {
@@ -216,7 +216,7 @@ func unreachable(err error) error {
 	if !tracker.Unreachable(err) {
 		return nil
 	}
-	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (SPEC §6)", err)
+	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (CLI.md, Common refusals)", err)
 }
 
 // rolesConfig returns the routing table that governs role resolution,

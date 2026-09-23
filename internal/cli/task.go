@@ -566,9 +566,9 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 		if !p.gate("operator confirmation", e) {
 			return p.stop(finishGates), nil, nil
 		}
-		msg := fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s in place of a formal approval (solo tier, SPEC §6).", viewer)
+		msg := fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s in place of a formal approval (solo tier, SPEC §5).", viewer)
 		if viewer == pr.Author {
-			msg = fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s as both author and operator (pure solo tier, SPEC §6) — no independent principal exists in this project.", viewer)
+			msg = fmt.Sprintf("**Operator confirmation:** reviewed and accepted by @%s as both author and operator (pure solo tier, SPEC §5) — no independent principal exists in this project.", viewer)
 		}
 		posts = append(posts, msg)
 	} else {
