@@ -250,6 +250,31 @@ func TestPlanFinishPreviewsBypassAndConfirmation(t *testing.T) {
 	if !strings.Contains(buf.String(), "gate operator confirmation: ok") || !strings.Contains(buf.String(), "would comment on PR #9: **Operator confirmation:** reviewed and accepted by @davison as both author and operator") {
 		t.Errorf("solo preview:\n%s", buf.String())
 	}
+	// Both confirmation comments cite SPEC §5, whose identity tiers carry
+	// the solo tier and its degrade; §6 no longer does (M18-R2, #339).
+	if !strings.Contains(buf.String(), "(pure solo tier, SPEC §5) — no independent principal exists") {
+		t.Errorf("author-and-operator confirmation does not cite SPEC §5:\n%s", buf.String())
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("planning wrote: %v", f.writes)
+	}
+	// Solo tier, someone else's PR: the operator confirms in place of an
+	// approval, and the comment cites the same section.
+	f = cleanFinish()
+	f.viewer, f.pr.ApprovedBy, f.pr.ReviewDecision = "davison", nil, ""
+	f.comments = []tracker.Comment{{Author: "davison", Body: tracker.StartRecord("davison")}}
+	p, _, _ = planFinish(finishCtx(f, nil), f.task.Ref, true, false)
+	if p.refusal != nil {
+		t.Fatalf("solo confirm on another author's PR: %v", p.refusal)
+	}
+	buf.Reset()
+	p.print(&buf)
+	if !strings.Contains(buf.String(), "**Operator confirmation:** reviewed and accepted by @davison in place of a formal approval (solo tier, SPEC §5).") {
+		t.Errorf("solo-tier confirmation does not cite SPEC §5:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "§6") {
+		t.Errorf("a confirmation still cites SPEC §6:\n%s", buf.String())
+	}
 	if len(f.writes) != 0 {
 		t.Errorf("planning wrote: %v", f.writes)
 	}
