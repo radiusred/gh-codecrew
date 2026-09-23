@@ -6,6 +6,24 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [2.0.2] — 2026-09-23
+
+The release that ships M16's work and M18's corrections together. M16's is
+architecture with no surface and a reference: every call to GitHub now goes
+through one venue interface, with a test that keeps it that way, and no verb's
+arguments, output, writes or refusal codes move for it; `CLI.md` takes over
+the verb detail SPEC §6 used to carry, beside the working-offline page, the
+self-gating workflow for docs-only pull requests, the conventions for projects
+with external contributors, and the M15, M16 and M17 records. M18's brings
+text into line with what the CLI already did: SPEC §6's channel paragraph and
+§10's no-pointer sentence, the introduction's `--dry-run` list and its `note:`
+line, three printed strings that cited SPEC §6 for facts that have moved, and
+a `--help` that now lists `identity new --no-route`. Refusal codes and exit
+statuses are unchanged, the protocol stays at 2.0, and a repository already on
+the 2.0 layout has nothing to do but `gh extension upgrade codecrew`.
+
 ### The introduction's `note:` line names the stream it is really on
 
 - `docs/introduction.md`'s Refusal codes section said a `note:` line is on
@@ -1474,7 +1492,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/radiusred/gh-codecrew/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/radiusred/gh-codecrew/compare/v1.1.0...v1.2.0
