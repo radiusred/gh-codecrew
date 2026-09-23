@@ -601,12 +601,15 @@ codecrew: refused[CODE]: detail
 
 The **code** is the branch point — a fixed vocabulary, catalogued in §10,
 whose meanings are stable within a major. The **detail** is prose for a
-human and may be reworded in any release; nothing should parse it. A
-`note:` line is the other thing stderr carries: advisory, never a failure,
-and printed alongside a verb that went on to succeed. Output a caller
-consumes — a minted token, `role <name>`'s identity, a report and its
-`warning:` lines — goes to **stdout**, so it stays clean whatever stderr
-says.
+human and may be reworded in any release; nothing should parse it. Output
+a caller consumes — a minted token, `role <name>`'s identity, a report with
+the `note:` and `warning:` lines that qualify it — goes to **stdout**, so it
+stays clean whatever stderr says. A `note:` is advisory, never a failure,
+and stands beside a verb that went on to succeed. The notes that go to
+stderr instead are the ones raised while the pointer is read, before the
+verb prints anything, and `identity token`'s, which keeps its receipt and
+notes there so that stdout carries the token alone;
+[CLI.md](CLI.md#output-channels) names each.
 
 ## 7. Roles
 
@@ -762,9 +765,9 @@ protocol major, and the CLI that implements it refuses the old pointer.
 absent from it is not one the protocol promises. Every row is raised as
 `refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
 below means any verb that loads the working repo's pointer — every verb
-except `version`, `help` and `identity token`, which read no pointer, and
-`init` and `migrate`, which read none either and raise the layout codes
-themselves.
+except `version`, `help`, `identity token` and `identity webhook`, which
+read no pointer, and `init` and `migrate`, which read none either and raise
+the layout codes themselves.
 
 | Code | Raised by | Meaning |
 |------|-----------|---------|

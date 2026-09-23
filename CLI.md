@@ -77,7 +77,8 @@ the detail is prose for a human and may be reworded in any release. The
 `note:` lines raised while the pointer is read — a pointer, or a hub's
 pointer, carrying no `codecrew:` version, and a `gh` whose version could not
 be read — which precede anything the verb itself prints. And `identity
-token`'s receipt, which is on stderr so that stdout carries the token alone.
+token`'s receipt, with its note that an `--installation` hint is stale, which
+are on stderr so that stdout carries the token alone.
 
 Under `--dry-run` the gate lines and the plan are stdout; a dry run that ends
 in a refusal prints that one line on stderr like any other.

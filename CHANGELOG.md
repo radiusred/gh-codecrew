@@ -6,6 +6,21 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The SPEC and the docs say what the CLI does
+
+- SPEC §6's channel paragraph no longer says `note:` lines are on stderr.
+  A verb's notes go to stdout beside the report they qualify; the ones on
+  stderr are the notes raised while the pointer is read and `identity
+  token`'s, whose receipt and notes stay off stdout so it carries the token
+  alone. `CLI.md`'s Output channels section, which already said so, now also
+  names `identity token`'s stale-installation note. No verb's output
+  changes.
+- SPEC §10's "any verb" sentence names `identity webhook` among the verbs
+  that read no pointer.
+- `docs/introduction.md` names the four verbs that take `--dry-run`,
+  `migrate` among them, and a drift test pins that list to the verbs whose
+  flag set defines the flag. (#354)
+
 ### The CLI cites where the fact now lives, and `--help` lists `--no-route`
 
 - **Three printed strings stop citing SPEC §6** for facts M16 moved out of it.
