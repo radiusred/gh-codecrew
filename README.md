@@ -82,7 +82,7 @@ gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, 
                          #  with the lines to add to it printed)
 ```
 
-**Already running CodeCrew?** The current release, v2.0.1, implements
+**Already running CodeCrew?** The current release, v2.0.2, implements
 protocol 2.0 — the `.codecrew/` layout the block above and the rest of this
 page describe. A repo still on the 1.x layout (`.codecrew.yml` and `roles/`
 at the root) is refused, not read: `gh codecrew migrate` moves it forward in
