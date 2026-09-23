@@ -752,6 +752,7 @@ gh codecrew roles show implementer --latest
 ```
 gh codecrew identity new <role> --name N
                          [--owner O] [--with-webhook --webhook-url U]
+                         [--no-route]
                          [--with-approval-permission]
                          [--events E,E] [--webhook-secret S]
 ```
