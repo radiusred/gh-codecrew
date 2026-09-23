@@ -43,6 +43,7 @@ verbs:
   roles show <role> [--latest]               the contract a session loads (with local extensions), or the embedded one
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
+           [--no-route]                      (print the routing step instead of writing it into the hub's pointer)
            [--with-approval-permission]      (reviewer only: its approvals satisfy required reviews)
            [--events E,E] [--webhook-secret S]  (with --with-webhook: default pull_request,pull_request_review;
                                              set the receiver's secret right after creation)
