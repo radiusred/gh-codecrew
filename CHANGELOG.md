@@ -13,10 +13,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   stderr are the notes raised while the pointer is read and `identity
   token`'s, whose receipt and notes stay off stdout so it carries the token
   alone. `CLI.md`'s Output channels section, which already said so, now also
-  names `identity token`'s stale-installation note. No verb's output
-  changes.
+  names `identity token`'s stale-installation note, and no longer says
+  stderr carries only three things: `--help`, the verb list after an unknown
+  verb, and a bad flag's diagnostic are there too. No verb's output changes.
 - SPEC §10's "any verb" sentence names `identity webhook` among the verbs
-  that read no pointer.
+  that require no pointer, and says of those verbs what is true:
+  they neither require nor validate one, while `identity token` reads one
+  when present to prefer the hub's owner. `CLI.md`'s Common refusals and
+  `identity token` sections say the same.
 - `docs/introduction.md` names the four verbs that take `--dry-run`,
   `migrate` among them, and a drift test pins that list to the verbs whose
   flag set defines the flag. (#354)

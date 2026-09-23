@@ -65,30 +65,38 @@ receipt, with the `note:` and `warning:` lines that qualify it. A `note:` is
 advisory and never a failure: it stands beside a verb that goes on to
 succeed. Each verb's own section says which lines it writes.
 
-**stderr** carries three things, and only these. The refusal line, once, as
-the verb exits `1`:
+**stderr** carries the rest. The refusal line, once, as the verb exits `1`:
 
 ```
 codecrew: refused[CODE]: detail
 ```
 
 The code is a fixed vocabulary, catalogued in [SPEC §10](SPEC.md#10-the-cli);
-the detail is prose for a human and may be reworded in any release. The
-`note:` lines raised while the pointer is read — a pointer, or a hub's
-pointer, carrying no `codecrew:` version, and a `gh` whose version could not
-be read — which precede anything the verb itself prints. And `identity
-token`'s receipt, with its note that an `--installation` hint is stale, which
-are on stderr so that stdout carries the token alone.
+the detail is prose for a human and may be reworded in any release. A failure
+that is not a gate — an unknown verb or subcommand, a missing argument, a
+flag the verb does not define — ends on the same `codecrew: ` prefix with no
+`refused[...]`, and exits `1` too: after the verb list for a verb or
+subcommand it does not know, and after the flag set's own diagnostic and
+usage for most verbs' bad flags (`identity webhook` prints that diagnostic
+and usage on stdout; only its last line is on stderr). `--help` and `-h`
+print the verb list on stderr and exit `0`. The `note:` lines raised while
+the pointer is read — a pointer, or a hub's pointer, carrying no `codecrew:`
+version, and a `gh` whose version could not be read — which precede anything
+the verb itself prints. And `identity token`'s receipt, with its note that an
+`--installation` hint is stale, which are on stderr so that stdout carries
+the token alone.
 
 Under `--dry-run` the gate lines and the plan are stdout; a dry run that ends
 in a refusal prints that one line on stderr like any other.
 
 ## Common refusals
 
-Every verb that loads the working repo's `.codecrew/config.yml` can raise
-these, before its own work begins. The verbs that load no pointer are
-`version`, `help`, `init`, `migrate`, `identity token` and
-`identity webhook`; `init` and `migrate` raise the layout codes themselves.
+Every verb that loads and validates the working repo's `.codecrew/config.yml`
+can raise these, before its own work begins. The verbs that neither require
+nor validate a pointer, and so raise none of these, are `version`, `help`,
+`init`, `migrate`, `identity token` and `identity webhook`; `init` and
+`migrate` raise the layout codes themselves, and `identity token` reads a
+pointer only when one is there, to prefer the hub's owner.
 
 | Code | Condition |
 |------|-----------|
@@ -867,8 +875,9 @@ names platforms bind, and otherwise from the key and stub under
 installation from the App itself — one installation is taken, several narrow
 to the hub's owner — and never writes `gh`'s config. The `<slug>` argument
 selects the key and stub under `~/.config/codecrew/` and is optional when the
-environment binds an App id and key. It reads no pointer and runs from
-anywhere.
+environment binds an App id and key. It requires no pointer and runs from
+anywhere: a pointer in the directory it runs in is read only to prefer the
+hub's owner, and a missing or broken one is no refusal.
 
 **Options**
 
