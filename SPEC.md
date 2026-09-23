@@ -764,10 +764,11 @@ protocol major, and the CLI that implements it refuses the old pointer.
 **The refusal codes.** Forty-three, and this table is the catalogue: a code
 absent from it is not one the protocol promises. Every row is raised as
 `refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
-below means any verb that loads the working repo's pointer — every verb
-except `version`, `help`, `identity token` and `identity webhook`, which
-read no pointer, and `init` and `migrate`, which read none either and raise
-the layout codes themselves.
+below means any verb that loads and validates the working repo's pointer —
+every verb except `version`, `help`, `identity token` and `identity
+webhook`, which require none and raise none of the pointer's codes
+(`identity token` reads one only when present, to prefer the hub's owner),
+and `init` and `migrate`, which raise the layout codes themselves.
 
 | Code | Raised by | Meaning |
 |------|-----------|---------|
