@@ -35,9 +35,10 @@ func TestIntroductionListsTheDryRunVerbs(t *testing.T) {
 }
 
 // dryRunVerbs returns, sorted, the name of every flag set in this package
-// that defines a `dry-run` flag. A flag set is named for its verb
-// (`flag.NewFlagSet("task finish", …)`), and the flag is defined in the
-// same function that builds the set, so the pairing is per function.
+// that defines a `dry-run` flag, by `Bool` or `BoolVar`. A flag set is
+// named for its verb (`flag.NewFlagSet("task finish", …)`), and the flag
+// is defined in the same function that builds the set, so the pairing is
+// per function.
 func dryRunVerbs(t *testing.T) []string {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -67,18 +68,20 @@ func dryRunVerbs(t *testing.T) []string {
 					return true
 				}
 				sel, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok || len(call.Args) == 0 {
-					return true
-				}
-				arg, ok := stringLit(call.Args[0])
 				if !ok {
 					return true
 				}
 				switch sel.Sel.Name {
 				case "NewFlagSet":
-					sets = append(sets, arg)
+					if arg, ok := stringArg(call, 0); ok {
+						sets = append(sets, arg)
+					}
 				case "Bool":
-					if arg == "dry-run" {
+					if arg, ok := stringArg(call, 0); ok && arg == "dry-run" {
+						dryRun = true
+					}
+				case "BoolVar":
+					if arg, ok := stringArg(call, 1); ok && arg == "dry-run" {
 						dryRun = true
 					}
 				}
@@ -98,8 +101,14 @@ func dryRunVerbs(t *testing.T) []string {
 	return verbs
 }
 
-func stringLit(e ast.Expr) (string, bool) {
-	lit, ok := e.(*ast.BasicLit)
+// stringArg is call's i-th argument when it is a string literal: the flag
+// name is the first argument of Bool and NewFlagSet, and the second of
+// BoolVar, whose first is the variable it binds.
+func stringArg(call *ast.CallExpr, i int) (string, bool) {
+	if len(call.Args) <= i {
+		return "", false
+	}
+	lit, ok := call.Args[i].(*ast.BasicLit)
 	if !ok || lit.Kind != token.STRING {
 		return "", false
 	}
