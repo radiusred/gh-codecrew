@@ -52,7 +52,7 @@ roles:
     identity: app:radiusred-cody
   reviewer:
     harness: codex
-    model: gpt-5.6-sol
+    model: gpt-5.6-terra
     identity: app:radiusred-checky
   qa:
     harness: codex
