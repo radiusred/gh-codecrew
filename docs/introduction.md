@@ -204,7 +204,10 @@ codecrew: refused[CODE]: detail
 The **code** is for the agent: a fixed vocabulary whose meanings are stable
 within a protocol major, so an orchestrator branches on it. The **detail**
 is for the human, and is free to be reworded in any release; nothing should
-parse it. A `note:` line on the same stream is advisory and not a failure.
+parse it. A `note:` line is advisory and not a failure, and most are not on
+that stream: they go to stdout beside the report they qualify, and
+[CLI.md's Output channels](../CLI.md#output-channels) names the few on
+stderr.
 
 **The catalogue is [SPEC §10](../SPEC.md#10-the-cli)** — every code, the
 verbs that raise it and what it means, in one table. It is the single list:

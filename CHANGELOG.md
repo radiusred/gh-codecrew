@@ -6,6 +6,14 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The introduction's `note:` line names the stream it is really on
+
+- `docs/introduction.md`'s Refusal codes section said a `note:` line is on
+  the same stream as the refusal, which is stderr. Most notes go to stdout
+  beside the report they qualify; the sentence now says so and points at
+  `CLI.md`'s Output channels for the ones on stderr, in agreement with SPEC
+  §6. No verb's output changes. (#358)
+
 ### The SPEC and the docs say what the CLI does
 
 - SPEC §6's channel paragraph no longer says `note:` lines are on stderr.
