@@ -148,11 +148,12 @@ of exactly those paths, on the current branch, or on `codecrew-bootstrap` cut
 from the default branch when the default branch requires pull requests; it
 never pushes. In GitHub: the missing `cc:task`, `cc:milestone` and
 `cc:needs-decision` labels, with the protocol's colour and description; an
-existing label is left exactly as it is. Everything it prints is on stdout:
-a line per file written or kept, the commit, a line per label, each `note:`,
-and last an `action needed` block naming any kept root entry point that does
-not reach `.codecrew/AGENTS.md`, with the lines to add to it. It reads no
-pointer, so nothing but a refusal reaches stderr.
+existing label is left exactly as it is. Everything it prints as it works is
+on stdout: a line per file written or kept, the commit, a line per label,
+each `note:`, and last an `action needed` block naming any kept root entry
+point that does not reach `.codecrew/AGENTS.md`, with the lines to add to it.
+It reads no pointer, so no pointer note reaches stderr; a refusal, or a bad
+flag's diagnostic and usage, does ([Output channels](#output-channels)).
 
 **Refusals.** [`LAYOUT_LEGACY`](SPEC.md#10-the-cli) — the repo is on the 1.x
 layout; `gh codecrew migrate` moves it. A directory that is not the
@@ -202,10 +203,11 @@ identity (`users/<login>`, then `users/<login>[bot]`).
 those paths on the current branch; it never pushes. In GitHub: the missing
 `cc:` labels created, and the existing ones restyled to the protocol's colour
 and description, each reported; every other label untouched. Everything it
-prints is on stdout: a line per step, each `note:`, and last an `action
-needed` block for a kept root entry point that does not reach the
-instructions. It reads no pointer, so nothing but a refusal reaches
-stderr.
+prints as it works is on stdout: a line per step, each `note:`, and last an
+`action needed` block for a kept root entry point that does not reach the
+instructions. It reads no pointer, so no pointer note reaches stderr; a
+refusal, or a bad flag's diagnostic and usage, does
+([Output channels](#output-channels)).
 
 **`--dry-run`.** The same steps in the same order, the same refusals, and the
 same label lines; nothing written.
@@ -574,9 +576,9 @@ branch, a fast-forward of it, and the deletion of the local task branch —
 forced, and allowed only when the branch sits at the merge commit or is
 contained in the fetched default branch. A branch carrying anything else is
 named and kept. Run anywhere else, the local half does nothing and prints
-nothing. Everything it prints is on stdout: the gate lines, the merge, the
-`note:` lines about the pull request's other closing references before it,
-and every `note:` after it.
+nothing. Everything it prints as it works is on stdout: the gate lines, the
+merge, the `note:` lines about the pull request's other closing references
+before it, and every `note:` after it.
 
 **`--dry-run`.** Every gate and every write above, printed and not performed;
 the same `note:` about the pull request's other closing references; the same
