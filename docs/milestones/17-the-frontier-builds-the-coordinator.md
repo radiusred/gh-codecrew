@@ -13,9 +13,9 @@ verdicts**; the **three** delivery task issues, all three in the spoke
 [radiusred/codecrew-www#42](https://github.com/radiusred/codecrew-www/issues/42)),
 plus [#351](https://github.com/radiusred/gh-codecrew/issues/351), the task
 this document is; their **three merged pull requests** and the **four
-commits** on them; the **six Decision records and two Deviation records**
+commits** on them; the **seven Decision records and two Deviation records**
 across the milestone issue and all four of its task issues, of which **three
-and one** are on the three delivery tasks, **three and one** on this
+and one** are on the three delivery tasks, **four and one** on this
 document's own, and **none** on the milestone issue; the **four review
 submissions** on the three pull requests — **one change request** and **three
 approvals, every one of which stands**, none dismissed; **no** adopted backlog
@@ -34,16 +34,18 @@ qualified), review states from each pull request's reviews API and timeline,
 commits from each pull request's commits API, and the requirement history
 from the milestone issue's `userContentEdits`.
 
-**Counted at 2026-09-23T11:22:52Z, against a trail frozen from this document's
+**Counted at 2026-09-23T11:34:31Z, against a trail frozen from this document's
 dispatch.** The coordination layer's last posts on the milestone before that
 instant were the opening of #351 at 11:20:08Z and its Deviation seven seconds
 later, and it posts nothing further on the milestone's issues before this
-pull request merges. This document's own task's **three Decisions** were
-written at 11:22:45Z–11:22:47Z, before the count, and are inside every total
-above, as
+pull request merges. This document's own task's **four Decisions** are inside
+every total above, as
 [its first Decision](https://github.com/radiusred/gh-codecrew/issues/351#issuecomment-5793927587)
 says they would be — the method
-[M16's record](16-bedding-in-the-venue-seam-and-the-reference.md) used.
+[M16's record](16-bedding-in-the-venue-seam-and-the-reference.md) used. The
+instant moved once. The first count, at 11:22:52Z, was taken after the first
+three (11:22:45Z–11:22:47Z) and differed from this one by the fourth alone,
+written at 11:34:30Z after the review round on this document's pull request.
 
 **The whole milestone happened in the spoke.** `main` in this repository did
 not move between M16's record
@@ -59,7 +61,8 @@ exactly four commits, in a straight line from M16's last spoke merge
 page) and [199db8c](https://github.com/radiusred/codecrew-www/commit/199db8c)
 (the remedy).
 
-**The trail is checked by the verb, and it cites nothing on github.com.** The
+**The trail is checked by the verb, and the delivery trail cites nothing on
+github.com.** The
 installed extension reports `v2.0.1 (protocol 2.0)`, which is still the shipped
 version because M17 cut no release. Run from this repository at the counting
 instant:
@@ -67,23 +70,27 @@ instant:
 ```
 $ gh codecrew milestone evidence 17
 requirements counted: M17-R1, M17-R2 (2)
-all 3 cited links resolve across 5 issues — evidence is reachable
+all 4 cited links resolve across 5 issues — evidence is reachable
 ```
 
-Five issues: the milestone and its four sub-issues. Three links, all of them
-outside github.com and all three in the QA seat's comments and the remedy
-task: the announcement at `claude.com`, the live post, and the site's front
-page. The verb counts distinct URLs, so the announcement's four citations
-across #345, www#37 and www#42 count once. Every other reference on the trail
-is a bare `#N` or `owner/repo#N`, which the verb does not read as a link.
+Five issues: the milestone and its four sub-issues. Four links. Three are
+outside github.com, all three in the QA seat's comments and the remedy task:
+the announcement at `claude.com`, the live post, and the site's front page.
+The verb counts distinct URLs, so the announcement's four citations across
+#345, www#37 and www#42 count once. The fourth is the one github.com link on
+the trail, in this document's own fourth Decision, which cites the Decision it
+corrects. Every other reference on the trail is a bare `#N` or `owner/repo#N`,
+which the verb does not read as a link. The first count, at 11:22:52Z, read
+`all 3 cited links`.
 
 The gather from `gh codecrew milestone close 17 --dry-run` is again not part of
 the raw material, for the reason
 [M11's](11-housekeeping.md) through
 [M16's](16-bedding-in-the-venue-seam-and-the-reference.md) records all give:
 `--dry-run` stops at the gate that counts tasks, naming the task that writes
-this file. As it read at the counting instant, before this document's pull
-request opened:
+this file. As it read at the first counting instant, before this document's
+pull request opened; with the pull request open, the same gate names #351
+`(in review)`:
 
 ```
 gate milestone open: ok
@@ -204,8 +211,8 @@ table; the Deviations section below carries why it rides here.
 
 ## Decisions
 
-Six Decision records: three on the delivery tasks, all by the implementer seat
-(`radiusred-cody[bot]`) — two on www#39 and one on www#42 — and three on this
+Seven Decision records: three on the delivery tasks, all by the implementer seat
+(`radiusred-cody[bot]`) — two on www#39 and one on www#42 — and four on this
 document's own, by `radiusred-wordy[bot]`. None is on the milestone issue, none
 carries a parenthetical qualifier and none is a gate resolution. www#37
 carries no Decision.
@@ -253,7 +260,7 @@ announcement would not be caught." **Rejected:** "dropping the quotation marks
 from the fragment (QA's alternative) — the fragment is genuinely verbatim once
 the punctuation is right, and the sentence is about it being a quote."
 
-### This document's own three
+### This document's own four
 
 The [first](https://github.com/radiusred/gh-codecrew/issues/351#issuecomment-5793927587)
 fixes the counting instant after this task's records are written, the method
@@ -278,6 +285,19 @@ refusal code, release or hub document changed". **Rejected:** "adding a line
 about the post to the README or the introduction — that is news, not a claim
 about what exists and works, and those pages carry the latter." The README
 already links the blog; `**Shipped:** v2.0.1` is still true.
+
+The [fourth](https://github.com/radiusred/gh-codecrew/issues/351#issuecomment-5794077318)
+corrects the third. The reviewer's round one on this document's pull request
+found that `README.md` presents its YAML block as "the `roles:` section of this
+repository's own `.codecrew/config.yml`, as it stands today", and that the
+routing commit in the same pull request made the block's implementer `model`
+line false. The README snippet now reads `claude-opus-5-5`, and the whole block
+was compared against the config's `roles:` section and is identical to it.
+`docs/introduction.md` stays unedited. **Rejected:** "rewording the README so
+the block is no longer 'as it stands today' — that loses the one real routing
+table a reader can check, to avoid a one-line edit." The third Decision read
+the README against what the milestone delivered and not against what its own
+pull request changed; the fourth is the record of that miss.
 
 ## Deviations
 
@@ -568,11 +588,11 @@ restatement of the sections above.
   QA filed www#41 five minutes and thirty-five seconds after the merge. The deploy workflow regenerates
   the files, so the live site is unaffected; what the capture records is that
   the spoke's `main` and its deployed output differ.
-- **The trail cites nothing on github.com, so the evidence verb checked only
-  what lies outside the protocol's reach.** Every reference between the
-  milestone's issues is a bare `#N` or `owner/repo#N`, and the three links
+- **The delivery trail cites nothing on github.com, so the evidence verb
+  checked little inside the protocol's reach.** Every reference between the
+  milestone's issues is a bare `#N` or `owner/repo#N`; three of the four links
   `milestone evidence 17` resolves are the announcement, the live post and the
-  front page. [M16's record](16-bedding-in-the-venue-seam-and-the-reference.md)
+  front page, and the fourth is in this document's own task. [M16's record](16-bedding-in-the-venue-seam-and-the-reference.md)
   reports six links, five of them in its own task's records. A citation the
   verb cannot see is one it cannot check.
 
