@@ -6,6 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The CLI cites where the fact now lives, and `--help` lists `--no-route`
+
+- **Three printed strings stop citing SPEC §6** for facts M16 moved out of it.
+  The `GH_UNREACHABLE` detail's "version, help, and roles show/diff in a hub
+  need no network" now cites `(CLI.md, Common refusals)`, where that sentence
+  lives; both `HUB_UNREADABLE` details cite `(SPEC §5; CLI.md, Common
+  refusals)` — §5 for routing failing closed, CLI.md for the any-verb row; and
+  the two `**Operator confirmation:**` comments `task finish` posts cite
+  `SPEC §5`, whose identity tiers carry the solo tier.
+  `docs/working-offline.md` quotes the new `GH_UNREACHABLE` line.
+- **`--help` shows `identity new --no-route`**, a flag the verb has always
+  parsed and the usage screen never listed; `CLI.md`'s `identity new`
+  synopsis carries it too, as the synopsis drift test requires.
+- Refusal codes and exit statuses are unchanged, and `--help` differs from
+  v2.0.1 only by that line and the `CLI.md` footer M16 added. (#355)
+
 ### The M17 record
 
 - `docs/milestones/17-the-frontier-builds-the-coordinator.md` — the
