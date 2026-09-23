@@ -11,7 +11,7 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - `docs/milestones/17-the-frontier-builds-the-coordinator.md` — the
   milestone that answered Anthropic's redesigned Projects with a
   codecrew.works post and one sentence on the front page, all of it in the
-  spoke under the bedding-in rule. Six Decisions and two Deviations, one
+  spoke under the bedding-in rule. Seven Decisions and two Deviations, one
   change request and three standing approvals, and a QA round that found a
   full stop inside a quotation, a remedy task, and the verdict that
   supersedes it, counted at a stated instant. `ROADMAP.md` gains the M17 row.
