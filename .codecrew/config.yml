@@ -16,11 +16,11 @@ roles:
     identity: app:radiusred-cody
   reviewer:
     harness: codex
-    model: gpt-5.5
+    model: gpt-5.6-sol
     identity: app:radiusred-checky
   qa:
     harness: codex
-    model: gpt-5.5
+    model: gpt-5.6-sol
     identity: app:radiusred-testy
   doc-synthesizer:
     harness: claude-code
