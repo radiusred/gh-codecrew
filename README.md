@@ -48,7 +48,7 @@ different, and every seat pointing at `~` is a complete one.
 roles:
   implementer:
     harness: claude-code
-    model: claude-fable-5
+    model: claude-opus-5-5
     identity: app:radiusred-cody
   reviewer:
     harness: codex
