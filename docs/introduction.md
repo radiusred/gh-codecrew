@@ -73,7 +73,9 @@ later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. What each verb takes, what it reads and writes, which
 codes it can refuse with and what `--dry-run` does where it has one is
-[CLI.md](../CLI.md), a section per verb. What changed and when:
+[CLI.md](../CLI.md), a section per verb. `milestone new`, `task finish`,
+`milestone close` and `migrate` take `--dry-run`, which shows what the verb
+would do and writes nothing. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
 
