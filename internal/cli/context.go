@@ -216,7 +216,7 @@ func unreachable(err error) error {
 	if !tracker.Unreachable(err) {
 		return nil
 	}
-	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (CLI.md, Common refusals)", err)
+	return refuse("GH_UNREACHABLE", "GitHub could not be reached (%v) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff/sync in a hub need no network (CLI.md, Common refusals)", err)
 }
 
 // rolesConfig returns the routing table that governs role resolution,
