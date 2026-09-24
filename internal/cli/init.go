@@ -48,17 +48,26 @@ const roadmapScaffold = `# Roadmap
 
 // agentsScaffold is the CodeCrew instructions themselves, written to
 // .codecrew/AGENTS.md in hub and spoke alike: CodeCrew's file, under
-// CodeCrew's directory, so a later init or migrate rewrites it whole
-// without touching a line the project wrote. The root AGENTS.md an adopter
-// owns only points at it (entryPointLines).
+// CodeCrew's directory, so no line of it is one the project wrote. The
+// root AGENTS.md an adopter owns only points at it (entryPointLines).
+// Neither init nor migrate rewrites it once it exists — both write it only
+// when absent — so a project already on the layout takes new text from a
+// release by hand, or by removing the file and running init again.
 const agentsScaffold = `# Agents
 
 This repository is part of a CodeCrew project — coordination state lives in
 GitHub issues and PRs, per the protocol at
 ` + U + `/SPEC.md.
 
+- **Version check.** At the start of a dispatch, before the first verb,
+  compare the protocol ` + "`gh codecrew version`" + ` prints with the ` + "`codecrew:`" + ` field
+  of ` + "`.codecrew/config.yml`" + ` (in a spoke, the hub's too): the binary must
+  implement the same major and a minor at least the pointer's — the CLI
+  checks the major alone. If it falls short and you install the tools,
+  upgrade (` + "`gh extension upgrade codecrew`" + `); otherwise raise it with
+  ` + "`gh codecrew checkpoint`" + ` and stop. Never upgrade mid-task.
 - ` + "`.codecrew/config.yml`" + ` names the hub; the hub's ` + "`.codecrew/roles/`" + `
-  holds the role contracts. Read the contract for the role you were
+  holds the role contracts. Then read the contract for the role you were
   dispatched as before doing anything else — ` + "`gh codecrew roles show <role>`" + `
   prints it with this project's ` + "`.codecrew/roles/<role>.local.md`" + ` extension
   appended (blank until the project writes one; in a hub ` + "`init`" + ` scaffolds the
@@ -71,12 +80,16 @@ GitHub issues and PRs, per the protocol at
   the reviewer contract — even in pure solo, where its findings land as a
   PR comment before the operator confirms.
 - **Contract drift.** ` + "`gh codecrew status`" + ` reports when a ` + "`.codecrew/roles/`" + ` contract
-  differs from the one embedded in the installed CLI. When it does, the
+  is missing or differs from the one embedded in the installed CLI. One
+  that is missing, or still an earlier release's text, is brought up to
+  date by ` + "`gh codecrew roles sync`" + `, delivered as a housekeeping PR (SPEC §4)
+  with no task. One that differs from every release's text is this
+  project's own fork, and local conventions are legitimate: the
   coordination layer compares (` + "`gh codecrew roles diff <role>`" + `, full upstream
-  text via ` + "`gh codecrew roles show <role> --latest`" + `), decides what to adopt —
-  contracts are this project's own fork, and local conventions are
-  legitimate — and routes the reconciliation through a normal task and PR
-  with the decision recorded. Never overwrite blindly.
+  text via ` + "`gh codecrew roles show <role> --latest`" + `), decides what to adopt,
+  and reconciles it in a task with the decision recorded, moving the
+  project's additions into the role's ` + "`.local.md`" + ` extension. Never overwrite
+  a fork blindly.
 - **Dispatch authorization.** If you are the operator's primary session —
   not dispatched as any specific role — then when a role is routed to a
   GitHub App and that role's action is needed (a review, a verdict),
