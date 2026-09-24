@@ -8,10 +8,13 @@ to work here:
 2. **Check your CLI against the hub's protocol**, before the first verb:
    `gh codecrew version` prints the protocol the binary implements, which
    must be the same major as the hub pointer's `codecrew:` field and a
-   minor at least the pointer's — the CLI checks the major alone. If it
-   falls short and you install the tools, `gh extension upgrade codecrew`;
-   otherwise raise it with `gh codecrew checkpoint` and stop. Never upgrade
-   mid-task.
+   minor at least the pointer's — the CLI checks the major alone. Here that
+   is the local pointer; from a spoke, read the hub's with
+   `gh api repos/<hub>/contents/.codecrew/config.yml -H "Accept: application/vnd.github.raw"`
+   under whatever `gh` auth the session has, or straight after step 4 if
+   that read is refused. If the binary falls short and you install the
+   tools, `gh extension upgrade codecrew`; otherwise raise it with
+   `gh codecrew checkpoint` and stop. Never upgrade mid-task.
 3. **Load your role contract** from the hub's `.codecrew/roles/` directory —
    you were dispatched as one of:
    [implementer](roles/implementer.md),

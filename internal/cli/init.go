@@ -62,10 +62,14 @@ GitHub issues and PRs, per the protocol at
 
 - **Version check.** At the start of a dispatch, before the first verb,
   compare the protocol ` + "`gh codecrew version`" + ` prints with the ` + "`codecrew:`" + ` field
-  of ` + "`.codecrew/config.yml`" + ` (in a spoke, the hub's too): the binary must
-  implement the same major and a minor at least the pointer's — the CLI
-  checks the major alone. If it falls short and you install the tools,
-  upgrade (` + "`gh extension upgrade codecrew`" + `); otherwise raise it with
+  of ` + "`.codecrew/config.yml`" + `: the binary must implement the same major and a
+  minor at least the pointer's — the CLI checks the major alone. In a
+  spoke the floor is the hub's field, which may be ahead of the spoke's:
+  read it with ` + "`gh api repos/<hub>/contents/.codecrew/config.yml -H \"Accept: application/vnd.github.raw\"`" + `
+  (` + "`<hub>`" + ` is the spoke pointer's ` + "`hub:`" + `) under whatever ` + "`gh`" + ` auth the
+  session has, or straight after minting your identity if that read is
+  refused. If the binary falls short and you install the tools, upgrade
+  (` + "`gh extension upgrade codecrew`" + `); otherwise raise it with
   ` + "`gh codecrew checkpoint`" + ` and stop. Never upgrade mid-task.
 - ` + "`.codecrew/config.yml`" + ` names the hub; the hub's ` + "`.codecrew/roles/`" + `
   holds the role contracts. Then read the contract for the role you were
