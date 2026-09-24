@@ -6,6 +6,29 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A requirement can be struck by a recorded decision
+
+- `gh codecrew milestone strike <n> <ID> --decision <comment URL>` posts
+  `**<ID> — struck.** <link>` on the milestone issue and never edits the
+  body. It refuses `DECISION_UNRECORDED` unless the link is a comment on the
+  milestone issue or one of its tasks carrying a `**Decision:**` or
+  `**Gate resolved:**` record that names the ID, and `REQUIREMENT_UNDECLARED`
+  for an ID the milestone does not declare. `--reinstate` posts the
+  `reinstated` twin under the same checks, `--dry-run` shows every gate, and
+  an ID already in the state asked for posts nothing.
+- `milestone close` counts a struck requirement as terminal, whatever QA
+  verdicts come before or after it. It counts only the coordinator seat's
+  holder's lines and checks each one's link again, so a line posted by hand
+  is held to the verb's check. The closing comment names the struck IDs, and
+  the raw material now includes the milestone issue's own Decision records.
+- `status` prints each strike under its milestone, a `note:` for one that
+  does not verify, and a `note:` for a bold ID struck through in the body,
+  which is still a requirement: the body's strikethrough is not a record.
+- SPEC §4 says what a struck requirement is, §7 makes striking the
+  coordination layer's rather than QA's, and §10 catalogues the two new
+  codes (forty-five). The qa, coordinator and doc-synthesizer contracts
+  follow, and CLI.md and the introduction name the verb. Adopts #348. (#362)
+
 ### The doc-synthesizer's front-door obligation holds in any hub
 
 - The embedded doc-synthesizer contract obliged the record's PR to refresh
