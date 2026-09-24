@@ -43,6 +43,23 @@ for milestone documents, which stay synthesis from the record.
 * Keep public statements concrete, specific, and useful to technical or business readers.
 ```
 
+## A front door (this hub, `.codecrew/roles/doc-synthesizer.local.md`, 2026-09-24, next release v2.1.0)
+
+The contract obliges the doc-synthesizer to refresh the hub's front-door
+documents wherever the milestone changed their claims, and leaves which
+documents those are to the hub — a blog's front door is its home page, a
+tool's may be a README and an introduction. This hub names its own, the
+specifics its contract carried until they moved here (#350):
+
+```markdown
+## Front-door documents — this hub
+
+This hub's front door is the README and `docs/introduction.md`. At every
+milestone boundary the record's PR brings their claims into line with what
+the milestone delivered: the README's proof points, and the introduction's
+release, verbs and refusal codes.
+```
+
 ## A repository convention (`.codecrew/roles/implementer.local.md`, 2026-08-30, v1.1.0)
 
 What the implementer must do here that the contract cannot know — the
