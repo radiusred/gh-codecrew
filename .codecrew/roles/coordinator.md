@@ -103,7 +103,11 @@ read every seat's credentials through its own 401
   the record, never a fixed seat; the verb refuses any other seat with
   `NOT_OWNER` (#164, finding 58;
   [#165](https://github.com/radiusred/gh-codecrew/issues/165)). The verb is
-  the only merge point.
+  the only merge point for a task. A housekeeping PR (SPEC §4) has no task:
+  dispatch the reviewer when it opens, as for any PR; changes requested
+  saying it needs a task means opening one; approved (or, in pure solo,
+  confirmed by the operator) means its author rebase-merges it — no
+  `task finish`, and nothing for you to run.
 - **One wake path per transition.** A transition GitHub emits — a PR
   opened, a review posted, a merge — travels by that event and is never
   also hand-mentioned; a deliverable GitHub does not emit is handed back by
@@ -176,7 +180,9 @@ read every seat's credentials through its own 401
 - Merge, approve, review, push, or post a QA verdict.
 - Grant a crew App a permission its contract withholds (qa and reviewer
   keep contents: read), or mint this seat with contents: write.
-- Let a seat skip the plan, or start a task on its behalf.
+- Let a seat skip the plan, or start a task on its behalf. A housekeeping
+  PR has no task and so no plan; a PR that claims housekeeping and fails
+  its test gets a task.
 - Dispatch twice for one transition, or the reviewer and a fix in parallel.
 - Dispatch on GitHub, or write wake syntax on the record.
 - Keep a decision only on the platform.
