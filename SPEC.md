@@ -522,7 +522,10 @@ the pointer's on every verb that loads it: a different major is refused
 ahead of the binary asks for an extension upgrade, one behind it is told the
 repo predates this protocol and is moved with `codecrew migrate`; neither
 asks anyone to edit the version field, which describes the repo rather than
-choosing for it. A missing field is assumed current, with a note — the
+choosing for it. Within the major, a binary must implement at least the
+pointer's minor; the CLI compares majors only, so that check is the
+dispatched agent's, before its first verb, per `.codecrew/AGENTS.md`.
+A missing field is assumed current, with a note — the
 pointer's own path is the layout's proof, since a repo still on 1.x has no
 `.codecrew/config.yml` for the check to reach and refuses `LAYOUT_LEGACY`
 first. There is no other leniency: 1.0's acceptance of `"0.1"`, the pre-1.0
