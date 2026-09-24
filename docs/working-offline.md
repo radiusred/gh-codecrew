@@ -23,8 +23,8 @@ protocol 1.x one.
 | `codecrew help`, and `--help` on any verb | Prints usage and exits 0. `--help` is read before the verb runs, so it never reaches a gate or a fetch. |
 | `codecrew roles show <role>` *(in a hub)* | Composes the contract from disk: the hub's `.codecrew/roles/<role>.md`, then its `.local.md` extension. A hub reads its own pointer and its own contracts, so nothing is fetched ([CLI.md](../CLI.md)). |
 | `codecrew roles show <role> --latest` | Prints the contract embedded in the binary. Works anywhere, hub or spoke. |
-| `codecrew roles diff <role>` *(in a hub)* | Compares the local contract with the embedded one. Both sides are on this machine. |
-| `codecrew roles sync` *(in a hub)* | Writes the embedded contracts where the hub's are absent or an earlier release's text, and commits them locally. The embedded contracts, the release table and the git repository are all on this machine; the push and the pull request wait for the network. |
+| `codecrew roles diff <role>` *(in a hub)*, `codecrew roles diff .codecrew/AGENTS.md` | Compares the local contract, or agents file, with the embedded one. Both sides are on this machine. |
+| `codecrew roles sync` | Writes the embedded contracts (in a hub) and `.codecrew/AGENTS.md` (in a hub or a spoke) where they are absent or an earlier release's text, and commits them locally. The embedded texts, the release table and the git repository are all on this machine; the push and the pull request wait for the network. |
 | `codecrew init` | Scaffolds the files and makes the one local commit. See the note below: it completes, with two `note:` lines. |
 | `codecrew migrate` | Moves the repo to the 2.0 layout and commits, locally. Completes unless a 1.x identity has to be typed; see below. |
 
