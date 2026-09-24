@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -512,6 +513,39 @@ func TestLoadConfigRefusesASpokeRoutingTable(t *testing.T) {
 		// PR #279).
 		if !strings.Contains(r.Detail, "hub: self") {
 			t.Errorf("%q: detail offers a repo that is its own hub no way out: %s", c.yml, r.Detail)
+		}
+	}
+}
+
+// GH_UNREACHABLE's detail tells a stranded operator what still works: the
+// roles subverbs read only the hub's disk and the binary. The list is taken
+// from --help rather than written out here, so a roles subverb added to
+// the CLI cannot be left out of the detail again (checky's finding on PR
+// #368, where roles sync was).
+func TestUnreachableDetailNamesEveryLocalRolesVerb(t *testing.T) {
+	err := unreachable(errors.New(`gh api: Get "https://api.github.com/...": dial tcp: lookup api.github.com: no such host`))
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "GH_UNREACHABLE" {
+		t.Fatalf("err = %v, want GH_UNREACHABLE", err)
+	}
+	var subs []string
+	for _, line := range strings.Split(usage, "\n") {
+		if f := strings.Fields(line); len(f) >= 2 && f[0] == "roles" && strings.HasPrefix(line, "  roles ") {
+			subs = append(subs, f[1])
+		}
+	}
+	if len(subs) == 0 {
+		t.Fatal("--help lists no roles subverbs; the scan is broken")
+	}
+	_, after, ok := strings.Cut(r.Detail, "help, and roles ")
+	list, _, ok2 := strings.Cut(after, " in a hub need no network")
+	if !ok || !ok2 {
+		t.Fatalf("the detail no longer names the roles verbs that need no network: %s", r.Detail)
+	}
+	named := strings.Split(list, "/")
+	for _, sub := range subs {
+		if !slices.Contains(named, sub) {
+			t.Errorf("--help lists roles %s, which needs no network in a hub, and GH_UNREACHABLE's detail names only roles %s", sub, list)
 		}
 	}
 }

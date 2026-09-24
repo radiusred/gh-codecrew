@@ -75,7 +75,7 @@ of these verbs, with the same line on stderr and exit status 1:
 
 ```
 codecrew: refused[GH_UNREACHABLE]: GitHub could not be reached (gh repo: error connecting to api.github.com
-check your internet connection or https://githubstatus.com) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff in a hub need no network (CLI.md, Common refusals)
+check your internet connection or https://githubstatus.com) — check the network and that gh is authenticated (gh auth status), or mint the seat's token with gh codecrew identity token <slug>; codecrew version, help, and roles show/diff/sync in a hub need no network (CLI.md, Common refusals)
 ```
 
 The parenthesis is `gh`'s own message, so the wording there varies with how
