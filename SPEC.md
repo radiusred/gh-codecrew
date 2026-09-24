@@ -1,6 +1,6 @@
 # CodeCrew Protocol Specification
 
-Version 2.0 — 2026-09-06
+Version 2.1 — 2026-09-24
 
 CodeCrew is a lightweight framework for agent-driven software delivery. It keeps
 the auditability and reproducible discipline of heavyweight frameworks like GSD
@@ -517,7 +517,7 @@ review gate as code, merged by its author, the doc-synthesizer.
 carries the full configuration. The `codecrew` field is the **protocol
 version** — this document's version, naming the conventions the file speaks
 — and is independent of the CLI release: `codecrew version` prints both, as
-`v2.0.0 (protocol 2.0)`. The CLI implements one protocol major and checks
+`v2.1.0 (protocol 2.1)`. The CLI implements one protocol major and checks
 the pointer's on every verb that loads it: a different major is refused
 (`refused[PROTOCOL_MISMATCH]`), and the two directions differ — a pointer
 ahead of the binary asks for an extension upgrade, one behind it is told the
@@ -526,7 +526,10 @@ asks anyone to edit the version field, which describes the repo rather than
 choosing for it. Within the major, a binary must implement at least the
 pointer's minor; the CLI compares majors only, so that check is the
 dispatched agent's, before any verb but `version` and `identity token`,
-per `.codecrew/AGENTS.md`.
+per `.codecrew/AGENTS.md`. A pointer naming an earlier minor of the same
+major is current: a minor is additive and keeps the layout, so nothing has
+to move the field forward and no verb does — `migrate` leaves it as it is —
+while `init` writes the version its binary implements.
 A missing field is assumed current, with a note — the
 pointer's own path is the layout's proof, since a repo still on 1.x has no
 `.codecrew/config.yml` for the check to reach and refuses `LAYOUT_LEGACY`
@@ -537,7 +540,7 @@ the M6 gate on
 [#114](https://github.com/radiusred/gh-codecrew/issues/114):
 
 ```yaml
-codecrew: "2.0"
+codecrew: "2.1"
 hub: self                # spokes: owner/repo
 
 # Advisory role routing, read by whoever dispatches agents.
@@ -885,7 +888,10 @@ that is still some release's text is brought up to date by `roles sync` on
 the housekeeping path (§4), and a fork's reconciliation is the project's
 judgment. A change to
 this document that invalidates existing pointers or recorded comments is a
-protocol major, and the CLI that implements it refuses the old pointer.
+protocol major, and the CLI that implements it refuses the old pointer. A
+protocol minor is additive — new verbs, codes, records and contract text,
+with every pointer, layout and recorded comment the major accepted still
+valid — and its CLI reads an earlier minor's pointer as current (§5).
 
 **The refusal codes.** Forty-seven, and this table is the catalogue: a code
 absent from it is not one the protocol promises. Every row is raised as

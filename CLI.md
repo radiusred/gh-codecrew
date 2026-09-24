@@ -183,13 +183,15 @@ Moves a repository from the protocol 1.x layout to 2.0. `git mv` takes
 `.codecrew.yml` to `.codecrew/config.yml` and, out of a root `roles/`, the
 five role contracts and their `<role>.local.md` extensions into
 `.codecrew/roles/`, removing the emptied directory. The pointer is then
-rewritten in place: `codecrew: "2.0"`, a `coordinator` row when the table
-declares none, and every identity typed by asking GitHub what each bare 1.0
-login is. Comments, blank lines and key order are kept. It writes
-`.codecrew/AGENTS.md` when the repo has none, and does for the root
-`AGENTS.md` and `CLAUDE.md` what `init` does. Every refusal is raised before
-anything is written. A repo already on the 2.0 layout says so, moves nothing
-and commits nothing — the label step still runs.
+rewritten in place: `codecrew: "2.1"`, the protocol the binary implements; a
+`coordinator` row when the table declares none; and every identity typed by
+asking GitHub what each bare 1.0 login is. Comments, blank lines and key
+order are kept. It writes `.codecrew/AGENTS.md` when the repo has none, and
+does for the root `AGENTS.md` and `CLAUDE.md` what `init` does. Every
+refusal is raised before anything is written. A repo already on the 2.0
+layout says so, moves nothing and commits nothing — a pointer naming an
+earlier minor, such as `"2.0"`, is current and left as it is (SPEC §5) —
+and the label step still runs.
 
 **Options**
 
@@ -1107,7 +1109,7 @@ shape is stable within a major.
 **Exit status.** 0.
 
 ```
-gh codecrew version     # v2.0.1 (protocol 2.0)
+gh codecrew version     # v2.1.0 (protocol 2.1)
 ```
 
 Licensed under [Apache 2.0](LICENSE).
