@@ -13,9 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Every release tag, so the check below can read each one's
+          # contracts.
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # roles sync recognises an earlier release's contract text by the
+      # table scripts/contract-history generates; a release cut while the
+      # table misses the one before it would call every hub on that
+      # release a fork (M18-R6). Without tags the test skips, so it is
+      # required here.
+      - name: Check the contract history covers every release tag
+        run: go test ./internal/cli -run TestContractHistoryCoversEveryTag
+        env:
+          CODECREW_REQUIRE_TAGS: "1"
       - uses: cli/gh-extension-precompile@v2
         with:
           build_script_override: scripts/build-extension
