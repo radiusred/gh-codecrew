@@ -789,12 +789,14 @@ renamed or removed; a refusal code's meaning is stable — codes may be added
 in a minor, never repurposed, and removed only in a major; the
 `refused[CODE]: detail` line and the `version` output are stable shapes,
 other human-facing text is not; pointer fields are additive; the embedded
-role contracts may change in a minor — `status`'s drift report and `roles
-diff` are the mechanism, reconciliation the project's judgment. A change to
+role contracts may change in a minor — `status`'s drift report, `roles diff`
+and `roles sync` are the mechanism: a contract that is still some release's
+text is brought up to date by `roles sync` on the housekeeping path (§4), and
+a fork's reconciliation is the project's judgment. A change to
 this document that invalidates existing pointers or recorded comments is a
 protocol major, and the CLI that implements it refuses the old pointer.
 
-**The refusal codes.** Forty-five, and this table is the catalogue: a code
+**The refusal codes.** Forty-six, and this table is the catalogue: a code
 absent from it is not one the protocol promises. Every row is raised as
 `refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
 below means any verb that loads and validates the working repo's pointer —
@@ -811,6 +813,7 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | `CHECKS_FAILING` | `task finish` | A CI check on the closing PR failed. |
 | `CHECKS_PENDING` | `task finish` | The closing PR's checks are still running. |
 | `CLOSED` | `task start`, `task finish` | The task issue is already closed. |
+| `CONTRACT_FORKED` | `roles sync` | A hub contract differs from the embedded one and from every release's text: it is the project's fork (§7), and the verb never overwrites one. Checked before anything is written. |
 | `CREW_BYPASS` | `task finish` | `--bypass` was given by a crew identity; the override is a human operator's act. |
 | `DECISION_UNRECORDED` | `milestone strike`, `milestone close` | A struck or reinstated line's link is not a comment on the milestone issue or one of its tasks carrying a `**Decision:**` or `**Gate resolved:**` record that names the ID (§4). |
 | `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a task before the close. |

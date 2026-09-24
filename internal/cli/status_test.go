@@ -196,8 +196,10 @@ func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {
 // The counterpart: an undrifted hub whose repo deletes branches prints the
 // line and nothing else, so neither advisory check is free.
 func TestStatusWithoutOpenMilestonesSaysNothingElseWhenClean(t *testing.T) {
+	c := statusCtx(t, &statusFake{})
+	writeEmbeddedContracts(t, c.cfg.Dir)
 	var out bytes.Buffer
-	if err := statusReport(&out, statusCtx(t, &statusFake{})); err != nil {
+	if err := statusReport(&out, c); err != nil {
 		t.Fatal(err)
 	}
 	if got := out.String(); got != "no open milestones in o/r\n" {
@@ -501,5 +503,53 @@ func TestStatusStaleReportIsAdvisory(t *testing.T) {
 	}
 	if strings.Contains(got, "stale branch:") {
 		t.Errorf("no branch was read, so none may be reported:\n%s", got)
+	}
+}
+
+// status reports what roles sync would act on, in the hub only, and names
+// the verb that acts: sync for a missing contract or a release's text,
+// diff for a fork (#266).
+func TestContractReportNamesTheVerb(t *testing.T) {
+	dir := t.TempDir()
+	writeContract(t, dir, "implementer", oldImplementer)
+	var out bytes.Buffer
+	contractReport(&out, dir, fakeContracts, fakeHistory)
+	for _, want := range []string{
+		"contract drift: " + contractPath("implementer") + " is the v1.2.0 text, behind the embedded " + version + " contract — gh codecrew roles sync",
+		"contract missing: " + contractPath("qa") + " — the embedded " + version + " contract has no local copy; gh codecrew roles sync writes it",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("report lacks %q:\n%s", want, out.String())
+		}
+	}
+	writeContract(t, dir, "implementer", "a fork\n")
+	writeContract(t, dir, "qa", "# Role: qa\n")
+	out.Reset()
+	contractReport(&out, dir, fakeContracts, fakeHistory)
+	if want := "a fork — gh codecrew roles diff implementer"; !strings.Contains(out.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "qa") {
+		t.Errorf("a current contract was reported:\n%s", out.String())
+	}
+}
+
+func TestStatusReportsMissingContractsOnlyInTheHub(t *testing.T) {
+	c := statusCtx(t, &statusFake{})
+	var out bytes.Buffer
+	if err := statusReport(&out, c); err != nil {
+		t.Fatal(err)
+	}
+	if want := "contract missing: " + contractPath("coordinator"); !strings.Contains(out.String(), want) {
+		t.Errorf("a hub with no contracts: status lacks %q:\n%s", want, out.String())
+	}
+	c = statusCtx(t, &statusFake{})
+	c.cfg.Hub = "o/hub"
+	out.Reset()
+	if err := statusReport(&out, c); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "contract") {
+		t.Errorf("a spoke holds no contracts, and status said:\n%s", out.String())
 	}
 }

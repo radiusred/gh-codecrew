@@ -118,7 +118,7 @@ func commitScaffold(w io.Writer, dir string, written []string) {
 		onBootstrap, fromDefault = true, fd
 		branch = bootstrapBranch
 	}
-	sha, ok := pathspecCommit(w, dir, scaffoldSubject, "the scaffold", written, written)
+	sha, ok := pathspecCommit(w, dir, scaffoldSubject, "", "the scaffold", written, written)
 	if !ok {
 		return
 	}
@@ -145,12 +145,14 @@ func commitByHand(subject string, paths []string) string {
 // pathspecCommit stages and commits exactly paths on the current branch —
 // `git add --` then `git commit --only --`, never `-A` and never a stash —
 // so every other staged and unstaged change is left as it was. It is the
-// machinery both one-shot verbs commit through: init's scaffold and
-// migrate's layout move. noun names what is being committed in the notes a
+// machinery the verbs that commit go through: init's scaffold, migrate's
+// layout move and roles sync's contracts. body, when not empty, is the
+// commit message's body — roles sync names the tool that defined the
+// target there (SPEC §4, housekeeping). noun names what is being committed in the notes a
 // failure prints; stage is what needs adding (a scaffold's whole pathspec,
 // or only the destinations of a set of renames git already knows), and
 // paths is the pathspec the commit is limited to.
-func pathspecCommit(w io.Writer, dir, subject, noun string, stage, paths []string) (sha string, ok bool) {
+func pathspecCommit(w io.Writer, dir, subject, body, noun string, stage, paths []string) (sha string, ok bool) {
 	byHand := commitByHand(subject, paths)
 	if len(stage) > 0 {
 		if _, err := git(dir, append([]string{"add", "--"}, stage...)...); err != nil {
@@ -158,7 +160,11 @@ func pathspecCommit(w io.Writer, dir, subject, noun string, stage, paths []strin
 			return "", false
 		}
 	}
-	if _, err := git(dir, append([]string{"commit", "--only", "--quiet", "-m", subject, "--"}, paths...)...); err != nil {
+	args := []string{"commit", "--only", "--quiet", "-m", subject}
+	if body != "" {
+		args = append(args, "-m", body)
+	}
+	if _, err := git(dir, append(append(args, "--"), paths...)...); err != nil {
 		fmt.Fprintf(w, "note: could not commit %s (%v) — commit it by hand: %s\n", noun, err, byHand)
 		return "", false
 	}

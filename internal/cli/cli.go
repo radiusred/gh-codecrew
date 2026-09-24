@@ -45,6 +45,8 @@ verbs:
                                              (--login: the review-requestable handle, nothing for an App or ~)
   roles diff <role>                          local contract vs the one embedded in the CLI
   roles show <role> [--latest]               the contract a session loads (with local extensions), or the embedded one
+  roles sync [<role>...] [--dry-run]         write the embedded contracts where the hub's are absent or a release's text:
+                                             one local commit, never pushed; a fork refuses (--dry-run: nothing written)
   identity new <role> --name N               mint the role's App identity via the manifest flow
            [--owner O] [--with-webhook --webhook-url U]
            [--no-route]                      (print the routing step instead of writing it into the hub's pointer)

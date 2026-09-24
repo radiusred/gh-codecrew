@@ -191,7 +191,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		fmt.Fprintf(w, "note: HEAD is detached — the files are moved but not committed; switch to a branch and run: %s\n", commitByHand(migrateSubject, paths))
 		return nil
 	}
-	sha, ok := pathspecCommit(w, root, migrateSubject, "the migration", stage, paths)
+	sha, ok := pathspecCommit(w, root, migrateSubject, "", "the migration", stage, paths)
 	if !ok {
 		// Same rule: the move is on disk, so the labels run — after
 		// pathspecCommit's own note, which named the command to run.
