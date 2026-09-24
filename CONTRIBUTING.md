@@ -14,6 +14,13 @@ the contribution process.
   (`(#123)`), a PR that closes it, and a review from the reviewer seat — an
   App identity here, whose review arrives by dispatch, not by request. The
   operator merges through `task finish`; nothing merges around it.
+- **Housekeeping** — a change where a tool states the target and the diff is
+  the whole decision takes the light path instead (SPEC §4): a `chore:`
+  commit whose body names the tool, a PR reviewed by the reviewer seat, and
+  no task. Regenerating the release table `roles sync` reads is one: after a
+  release is tagged, `scripts/contract-history` in a PR of its own — the
+  release workflow will not build the next release until the table covers
+  every tag.
 - **Code ships with tests** in the same PR (the #46 convention); documented
   commands are executed by the reviewer, verbatim.
 - **Decisions and deviations** are recorded as comments when they happen
