@@ -63,20 +63,31 @@ per-milestone records of the decisions that shaped the system and why.
 
 ## What exists
 
-**Shipped:** v2.0.2 of the `gh` extension, implementing protocol 2.0
-(`version` prints both: `v2.0.2 (protocol 2.0)`; the pointer's protocol
-major is checked, another major refuses; `gh` itself must be 2.50.0 or
-later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
+**Shipped:** v2.1.0 of the `gh` extension, implementing protocol 2.1
+(`version` prints both: `v2.1.0 (protocol 2.1)`; the pointer's protocol
+major is checked, another major refuses, and a pointer naming an earlier
+minor such as `"2.0"` is current; `gh` itself must be 2.50.0 or later, or
+the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
 `init`, `migrate`, `status`, `milestone new/evidence/close/strike`,
 `task new/start/finish`, `checkpoint`,
-`role`, `roles diff/show`, `identity new/token/webhook`, and `version` — all implemented,
+`role`, `roles diff/show/sync`, `identity new/token/webhook`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. What each verb takes, what it reads and writes, which
 codes it can refuse with and what `--dry-run` does where it has one is
 [CLI.md](../CLI.md), a section per verb. `milestone new`, `task finish`,
-`milestone close`, `milestone strike`, `migrate` and — on main, not yet
-released — `roles sync` take `--dry-run`, which shows what the verb would do
-and writes nothing. What changed and when:
+`milestone close`, `milestone strike`, `migrate` and `roles sync` take
+`--dry-run`, which shows what the verb would do and writes nothing.
+Protocol 2.1 adds three things to the 2.0 lifecycle. A requirement can be
+**struck** by a recorded decision of the coordination layer
+(`milestone strike`), and `milestone close` counts a struck requirement as
+terminal, as it does a QA `pass`. A change with no decision in it — a
+tool's output, such as a contract sync or a dependency bump — is
+**housekeeping** and takes a light path: a reviewed `chore:` pull request
+with no task, milestone or verdict; the milestone record takes the same
+path. And **`roles sync`** brings a hub's contracts, and any repo's
+`.codecrew/AGENTS.md`, up to the release's text where they are absent or an
+earlier release's, refusing a fork rather than overwriting it. What changed
+and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
 

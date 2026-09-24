@@ -82,11 +82,14 @@ gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, 
                          #  with the lines to add to it printed)
 ```
 
-**Already running CodeCrew?** The current release, v2.0.2, implements
-protocol 2.0 — the `.codecrew/` layout the block above and the rest of this
-page describe. A repo still on the 1.x layout (`.codecrew.yml` and `roles/`
-at the root) is refused, not read: `gh codecrew migrate` moves it forward in
-one local commit, hubs before their spokes. What 2.0 broke and the migration
+**Already running CodeCrew?** The current release, v2.1.0, implements
+protocol 2.1 — the `.codecrew/` layout the block above and the rest of this
+page describe, unchanged since 2.0, so a 2.0 repo has no migration step:
+upgrade the extension and follow the 2.1.0 section of
+[CHANGELOG.md](CHANGELOG.md). A repo still on the 1.x layout
+(`.codecrew.yml` and `roles/` at the root) is refused, not read:
+`gh codecrew migrate` moves it forward in one local commit, hubs before
+their spokes. What 2.0 broke and the migration
 steps are in [CHANGELOG.md](CHANGELOG.md)'s 2.0.0 section.
 
 `init` scaffolds the project with every seat routed to `~`. After it, the verbs
