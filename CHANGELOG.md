@@ -24,12 +24,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   missing contract or one still at a release's text goes through
   `gh codecrew roles sync` as a housekeeping PR, and only a fork is
   reconciled in a task.
-- An existing project does not receive the new text from any verb: `init`
-  keeps an existing `.codecrew/AGENTS.md`, and `migrate` on a repository
-  already on the `.codecrew/` layout moves nothing. Edit it by hand, or
-  remove it and run `gh codecrew init` again (with `--hub owner/repo` in a
-  spoke), which writes only the files that are absent and commits them. No
-  verb's behaviour changed. (#372)
+- `gh codecrew roles sync` now delivers `.codecrew/AGENTS.md` too, in a
+  hub and in a spoke, by the rule it applies to contracts: it writes the
+  file when it is absent or still an earlier release's scaffold, and
+  refuses before writing anything when it is the project's own — the new
+  code `AGENTS_FORKED`, or inside `CONTRACT_FORKED`'s detail when a contract
+  is forked as well. `init` and `migrate` still write the file only when
+  it is absent, so this is how an existing project receives the version
+  check: the same housekeeping PR that syncs its contracts. With no
+  arguments the verb takes every contract and the agents file in a hub,
+  and the agents file alone in a spoke (where it used to exit with "spokes
+  hold no contracts"); a role list leaves the agents file alone, and its
+  path, `.codecrew/AGENTS.md`, names it. `roles diff .codecrew/AGENTS.md`
+  shows the file against the embedded scaffold, and `status` prints an
+  `agents file missing:` or `agents file drift:` line in hub and spoke.
+  A hub whose `.codecrew/AGENTS.md` is hand-written, as this one's is,
+  sees the drift line on every `status` and syncs its contracts by naming
+  the roles.
+- `scripts/contract-history` records every release's scaffold beside its
+  contracts, evaluating the `agentsScaffold` constant from the release's
+  source (`internal/gosrc`), since the scaffold is not a file at the tag;
+  v2.0.0 to v2.0.2 shipped one text. The release guard checks those rows
+  too. (#372)
 
 ### The milestone record takes the housekeeping light path
 
