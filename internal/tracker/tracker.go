@@ -743,6 +743,117 @@ func ParseVerdicts(comments []Comment) []Verdict {
 	return verdicts
 }
 
+// Strike words: the two lines the coordination layer posts on a milestone
+// issue to change a requirement's scope (SPEC §4, M18-R4). They are not QA
+// verdicts — verdictLine keeps its three words, so a QA comment that writes
+// "struck" is neither — and they are read by the verdicts' own reading.
+const (
+	Struck     = "struck"
+	Reinstated = "reinstated"
+)
+
+// strikeLine matches `**M8-R2 — struck.** <decision link>` and its
+// `reinstated` twin: the ID and the word inside the bold, as a verdict has
+// them, then the rest of the line, which carries the decision link.
+var strikeLine = regexp.MustCompile(`(?i)\*\*(M\d+-R\d+)\s*[—–-]+\s*(struck|reinstated)\b[^*\n]*\*\*([^\n]*)`)
+
+// commentURL matches a GitHub issue-comment URL — the only form a strike's
+// decision link takes: the record it names is one comment, on one issue.
+var commentURL = regexp.MustCompile(`https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)#issuecomment-(\d+)`)
+
+// CommentURLForm is the shape of a decision link, for the refusal that
+// names it.
+const CommentURLForm = "https://github.com/<owner>/<repo>/issues/<n>#issuecomment-<id>"
+
+// Strike is one struck or reinstated line found in a comment.
+type Strike struct {
+	ID       string
+	Word     string // Struck or Reinstated
+	Decision string // the first issue-comment URL after the bold, or ""
+	Author   string
+	URL      string // the comment the line was posted in
+}
+
+// ParseStrikes scans comments in order for struck and reinstated lines,
+// exactly as ParseVerdicts scans for verdicts: code stripped first, at most
+// one line per requirement ID per comment — the first — so a comment may
+// quote the line it supersedes inside code without superseding itself.
+// Callers filter by author and take the last entry per ID.
+func ParseStrikes(comments []Comment) []Strike {
+	var strikes []Strike
+	for _, c := range comments {
+		seen := map[string]bool{}
+		for _, m := range strikeLine.FindAllStringSubmatch(StripCode(NormalizeLineEndings(c.Body)), -1) {
+			if seen[m[1]] {
+				continue
+			}
+			seen[m[1]] = true
+			strikes = append(strikes, Strike{
+				ID:       m[1],
+				Word:     strings.ToLower(m[2]),
+				Decision: commentURL.FindString(m[3]),
+				Author:   c.Author,
+				URL:      c.URL,
+			})
+		}
+	}
+	return strikes
+}
+
+// StrikeLine is the line `milestone strike` posts: the ID and the word in
+// bold, then the decision link.
+func StrikeLine(id, word, decision string) string {
+	return fmt.Sprintf("**%s — %s.** %s", id, word, decision)
+}
+
+// ParseCommentURL reads an issue-comment URL into the issue it is on and
+// the comment's id. Anything else — a bare issue link, a PR comment, a
+// review — is not a comment URL, and ok is false.
+func ParseCommentURL(u string) (ref IssueRef, id string, ok bool) {
+	m := commentURL.FindStringSubmatch(strings.TrimSpace(u))
+	if m == nil || m[0] != strings.TrimSpace(u) {
+		return IssueRef{}, "", false
+	}
+	n, _ := strconv.Atoi(m[2])
+	return IssueRef{Repo: m[1], Number: n}, m[3], true
+}
+
+// CommentID is the id an issue comment's URL ends in, or "".
+func CommentID(u string) string {
+	if m := commentURL.FindStringSubmatch(u); m != nil {
+		return m[3]
+	}
+	return ""
+}
+
+// NamesRequirement reports whether text names the requirement ID as a
+// whole word — M8-R2 is named by "strike M8-R2." and not by "M8-R21".
+func NamesRequirement(text, id string) bool {
+	return regexp.MustCompile(`(^|[^\w-])` + regexp.QuoteMeta(id) + `($|[^\w-])`).MatchString(text)
+}
+
+// struckThroughID matches a still-bold requirement ID opening a
+// strikethrough: `~~**M8-R2**~~`, or `~~**M8-R2** — text~~`.
+var struckThroughID = regexp.MustCompile(`~~[ \t]*\*\*(M\d+-R\d+)\*\*`)
+
+// StruckThroughIDs returns the requirement IDs under a milestone body's
+// Requirements section that are still bold but struck through in the body.
+// They are requirements like any other — RequirementIDs counts them, and a
+// strikethrough in the body means nothing to the protocol, because a body
+// edit is not a record (SPEC §4) — so the only use of this list is to say
+// so: status notes each one that carries no strike.
+func StruckThroughIDs(body string) []string {
+	var ids []string
+	seen := map[string]bool{}
+	for _, m := range struckThroughID.FindAllStringSubmatch(section(NormalizeLineEndings(body), "## Requirements"), -1) {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			ids = append(ids, m[1])
+		}
+	}
+	return ids
+}
+
 // paragraphs splits a comment body the way ExtractRecords reads it: on a
 // blank line, each paragraph trimmed and the empty ones dropped. The body
 // arrives with LF line endings — its two callers are exported scanners,
