@@ -19,6 +19,7 @@
 | M15 | v2.0.1: what the fleet migration taught | [#305](https://github.com/radiusred/gh-codecrew/issues/305) | [Done](docs/milestones/15-v2-0-1-what-the-fleet-migration-taught.md) |
 | M16 | Bedding in: the venue seam and the reference | [#325](https://github.com/radiusred/gh-codecrew/issues/325) | [Done](docs/milestones/16-bedding-in-the-venue-seam-and-the-reference.md) |
 | M17 | The frontier builds the coordinator | [#345](https://github.com/radiusred/gh-codecrew/issues/345) | [Done](docs/milestones/17-the-frontier-builds-the-coordinator.md) |
+| M18 | The protocol scales down | [#353](https://github.com/radiusred/gh-codecrew/issues/353) | [Done](docs/milestones/18-the-protocol-scales-down.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
