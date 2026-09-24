@@ -6,7 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### The doc-synthesizer's front-door obligation holds in any hub
+
+- The embedded doc-synthesizer contract obliged the record's PR to refresh
+  "the README and the introduction" and named the introduction's release,
+  verbs and refusal codes — this hub's documentation set, unsatisfiable in a
+  hub without them, such as a blog. The obligation now reads "the hub's
+  front-door documents, wherever they make claims the milestone changed",
+  names no document, sends the list of which documents and claims to the
+  hub's `.codecrew/roles/doc-synthesizer.local.md`, and says that an
+  untouched front door means nothing to refresh. This hub's own specifics —
+  the README's proof points, the introduction's release, verbs and refusal
+  codes — moved into its extension, and `docs/extensions.md` shows them as
+  an example. A hub that relied on the old text writes its front door into
+  its own extension; upgrading reports the usual drift on
+  `doc-synthesizer.md` until the contract is reconciled. No verb, refusal
+  code or protocol version changes. (#363)
 
 ## [2.0.2] — 2026-09-23
 

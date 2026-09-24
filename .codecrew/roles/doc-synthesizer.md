@@ -50,12 +50,14 @@ slug from `roles.doc-synthesizer.identity` (`app:<slug>`).
   nothing else — so the roadmap lists finished milestones and
   `gh codecrew status` reports the open one
   ([#197](https://github.com/radiusred/gh-codecrew/issues/197)).
-- **Refresh the README and the introduction** (`docs/introduction.md`) in
-  the same PR: update them so they reflect what the milestone delivered.
-  Their claims about what exists and works — the landing page's proof
-  points, the introduction's release, verbs and refusal codes — must be
-  true at every milestone boundary. Stale claims are defects, and this
-  obligation is the mechanism that keeps them fixed.
+- **Refresh the hub's front-door documents** in the same PR, wherever they
+  make claims the milestone changed — the pages a newcomer reads first to
+  learn what the project is and what works. Their claims about what exists
+  and works must be true at every milestone boundary. Stale claims are
+  defects, and this obligation is the mechanism that keeps them fixed.
+  Which documents are the front door, and which of their claims to check,
+  belongs in `.codecrew/roles/doc-synthesizer.local.md`; where the
+  milestone changed no such claim, there is nothing to refresh.
 - **Deliver as a task.** The milestone document is a task like any other:
   the coordination layer opens it (`gh codecrew task new --milestone <n>`),
   you write its plan, run `gh codecrew task start`, open the PR with
