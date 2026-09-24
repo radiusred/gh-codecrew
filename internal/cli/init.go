@@ -51,8 +51,9 @@ const roadmapScaffold = `# Roadmap
 // CodeCrew's directory, so no line of it is one the project wrote. The
 // root AGENTS.md an adopter owns only points at it (entryPointLines).
 // Neither init nor migrate rewrites it once it exists — both write it only
-// when absent — so a project already on the layout takes new text from a
-// release by hand, or by removing the file and running init again.
+// when absent. A project already on the layout takes a release's new text
+// through roles sync, which rewrites the file only while it is an earlier
+// release's scaffold, unedited, exactly as it treats a contract (#372).
 const agentsScaffold = `# Agents
 
 This repository is part of a CodeCrew project — coordination state lives in
@@ -89,7 +90,9 @@ GitHub issues and PRs, per the protocol at
   text via ` + "`gh codecrew roles show <role> --latest`" + `), decides what to adopt,
   and reconciles it in a task with the decision recorded, moving the
   project's additions into the role's ` + "`.local.md`" + ` extension. Never overwrite
-  a fork blindly.
+  a fork blindly. This file is CodeCrew's too, and ` + "`roles sync`" + ` brings it up
+  to date the same way, only while it is a release's text; the project's
+  own instructions belong in the root ` + "`AGENTS.md`" + `.
 - **Dispatch authorization.** If you are the operator's primary session —
   not dispatched as any specific role — then when a role is routed to a
   GitHub App and that role's action is needed (a review, a verdict),

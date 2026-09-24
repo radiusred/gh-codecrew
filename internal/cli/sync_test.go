@@ -14,6 +14,7 @@ import (
 
 	codecrew "github.com/radiusred/gh-codecrew"
 	"github.com/radiusred/gh-codecrew/internal/config"
+	"github.com/radiusred/gh-codecrew/internal/gosrc"
 )
 
 // The texts the sync tests reason about: fakeContracts embeds
@@ -26,10 +27,38 @@ func sha(s string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// oldAgents and newAgents stand in for a released .codecrew/AGENTS.md
+// scaffold and the one the binary writes; fakeHistory carries the first.
+const (
+	oldAgents = "# Agents\nOld scaffold.\n"
+	newAgents = "# Agents\nNew scaffold.\n"
+)
+
 var fakeHistory = []releasedContract{
 	{Release: "v1.0.0", Role: "implementer", SHA256: sha("# Role: implementer\nOlder text.\n")},
 	{Release: "v1.1.0", Role: "implementer", SHA256: sha(oldImplementer)},
 	{Release: "v1.2.0", Role: "implementer", SHA256: sha(oldImplementer)},
+	{Release: "v2.0.0", Role: config.AgentsFile, SHA256: sha(oldAgents)},
+}
+
+func writeAgents(t *testing.T, dir, content string) {
+	t.Helper()
+	p := filepath.Join(dir, filepath.FromSlash(config.AgentsFile))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readAgents(t *testing.T, dir string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.AgentsFile)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }
 
 func writeContract(t *testing.T, dir, role, content string) {
@@ -164,7 +193,7 @@ func TestRolesSyncWritesAbsentAndReleaseTextsInOneCommit(t *testing.T) {
 	mustGitIn(t, dir, "add", "notes.txt")
 
 	var out bytes.Buffer
-	if err := rolesSync(&out, dir, fakeContracts, fakeHistory, nil, false); err != nil {
+	if err := rolesSync(&out, dir, syncSource{contracts: fakeContracts}, fakeHistory, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	// Unstamped stays unstamped; absent is written as init writes it.
@@ -211,7 +240,7 @@ func TestRolesSyncRefusesAForkBeforeWriting(t *testing.T) {
 	writeContract(t, dir, "implementer", fork)
 	head := mustGitIn(t, dir, "rev-parse", "HEAD")
 
-	err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, nil, false)
+	err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, nil, false)
 	var r refusal
 	if !errors.As(err, &r) || r.Code != "CONTRACT_FORKED" {
 		t.Fatalf("err = %v, want CONTRACT_FORKED", err)
@@ -231,7 +260,7 @@ func TestRolesSyncRefusesAForkBeforeWriting(t *testing.T) {
 		t.Error("a refused sync committed")
 	}
 
-	if err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, []string{"qa"}, false); err != nil {
+	if err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, []string{"qa"}, false); err != nil {
 		t.Fatalf("syncing the other role past the fork: %v", err)
 	}
 	if got := readContract(t, dir, "implementer.md"); got != fork {
@@ -247,7 +276,7 @@ func TestRolesSyncDryRunWritesNothing(t *testing.T) {
 	writeContract(t, dir, "implementer", oldImplementer)
 	head := mustGitIn(t, dir, "rev-parse", "HEAD")
 	var out bytes.Buffer
-	if err := rolesSync(&out, dir, fakeContracts, fakeHistory, nil, true); err != nil {
+	if err := rolesSync(&out, dir, syncSource{contracts: fakeContracts}, fakeHistory, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"would write " + contractPath("implementer") + " (was the v1.2.0 text)", "would write " + contractPath("qa") + " (absent)", "would commit 2 paths on main", "dry run: nothing written"} {
@@ -264,7 +293,7 @@ func TestRolesSyncDryRunWritesNothing(t *testing.T) {
 	// A fork refuses the dry run too, with the same code.
 	writeContract(t, dir, "qa", "# Role: qa\nForked.\n")
 	var r refusal
-	if err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, nil, true); !errors.As(err, &r) || r.Code != "CONTRACT_FORKED" {
+	if err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, nil, true); !errors.As(err, &r) || r.Code != "CONTRACT_FORKED" {
 		t.Errorf("dry run over a fork: %v", err)
 	}
 }
@@ -276,13 +305,13 @@ func TestRolesSyncCutsABranchOnTheDefaultBranch(t *testing.T) {
 	mustGitIn(t, dir, "update-ref", "refs/remotes/origin/main", "HEAD")
 	mustGitIn(t, dir, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	var out bytes.Buffer
-	if err := rolesSync(&out, dir, fakeContracts, fakeHistory, []string{"qa"}, true); err != nil {
+	if err := rolesSync(&out, dir, syncSource{contracts: fakeContracts}, fakeHistory, []string{"qa"}, true); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "would commit 1 paths on "+syncBranch+", cut from main") {
 		t.Errorf("dry run does not name the branch:\n%s", out.String())
 	}
-	if err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, []string{"qa"}, false); err != nil {
+	if err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, []string{"qa"}, false); err != nil {
 		t.Fatal(err)
 	}
 	if b := mustGitIn(t, dir, "symbolic-ref", "--short", "HEAD"); b != syncBranch {
@@ -293,7 +322,7 @@ func TestRolesSyncCutsABranchOnTheDefaultBranch(t *testing.T) {
 	}
 
 	mustGitIn(t, dir, "switch", "-q", "main")
-	err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, []string{"qa"}, false)
+	err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, []string{"qa"}, false)
 	if err == nil || !strings.Contains(err.Error(), syncBranch) {
 		t.Errorf("a leftover %s was not reported: %v", syncBranch, err)
 	}
@@ -303,7 +332,7 @@ func TestRolesSyncCutsABranchOnTheDefaultBranch(t *testing.T) {
 
 	// Off the default branch the commit lands where the operator is.
 	mustGitIn(t, dir, "switch", "-q", "-c", "chores")
-	if err := rolesSync(&bytes.Buffer{}, dir, fakeContracts, fakeHistory, []string{"qa"}, false); err != nil {
+	if err := rolesSync(&bytes.Buffer{}, dir, syncSource{contracts: fakeContracts}, fakeHistory, []string{"qa"}, false); err != nil {
 		t.Fatal(err)
 	}
 	if b := mustGitIn(t, dir, "symbolic-ref", "--short", "HEAD"); b != "chores" {
@@ -317,7 +346,7 @@ func TestRolesSyncWithNothingToDoCommitsNothing(t *testing.T) {
 	writeContract(t, dir, "qa", contractStamp("qa.md")+"# Role: qa\n")
 	head := mustGitIn(t, dir, "rev-parse", "HEAD")
 	var out bytes.Buffer
-	if err := rolesSync(&out, dir, fakeContracts, fakeHistory, nil, false); err != nil {
+	if err := rolesSync(&out, dir, syncSource{contracts: fakeContracts}, fakeHistory, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "nothing to write") {
@@ -328,14 +357,178 @@ func TestRolesSyncWithNothingToDoCommitsNothing(t *testing.T) {
 	}
 }
 
-func TestRolesSyncRefusesToRunInASpoke(t *testing.T) {
-	err := rolesSyncCmd(&bytes.Buffer{}, []string{"--dry-run"}, "o/hub", t.TempDir(), fakeContracts)
+// A spoke holds no contracts, so naming a role there is still an error
+// without a code, as roles diff's is; the agents file is the one thing a
+// spoke's roles sync writes (#372).
+func TestRolesSyncInASpokeWritesOnlyTheAgentsFile(t *testing.T) {
+	err := rolesSyncCmd(&bytes.Buffer{}, []string{"qa", "--dry-run"}, "o/hub", t.TempDir(), fakeContracts)
 	if err == nil || !strings.Contains(err.Error(), "spoke of o/hub") {
 		t.Errorf("err = %v", err)
 	}
 	var r refusal
 	if errors.As(err, &r) {
 		t.Errorf("a spoke exits without a code, as roles diff does: %v", err)
+	}
+
+	dir := syncRepo(t)
+	writeAgents(t, dir, oldAgents)
+	mustGitIn(t, dir, "add", "-A")
+	mustGitIn(t, dir, "commit", "-q", "-m", "chore: agents")
+	var out bytes.Buffer
+	if err := rolesSync(&out, dir, syncSource{agents: newAgents}, fakeHistory, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readAgents(t, dir); got != newAgents {
+		t.Errorf("agents file = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(config.RolesDir))); err == nil {
+		t.Error("a spoke's sync wrote contracts")
+	}
+	if subj := mustGitIn(t, dir, "log", "-1", "--format=%s"); subj != "chore: sync the codecrew agents file to "+version {
+		t.Errorf("subject = %q", subj)
+	}
+	if !strings.Contains(out.String(), config.AgentsFile+" (was the v2.0.0 text)") {
+		t.Errorf("output:\n%s", out.String())
+	}
+}
+
+// In a hub a bare sync writes the contracts and the agents file as one
+// commit; a role list leaves the agents file alone, and its path names it
+// alone (#372).
+func TestRolesSyncCarriesTheAgentsFile(t *testing.T) {
+	dir := syncRepo(t)
+	src := syncSource{contracts: fakeContracts, agents: newAgents}
+	var out bytes.Buffer
+	if err := rolesSync(&out, dir, src, fakeHistory, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readAgents(t, dir); got != newAgents {
+		t.Errorf("agents file = %q", got)
+	}
+	if subj := mustGitIn(t, dir, "log", "-1", "--format=%s"); subj != "chore: sync codecrew role contracts and agents file to "+version {
+		t.Errorf("subject = %q", subj)
+	}
+	files := mustGitIn(t, dir, "show", "--name-only", "--format=", "HEAD")
+	for _, want := range []string{config.AgentsFile, contractPath("implementer"), contractPath("qa")} {
+		if !strings.Contains(files, want) {
+			t.Errorf("the commit lacks %s:\n%s", want, files)
+		}
+	}
+	if body := mustGitIn(t, dir, "log", "-1", "--format=%b"); !strings.Contains(body, "Target: the role contracts and "+config.AgentsFile) {
+		t.Errorf("body = %q", body)
+	}
+
+	// A role list never touches the agents file; the path alone does.
+	dir = syncRepo(t)
+	writeAgents(t, dir, oldAgents)
+	if err := rolesSync(&bytes.Buffer{}, dir, src, fakeHistory, []string{"qa"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readAgents(t, dir); got != oldAgents {
+		t.Errorf("a role list rewrote the agents file: %q", got)
+	}
+	if err := rolesSync(&bytes.Buffer{}, dir, src, fakeHistory, []string{config.AgentsFile}, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readAgents(t, dir); got != newAgents {
+		t.Errorf("naming the path did not sync it: %q", got)
+	}
+	if files := mustGitIn(t, dir, "show", "--name-only", "--format=", "HEAD"); strings.TrimSpace(files) != config.AgentsFile {
+		t.Errorf("naming the path committed more than the agents file:\n%s", files)
+	}
+}
+
+// A hand-written agents file is the project's own: alone it refuses
+// AGENTS_FORKED, beside a forked contract CONTRACT_FORKED names both, and
+// either way nothing is written — dry run included (#372).
+func TestRolesSyncNeverOverwritesAnAgentsFileOfTheProjects(t *testing.T) {
+	src := syncSource{contracts: fakeContracts, agents: newAgents}
+	for _, c := range []struct {
+		name, implementer, code string
+		dryRun                  bool
+	}{
+		{"agents alone", "# Role: implementer\n", "AGENTS_FORKED", false},
+		{"agents alone, dry run", "# Role: implementer\n", "AGENTS_FORKED", true},
+		{"beside a forked contract", "# Role: implementer\nOurs.\n", "CONTRACT_FORKED", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := syncRepo(t)
+			writeContract(t, dir, "implementer", c.implementer)
+			writeAgents(t, dir, "# Our own agents file\n")
+			head := mustGitIn(t, dir, "rev-parse", "HEAD")
+			var r refusal
+			err := rolesSync(&bytes.Buffer{}, dir, src, fakeHistory, nil, c.dryRun)
+			if !errors.As(err, &r) || r.Code != c.code {
+				t.Fatalf("err = %v, want %s", err, c.code)
+			}
+			if !strings.Contains(err.Error(), "gh codecrew roles diff "+config.AgentsFile) {
+				t.Errorf("the refusal does not name the agents file's diff: %v", err)
+			}
+			if readAgents(t, dir) != "# Our own agents file\n" || readContract(t, dir, "implementer.md") != c.implementer {
+				t.Error("a refused sync wrote a file")
+			}
+			if _, err := os.Stat(filepath.Join(dir, rolesPath("qa.md"))); err == nil {
+				t.Error("a refused sync wrote the absent qa contract")
+			}
+			if mustGitIn(t, dir, "rev-parse", "HEAD") != head {
+				t.Error("a refused sync committed")
+			}
+		})
+	}
+	// In a spoke the way out names no roles: there are none to name.
+	dir := syncRepo(t)
+	writeAgents(t, dir, "# Our own agents file\n")
+	err := rolesSync(&bytes.Buffer{}, dir, syncSource{agents: newAgents}, fakeHistory, nil, false)
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "AGENTS_FORKED" || strings.Contains(err.Error(), "naming the roles") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// The agents file is measured as a contract is: CRLF is not the text, and a
+// release's scaffold is recognised by the history row keyed on its path.
+func TestClassifyAgents(t *testing.T) {
+	for _, c := range []struct {
+		name, local string
+		absent      bool
+		want        contractState
+		release     string
+	}{
+		{"absent", "", true, contractAbsent, ""},
+		{"current", newAgents, false, contractCurrent, ""},
+		{"current, CRLF", strings.ReplaceAll(newAgents, "\n", "\r\n"), false, contractCurrent, ""},
+		{"a release's", oldAgents, false, contractRelease, "v2.0.0"},
+		{"the project's own", "# Ours\n", false, contractForked, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if !c.absent {
+				writeAgents(t, dir, c.local)
+			}
+			st, err := classifyAgents(dir, newAgents, fakeHistory)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if st.State != c.want || st.Release != c.release {
+				t.Errorf("got %+v", st)
+			}
+		})
+	}
+}
+
+// Dry run names the agents file among what it would write and writes none.
+func TestRolesSyncDryRunCoversTheAgentsFile(t *testing.T) {
+	dir := syncRepo(t)
+	head := mustGitIn(t, dir, "rev-parse", "HEAD")
+	var out bytes.Buffer
+	if err := rolesSync(&out, dir, syncSource{contracts: fakeContracts, agents: newAgents}, fakeHistory, nil, true); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "would write "+config.AgentsFile+" (absent)") {
+		t.Errorf("output:\n%s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(config.AgentsFile))); err == nil || mustGitIn(t, dir, "rev-parse", "HEAD") != head {
+		t.Error("a dry run wrote or committed")
 	}
 }
 
@@ -385,5 +578,39 @@ func TestContractHistoryCoversEveryTag(t *testing.T) {
 				t.Errorf("contractHistory lacks %s's %s contract: run scripts/contract-history", tag, role)
 			}
 		}
+		// A release on the 2.0 layout wrote .codecrew/AGENTS.md from the
+		// scaffold constant in its init.go, read here as the script reads
+		// it (#372).
+		if exec.Command("git", "-C", root, "cat-file", "-e", tag+":"+config.Pointer).Run() != nil {
+			continue
+		}
+		src, err := exec.Command("git", "-C", root, "show", tag+":internal/cli/init.go").Output()
+		if err != nil {
+			t.Fatalf("%s: %v", tag, err)
+		}
+		text, err := gosrc.StringConst(src, "agentsScaffold")
+		if err != nil {
+			t.Fatalf("%s's agentsScaffold cannot be read from source: %v", tag, err)
+		}
+		if text != agentsScaffold && !have[tag+" "+config.AgentsFile+" "+sha(text)] {
+			t.Errorf("contractHistory lacks %s's %s scaffold: run scripts/contract-history", tag, config.AgentsFile)
+		}
+	}
+}
+
+// The script and the guard recover a release's agents file by evaluating
+// the scaffold constant from source; that reading of this tree's init.go
+// is the constant the binary carries, byte for byte (#372).
+func TestSourceReadingOfTheScaffoldIsTheScaffold(t *testing.T) {
+	src, err := os.ReadFile("init.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := gosrc.StringConst(src, "agentsScaffold")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != agentsScaffold {
+		t.Errorf("source reading differs from the constant:\n%s", unifiedDiff(got, agentsScaffold))
 	}
 }

@@ -198,6 +198,7 @@ func TestStatusWithoutOpenMilestonesStillReportsDriftAndSetting(t *testing.T) {
 func TestStatusWithoutOpenMilestonesSaysNothingElseWhenClean(t *testing.T) {
 	c := statusCtx(t, &statusFake{})
 	writeEmbeddedContracts(t, c.cfg.Dir)
+	writeAgents(t, c.cfg.Dir, agentsScaffold)
 	var out bytes.Buffer
 	if err := statusReport(&out, c); err != nil {
 		t.Fatal(err)
@@ -551,5 +552,41 @@ func TestStatusReportsMissingContractsOnlyInTheHub(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "contract") {
 		t.Errorf("a spoke holds no contracts, and status said:\n%s", out.String())
+	}
+}
+
+// The agents file has a line in hub and spoke alike — every repo holds
+// one — naming roles sync for a missing or released scaffold and roles diff
+// for the project's own; a current one prints nothing (#372).
+func TestAgentsReportNamesTheVerb(t *testing.T) {
+	dir := t.TempDir()
+	for _, c := range []struct{ local, want string }{
+		{"", "agents file missing: " + config.AgentsFile + " — gh codecrew roles sync writes the embedded " + version + " scaffold"},
+		{oldAgents, "agents file drift: " + config.AgentsFile + " is the v2.0.0 text, behind the embedded " + version + " scaffold — gh codecrew roles sync"},
+		{"# Ours\n", "the project's own — gh codecrew roles diff " + config.AgentsFile},
+		{newAgents, ""},
+	} {
+		if c.local != "" {
+			writeAgents(t, dir, c.local)
+		}
+		var out bytes.Buffer
+		agentsReport(&out, dir, newAgents, fakeHistory)
+		if c.want == "" {
+			if out.Len() != 0 {
+				t.Errorf("a current agents file was reported:\n%s", out.String())
+			}
+		} else if !strings.Contains(out.String(), c.want) {
+			t.Errorf("report lacks %q:\n%s", c.want, out.String())
+		}
+	}
+
+	c := statusCtx(t, &statusFake{})
+	c.cfg.Hub = "o/hub"
+	var out bytes.Buffer
+	if err := statusReport(&out, c); err != nil {
+		t.Fatal(err)
+	}
+	if want := "agents file missing: " + config.AgentsFile; !strings.Contains(out.String(), want) {
+		t.Errorf("a spoke with no agents file: status lacks %q:\n%s", want, out.String())
 	}
 }

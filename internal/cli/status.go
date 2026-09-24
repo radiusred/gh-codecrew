@@ -7,6 +7,7 @@ import (
 
 	codecrew "github.com/radiusred/gh-codecrew"
 
+	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
 )
 
@@ -70,6 +71,8 @@ func statusReport(w io.Writer, c *ctx) error {
 	if c.cfg.Hub == "self" {
 		contractReport(w, c.cfg.Dir, codecrew.Roles, contractHistory)
 	}
+	// The agents file is in hub and spoke alike, and so is its line (#372).
+	agentsReport(w, c.cfg.Dir, agentsScaffold, contractHistory)
 
 	return nil
 }
@@ -103,6 +106,27 @@ func contractReport(w io.Writer, dir string, contracts fs.FS, history []released
 		case contractForked:
 			fmt.Fprintf(w, "contract drift: %s differs from the embedded %s contract and from every release's, a fork — gh codecrew roles diff %s\n", p, version, s.Role)
 		}
+	}
+}
+
+// agentsReport prints one line when .codecrew/AGENTS.md is not the
+// scaffold this binary writes, naming the verb that acts on it: roles sync
+// when it is absent or a release's scaffold, roles diff when it is the
+// project's own — which roles sync never overwrites (#372).
+func agentsReport(w io.Writer, dir, embedded string, history []releasedContract) {
+	st, err := classifyAgents(dir, embedded, history)
+	if err != nil || st.State == contractCurrent {
+		return
+	}
+	fmt.Fprintln(w)
+	p := config.AgentsFile
+	switch st.State {
+	case contractAbsent:
+		fmt.Fprintf(w, "agents file missing: %s — gh codecrew roles sync writes the embedded %s scaffold\n", p, version)
+	case contractRelease:
+		fmt.Fprintf(w, "agents file drift: %s is the %s text, behind the embedded %s scaffold — gh codecrew roles sync\n", p, st.Release, version)
+	case contractForked:
+		fmt.Fprintf(w, "agents file drift: %s differs from the embedded %s scaffold and from every release's, the project's own — gh codecrew roles diff %s\n", p, version, p)
 	}
 }
 
