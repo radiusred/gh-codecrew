@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The milestone record takes the housekeeping light path
+
+- The milestone record is no longer delivered as a task. SPEC §4
+  Housekeeping admits it as the one change besides a tool's output that
+  takes the light path: the protocol states its target (the document, its
+  `ROADMAP.md` row, the front-door claims the milestone changed) and it
+  synthesizes Decisions already on the trail. The doc-synthesizer commits
+  `docs:` referencing the milestone issue, opens one PR with no closing
+  keyword on that issue, gets the approval SPEC §4's table requires for the
+  reviewer seat's routing (in pure solo, the operator's confirmation), and
+  rebase-merges it; a record that needs a Decision of its own falls back to
+  a task. Its Deviations, and any raised at the close, go on the milestone
+  issue.
+- `milestone close`'s `DOC_MISSING` gate is unchanged and checks presence,
+  not provenance, deliberately; the SPEC and the doc-synthesizer contract
+  say so, and its detail now names the housekeeping PR instead of the task
+  ceremony. The reviewer contract checks the record's claim and its
+  citations, which `milestone evidence` never reads; the coordinator
+  contract dispatches the record with no task. The first-milestone guide
+  no longer tells a solo operator to merge the record with
+  `task finish --operator-confirm`. (#369)
+
 ### Housekeeping takes a reviewed light path, and `roles sync` reconciles contracts
 
 - A change where a tool states the target and the diff is the whole
