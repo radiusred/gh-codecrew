@@ -16,6 +16,7 @@ pointer file resolves the hub.
   [`status`](#gh-codecrew-status) ·
   [`milestone new`](#gh-codecrew-milestone-new) ·
   [`milestone close`](#gh-codecrew-milestone-close) ·
+  [`milestone strike`](#gh-codecrew-milestone-strike) ·
   [`milestone evidence`](#gh-codecrew-milestone-evidence) ·
   [`task new`](#gh-codecrew-task-new) · [`task start`](#gh-codecrew-task-start) ·
   [`task finish`](#gh-codecrew-task-finish) ·
@@ -249,10 +250,18 @@ every `task/<n>-…` branch on the remote whose task issue is closed — with th
 delete-or-keep verdict the next `milestone close` would give it. With no open
 milestone it says so in place of the board and the gates.
 
+Under each milestone it prints `struck: <ID> — decision <link>` for every
+requirement struck by a recorded Decision, read and verified exactly as
+`milestone close` counts strikes; a `note:` for a struck or reinstated line
+whose link does not verify, naming `DECISION_UNRECORDED`; and a `note:` for a
+bold ID struck through in the body with no strike behind it, which is still a
+requirement.
+
 **Options.** None.
 
 **Reads.** The pointer and, from a spoke, the hub's; the hub's open
-milestones, their sub-issues, labels and comments; the running repository's
+milestones, their sub-issues, labels and comments, and the comments a strike
+links to; the running repository's
 remote `task/<n>-…` branches and one issue per branch; the repository's
 delete-branch-on-merge setting; the local `.codecrew/roles/` contracts, for
 the drift note.
@@ -342,14 +351,20 @@ leaves behind. The gates, in order: the milestone issue carries no
 section declares at least one bold requirement ID; every ID it declares is
 the milestone's own; every requirement's latest QA verdict is `satisfied` —
 only verdicts from the qa role's holder count, and the latest comment
-carrying a verdict for an ID wins; and the milestone document is on the
-default branch. It then deletes each task branch whose PR merged and which
+carrying a verdict for an ID wins — unless the requirement is struck; and the
+milestone document is on the default branch. A requirement struck by a
+recorded Decision ([`milestone strike`](#gh-codecrew-milestone-strike)) is
+terminal and wants no verdict: only the coordinator seat's holder's struck
+and reinstated lines count, the latest per ID winning, and each one's
+decision link is verified again, so a line posted by hand is held to the
+verb's own check. The closing comment names the struck IDs. It then deletes each task branch whose PR merged and which
 still sits at the merged commit, or which has no open PR and carries nothing
 beyond the default branch, reporting every branch it keeps and why. A second
 pass reaches the branches earlier closes left behind, across the hub and
 every repo the milestone's tasks name, and names them in the closing comment
 under `Swept from earlier closes:`. It gathers the milestone's
-Decision and Deviation comments as raw material for the doc-synthesizer.
+Decision and Deviation comments — the milestone issue's own, its tasks' and
+their PRs' — as raw material for the doc-synthesizer.
 
 **Options**
 
@@ -375,8 +390,10 @@ number. [`MILESTONE_GATED`](SPEC.md#10-the-cli) — the milestone issue carries
 still open. [`NO_REQUIREMENTS`](SPEC.md#10-the-cli) — the `## Requirements`
 section declares no bold ID. [`REQUIREMENT_ID_MISMATCH`](SPEC.md#10-the-cli)
 — an ID declared there is not the milestone's own; the grammar is
-`M<milestone>-R<k>`. [`VERDICT_MISSING`](SPEC.md#10-the-cli) — a requirement
-has no QA verdict from the qa seat's holder.
+`M<milestone>-R<k>`. [`DECISION_UNRECORDED`](SPEC.md#10-the-cli) — a counted
+struck or reinstated line's link does not verify; checked before the
+verdicts. [`VERDICT_MISSING`](SPEC.md#10-the-cli) — a requirement that is not
+struck has no QA verdict from the qa seat's holder.
 [`VERDICT_UNSATISFIED`](SPEC.md#10-the-cli) — the latest verdict on a
 requirement is not `satisfied`. [`DOC_MISSING`](SPEC.md#10-the-cli) — no
 `docs/milestones/<n>-*.md` on the default branch. Plus the
@@ -391,6 +408,66 @@ whose code it exits with under `--dry-run` too.
 ```
 gh codecrew milestone close 4 --dry-run
 gh codecrew milestone close 4
+```
+
+## `gh codecrew milestone strike`
+
+```
+gh codecrew milestone strike <milestone number> <ID>
+                             --decision <comment URL>
+                             [--reinstate]
+                             [--dry-run]
+```
+
+Strikes a requirement from the milestone's scope by a recorded Decision
+([SPEC §4](SPEC.md#milestone)): posts `**<ID> — struck.** <comment URL>` as a
+comment on the milestone issue. It never edits the body. Striking is the
+coordination layer's scope change, not QA's. The gates, in order: the
+milestone is open; the ID, written in full (`M4-R2`), is declared under its
+`## Requirements`; and the decision link is an issue-comment URL on the
+milestone issue or one of its tasks whose comment carries a `**Decision:**`
+or `**Gate resolved:**` record naming the ID. The verb checks the record,
+not the actor, but `milestone close` counts only the coordinator seat's
+holder's lines, so a caller who does not hold that seat gets a `note:`
+saying so, and the line is posted anyway. An ID already struck posts nothing
+and says so, so a repeated run is a no-op.
+
+**Options**
+
+| Option | Argument | Default | Effect |
+|--------|----------|---------|--------|
+| `--decision` | URL | none; required | The Decision comment: `https://github.com/<owner>/<repo>/issues/<n>#issuecomment-<id>`, on the milestone issue or one of its tasks, naming the ID. |
+| `--reinstate` | none | off | Posts `**<ID> — reinstated.** <comment URL>` instead, under the same checks: the requirement is back in scope and QA verdicts count again. Posts nothing when the ID is not struck. |
+| `--dry-run` | none | off | Prints every gate and the line it would post; writes nothing; exits with the first refusal's code. |
+
+**Reads.** The pointer and, from a spoke, the hub's; the hub's open
+milestones and their sub-issues; the milestone issue's body and comments;
+the comments of the issue the decision link names; the caller's login.
+
+**Writes.** One comment on the milestone issue, unless the ID is already in
+the state asked for. Nothing on disk. On stdout: the line and the issue it
+was posted on, or why nothing was posted, and the `note:` for a caller who
+does not hold the coordinator seat.
+
+**`--dry-run`.** The same gates in the same order and the line; nothing
+written.
+
+**Refusals.** [`NOT_FOUND`](SPEC.md#10-the-cli) — no open milestone with that
+number. [`REQUIREMENT_UNDECLARED`](SPEC.md#10-the-cli) — the ID is not
+declared under that milestone's `## Requirements`.
+[`DECISION_UNRECORDED`](SPEC.md#10-the-cli) — the link is not an
+issue-comment URL, names an issue that is neither the milestone nor one of
+its tasks, names no comment there, or names a comment with no Decision
+naming the ID. A missing `--decision`, an ID not written in full, or a
+missing argument exits 1 without a code. Plus the
+[common](#common-refusals) refusals.
+
+**Exit status.** 0 when the line is posted or there was nothing to post; 1
+otherwise, and on the first refusal under `--dry-run` too.
+
+```
+gh codecrew milestone strike 4 M4-R2 --decision https://github.com/acme/hub/issues/40#issuecomment-123 --dry-run
+gh codecrew milestone strike 4 M4-R2 --decision https://github.com/acme/hub/issues/40#issuecomment-123
 ```
 
 ## `gh codecrew milestone evidence`

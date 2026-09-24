@@ -67,14 +67,14 @@ per-milestone records of the decisions that shaped the system and why.
 (`version` prints both: `v2.0.2 (protocol 2.0)`; the pointer's protocol
 major is checked, another major refuses; `gh` itself must be 2.50.0 or
 later, or the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:
-`init`, `migrate`, `status`, `milestone new/evidence/close`,
+`init`, `migrate`, `status`, `milestone new/evidence/close/strike`,
 `task new/start/finish`, `checkpoint`,
 `role`, `roles diff/show`, `identity new/token/webhook`, and `version` — all implemented,
 with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. What each verb takes, what it reads and writes, which
 codes it can refuse with and what `--dry-run` does where it has one is
 [CLI.md](../CLI.md), a section per verb. `milestone new`, `task finish`,
-`milestone close` and `migrate` take `--dry-run`, which shows what the verb
+`milestone close`, `milestone strike` and `migrate` take `--dry-run`, which shows what the verb
 would do and writes nothing. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
