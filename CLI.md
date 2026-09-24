@@ -256,7 +256,10 @@ missing:` for a contract the release carries and the hub does not, and
 `contract drift:` for one that differs — naming `roles sync` when the local
 file is absent or an earlier release's text, which that verb writes, and
 `roles diff <role>` when it is a fork. A spoke holds no contracts and prints
-none of these.
+none of these. In hub and spoke alike, one line for `.codecrew/AGENTS.md`
+when it is not the embedded scaffold: `agents file missing:` or `agents file
+drift:`, naming `roles sync` for an absent file or a release's scaffold and
+`roles diff .codecrew/AGENTS.md` for the project's own.
 
 Under each milestone it prints `struck: <ID> — decision <link>` for every
 requirement struck by a recorded Decision, read and verified exactly as
@@ -786,11 +789,14 @@ reviewer=$(gh codecrew role reviewer --login)
 ## `gh codecrew roles diff`
 
 ```
-gh codecrew roles diff <role>
+gh codecrew roles diff <role>|.codecrew/AGENTS.md
 ```
 
 Shows how the project's `.codecrew/roles/<role>.md` differs from the contract
-embedded in the installed CLI. A `.codecrew/roles/<role>.local.md` extension
+embedded in the installed CLI — or, given the path `.codecrew/AGENTS.md`, how
+that file differs from the scaffold the CLI writes, in a hub or a spoke; its
+last line says whether it is a release's scaffold, which `roles sync`
+rewrites, or the project's own, which it never does. A `.codecrew/roles/<role>.local.md` extension
 is never drift. A contract that is still an earlier release's text,
 unedited, is brought up to date by [`roles sync`](#gh-codecrew-roles-sync);
 one that differs from every release's text is the project's own fork, and
@@ -799,9 +805,9 @@ an overwrite. The diff's last line says which of the two it is.
 
 **Options.** None.
 
-**Reads.** The pointer; the local `.codecrew/roles/<role>.md`; the contract
-embedded in the binary, and the table of every release's contract text it
-carries.
+**Reads.** The pointer; the local `.codecrew/roles/<role>.md` (or
+`.codecrew/AGENTS.md`); the contract (or scaffold) embedded in the binary,
+and the table of every release's text it carries.
 
 **Writes.** Nothing. The diff goes to stdout.
 
@@ -853,10 +859,17 @@ gh codecrew roles show implementer --latest
 
 ```
 gh codecrew roles sync [<role>...] [--dry-run]
+                       [.codecrew/AGENTS.md]
 ```
 
-Brings the hub's role contracts to the ones embedded in the installed CLI,
-where that needs no judgment. Each contract — every embedded role, or the
+Brings the hub's role contracts, and `.codecrew/AGENTS.md` in a hub or a
+spoke, to the ones embedded in the installed CLI, where that needs no
+judgment. With no arguments it takes everything the repository holds: in a
+hub every embedded contract and the agents file, in a spoke the agents file
+alone. A role list selects those contracts and leaves the agents file
+alone; its path, `.codecrew/AGENTS.md`, selects it. The agents file is
+measured against the scaffold `init` writes and every earlier release's,
+exactly as a contract is, and is never stamped. Each contract — every embedded role, or the
 roles named — is read stamp-stripped, with line endings ignored, and is one
 of four things: the embedded text, kept; absent, written; an earlier
 release's text, unedited, written; or anything else, a fork, which refuses
@@ -874,17 +887,20 @@ a hub's own contracts are, stays unstamped.
 
 | Option | Argument | Default | Effect |
 |--------|----------|---------|--------|
-| `<role>` | a role name, repeatable | every embedded role | Limits the run to the roles named, so the others can be synced past a fork. |
+| `<role>` | a role name, repeatable | every embedded role, and the agents file | Limits the run to the roles named, so the others can be synced past a fork; the agents file is not among them. In a spoke there are no roles to name. |
+| `.codecrew/AGENTS.md` | none | included when no target is named | Adds the agents file to a run that names roles, or is the whole run when named alone. |
 | `--dry-run` | none | off | Prints every line the run would print, the commit and the branch it would go on; writes nothing. |
 
-**Reads.** The pointer; the hub's `.codecrew/roles/<role>.md` files; the
-contracts embedded in the binary, and the table of every release's contract
-text it carries; the local git repository — its current branch and the
+**Reads.** The pointer; the hub's `.codecrew/roles/<role>.md` files and
+`.codecrew/AGENTS.md`; the contracts and the scaffold embedded in the
+binary, and the table of every release's text it carries; the local git repository — its current branch and the
 default branch as the clone records it (`origin/HEAD`). No network.
 
-**Writes.** The contracts to write, then one commit of exactly those paths
-with the subject `chore: sync codecrew role contracts to <version>` and a
-body naming each file, what it was, and the verb that defined the target;
+**Writes.** The files to write, then one commit of exactly those paths
+with the subject `chore: sync codecrew role contracts to <version>` —
+`chore: sync the codecrew agents file to <version>` when the agents file is
+all it writes, `chore: sync codecrew role contracts and agents file to
+<version>` when it writes both — and a body naming each file, what it was, and the verb that defined the target;
 every other staged and unstaged change is left as it was. On the default
 branch the commit goes on a new `codecrew-roles-sync` branch cut from it,
 since the housekeeping path is always a pull request; on any other branch it
@@ -897,13 +913,16 @@ commit and the branch it would go on, and the same refusal; nothing written.
 
 **Refusals.** [`CONTRACT_FORKED`](SPEC.md#10-the-cli) — a contract among
 those named is a fork: the detail names each one with its `roles diff`, and
-the `.local.md` mechanism for the project's additions. Plus the
-[common](#common-refusals) refusals. Run from a spoke, which holds no
-contracts, it exits 1 without a code; so does a role name the CLI does not
+the `.local.md` mechanism for the project's additions, and a forked agents
+file beside it. [`AGENTS_FORKED`](SPEC.md#10-the-cli) — no contract is
+forked but `.codecrew/AGENTS.md` is the project's own: the detail names its
+`roles diff` and, in a hub, how to sync the contracts alone. Plus the
+[common](#common-refusals) refusals. A role named in a spoke, which holds no
+contracts, exits 1 without a code; so does a role name the CLI does not
 embed, a hub outside a git repository, and a `codecrew-roles-sync` branch
 left over from an earlier run when it is run on the default branch.
 
-**Exit status.** 0 when the contracts were written and committed, or were
+**Exit status.** 0 when the files were written and committed, or were
 already current; 1 on a refusal. `--dry-run` exits 1 when it reports the
 refusal.
 

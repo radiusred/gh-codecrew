@@ -108,6 +108,9 @@ func unifiedDiff(a, b string) string {
 // are local (this project's fork), "+" lines are the embedded contract at
 // the installed release.
 func rolesDiff(w io.Writer, dir string, contracts fs.FS, role string) error {
+	if filepath.ToSlash(role) == config.AgentsFile {
+		return agentsDiff(w, dir, agentsScaffold, contractHistory)
+	}
 	embedded, err := fs.ReadFile(contracts, contractPath(role))
 	if err != nil {
 		return fmt.Errorf("no embedded contract for role %q", role)
@@ -127,6 +130,30 @@ func rolesDiff(w io.Writer, dir string, contracts fs.FS, role string) error {
 		fmt.Fprintf(w, "\nthe local contract is the %s text, unedited — gh codecrew roles sync brings it to the embedded contract (housekeeping, SPEC §4)\n", release)
 	} else {
 		fmt.Fprintf(w, "\nthe local contract is a fork, the project's own (SPEC §7) — reconcile it in a task, never a blind overwrite, and keep project additions in %s\n", extensionPath(role))
+	}
+	return nil
+}
+
+// agentsDiff is roles diff for .codecrew/AGENTS.md: the local file against
+// the scaffold this binary writes, in hub and spoke alike (the file is
+// local in both), and a last line saying whether roles sync can bring it
+// up to date or it is the project's own (#372).
+func agentsDiff(w io.Writer, dir, embedded string, history []releasedContract) error {
+	local, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.AgentsFile)))
+	if err != nil {
+		return fmt.Errorf("no local %s — gh codecrew roles sync writes it", config.AgentsFile)
+	}
+	text, _ := normalizeContract(local)
+	if text == embedded {
+		fmt.Fprintf(w, "%s matches the embedded %s scaffold\n", config.AgentsFile, version)
+		return nil
+	}
+	fmt.Fprintf(w, "%s (local, -) vs embedded %s scaffold (+):\n", config.AgentsFile, version)
+	fmt.Fprint(w, unifiedDiff(text, embedded))
+	if release := releasedAs(history, config.AgentsFile, text); release != "" {
+		fmt.Fprintf(w, "\nthe local file is the %s scaffold, unedited — gh codecrew roles sync brings it to the embedded one (housekeeping, SPEC §4)\n", release)
+	} else {
+		fmt.Fprintf(w, "\nthe local file is the project's own (SPEC §7) — roles sync never overwrites it; bring in what the embedded scaffold adds by hand, in a task\n")
 	}
 	return nil
 }
@@ -262,7 +289,7 @@ func rolesShow(w io.Writer, role string, latest bool, contracts fs.FS, hubRead f
 // rolesCmd dispatches the roles subverbs against the installed binary's
 // embedded contracts and the local hub checkout.
 func rolesCmd(w io.Writer, args []string) error {
-	const rolesUsage = "usage: gh codecrew roles diff <role> | gh codecrew roles show <role> [--latest] | gh codecrew roles sync [<role>...] [--dry-run]"
+	const rolesUsage = "usage: gh codecrew roles diff <role>|.codecrew/AGENTS.md | gh codecrew roles show <role> [--latest] | gh codecrew roles sync [<role>...] [.codecrew/AGENTS.md] [--dry-run]"
 	if len(args) >= 1 && args[0] == "sync" {
 		cfg, err := loadPointer(os.Stderr)
 		if err != nil {

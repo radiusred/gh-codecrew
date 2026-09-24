@@ -364,7 +364,8 @@ Every change that has a decision in it is a task. A change with none is
 **housekeeping**, and it takes a lighter path. The test is mechanical, not
 a matter of size: **a tool states the target, and the diff is the whole
 decision** — there is no Decision to write, and the pull request needs no
-"because". Bringing the contracts to the embedded release (`roles sync`),
+"because". Bringing the contracts and `.codecrew/AGENTS.md` to the embedded
+release (`roles sync`),
 the layout and labels to the protocol's (`migrate`), a dependency to the
 version a bot proposed, a file to what its formatter or linter asks for:
 each is housekeeping when the tool's output is the diff and nothing else is
@@ -766,8 +767,13 @@ writes the embedded contract — and one a newer release added, which `status`
 reports as missing — as one local commit for a housekeeping PR (§4). It
 never overwrites a contract that differs from every release's text: that is
 a fork, reconciled by judgment in a task, with the project's additions moved
-into the extension. Load order is fixed: the hub's
-`.codecrew/roles/<role>.md`, then the hub's
+into the extension. `.codecrew/AGENTS.md` is CodeCrew's file in hub and spoke
+alike and is synced by the same rule — written while absent or still some
+release's scaffold, never overwritten once it is the project's own — so a
+new release's instructions reach a repository that `init` and `migrate`,
+which write it only when absent, never touch again
+([#372](https://github.com/radiusred/gh-codecrew/issues/372)). Load order is
+fixed: the hub's `.codecrew/roles/<role>.md`, then the hub's
 `.codecrew/roles/<role>.local.md`, then the working repo's
 `.codecrew/roles/<role>.local.md` when it is a spoke. There is no merge
 language and no precedence beyond that order — an extension that contradicts
@@ -873,13 +879,14 @@ in a minor, never repurposed, and removed only in a major; the
 `refused[CODE]: detail` line and the `version` output are stable shapes,
 other human-facing text is not; pointer fields are additive; the embedded
 role contracts may change in a minor — `status`'s drift report, `roles diff`
-and `roles sync` are the mechanism: a contract that is still some release's
-text is brought up to date by `roles sync` on the housekeeping path (§4), and
-a fork's reconciliation is the project's judgment. A change to
+and `roles sync` are the mechanism: a contract — or `.codecrew/AGENTS.md` —
+that is still some release's text is brought up to date by `roles sync` on
+the housekeeping path (§4), and a fork's reconciliation is the project's
+judgment. A change to
 this document that invalidates existing pointers or recorded comments is a
 protocol major, and the CLI that implements it refuses the old pointer.
 
-**The refusal codes.** Forty-six, and this table is the catalogue: a code
+**The refusal codes.** Forty-seven, and this table is the catalogue: a code
 absent from it is not one the protocol promises. Every row is raised as
 `refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
 below means any verb that loads and validates the working repo's pointer —
@@ -891,12 +898,13 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | Code | Raised by | Meaning |
 |------|-----------|---------|
 | `ADOPT_NOT_OPEN` | `task new` | A `--adopts` ref is not an open issue: it could not be read, or it is already closed. Checked before the task is created. |
+| `AGENTS_FORKED` | `roles sync` | `.codecrew/AGENTS.md` differs from the embedded scaffold and from every release's, and no contract among those named is forked: it is the project's own (§7), and the verb never overwrites it. Checked before anything is written. |
 | `BAD_CREDENTIALS` | `identity token`, `identity webhook` | GitHub rejected the App JWT, or knows no App by the id it was signed as: the key and the id are not the same App's. |
 | `BOTH_LAYOUTS` | `migrate` | The 1.x and 2.0 layouts overlap, and neither file is migrate's to overwrite. |
 | `CHECKS_FAILING` | `task finish` | A CI check on the closing PR failed. |
 | `CHECKS_PENDING` | `task finish` | The closing PR's checks are still running. |
 | `CLOSED` | `task start`, `task finish` | The task issue is already closed. |
-| `CONTRACT_FORKED` | `roles sync` | A hub contract differs from the embedded one and from every release's text: it is the project's fork (§7), and the verb never overwrites one. Checked before anything is written. |
+| `CONTRACT_FORKED` | `roles sync` | A hub contract differs from the embedded one and from every release's text: it is the project's fork (§7), and the verb never overwrites one. Checked before anything is written; the detail also names a forked `.codecrew/AGENTS.md`. |
 | `CREW_BYPASS` | `task finish` | `--bypass` was given by a crew identity; the override is a human operator's act. |
 | `DECISION_UNRECORDED` | `milestone strike`, `milestone close` | A struck or reinstated line's link is not a comment on the milestone issue or one of its tasks carrying a `**Decision:**` or `**Gate resolved:**` record that names the ID (§4). |
 | `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a housekeeping PR (§4) before the close. |

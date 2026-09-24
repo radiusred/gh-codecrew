@@ -434,3 +434,33 @@ func TestComposedContractNamesAnUnreachableHub(t *testing.T) {
 		t.Errorf("err = %v, want it to name the path", err)
 	}
 }
+
+// roles diff takes the agents file's path, in hub and spoke alike, and its
+// last line says whether roles sync can act (#372).
+func TestRolesDiffOnTheAgentsFile(t *testing.T) {
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	if err := agentsDiff(&buf, dir, newAgents, fakeHistory); err == nil || !strings.Contains(err.Error(), "roles sync writes it") {
+		t.Errorf("absent: err = %v", err)
+	}
+	for _, c := range []struct{ local, want string }{
+		{newAgents, "matches the embedded " + version + " scaffold"},
+		{oldAgents, "the local file is the v2.0.0 scaffold, unedited — gh codecrew roles sync"},
+		{"# Ours\n", "the project's own (SPEC §7) — roles sync never overwrites it"},
+	} {
+		writeAgents(t, dir, c.local)
+		buf.Reset()
+		if err := agentsDiff(&buf, dir, newAgents, fakeHistory); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(buf.String(), c.want) {
+			t.Errorf("diff lacks %q:\n%s", c.want, buf.String())
+		}
+	}
+	// Through rolesDiff, the path routes to the binary's own scaffold.
+	writeAgents(t, dir, agentsScaffold)
+	buf.Reset()
+	if err := rolesDiff(&buf, dir, fakeContracts, config.AgentsFile); err != nil || !strings.Contains(buf.String(), "matches the embedded") {
+		t.Errorf("rolesDiff(%s) = %v:\n%s", config.AgentsFile, err, buf.String())
+	}
+}
