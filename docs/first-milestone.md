@@ -279,11 +279,11 @@ Try to close the milestone:
 gh codecrew milestone close 1
 ```
 
-`refused[VERDICT_MISSING]` — every requirement needs a QA verdict, and the
-qa role is unrouted, which means it's yours. Change hats: build what was
-merged, exercise the requirement's *intent* (not just what the code's own
-tests prove), and post a comment on the **milestone issue**, one line per
-requirement, in exactly this form:
+`refused[VERDICT_MISSING]` — every requirement that has not been struck
+needs a QA verdict, and the qa role is unrouted, which means it's yours.
+Change hats: build what was merged, exercise the requirement's *intent*
+(not just what the code's own tests prove), and post a comment on the
+**milestone issue**, one line per requirement, in exactly this form:
 
 ```markdown
 **M1-R1 — satisfied.** Deployed from main, visited the URL, got the greeting.
@@ -291,6 +291,12 @@ requirement, in exactly this form:
 
 The evidence is yours, from your own execution — `.codecrew/roles/qa.md` is the
 contract you just performed.
+
+The one exception is a requirement struck by a recorded decision: one the
+coordination layer withdrew from scope. It needs no verdict, because nothing
+was built. The Decision comes first, then `gh codecrew milestone strike`
+posts the struck line on the milestone issue, and close counts that line as
+terminal ([SPEC §4](../SPEC.md#milestone)).
 
 ## 7. The milestone document
 
