@@ -6,6 +6,33 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Housekeeping takes a reviewed light path, and `roles sync` reconciles contracts
+
+- A change where a tool states the target and the diff is the whole
+  decision — contracts to the embedded release, a bot's dependency bump, a
+  formatter's fix — is housekeeping (SPEC §4): a `chore:` commit whose body
+  names the tool, one PR, the review the reviewer seat's routing requires,
+  and a rebase merge by its author, with no task, milestone, plan, verdict or
+  record entry. SPEC §4 states the approval for each routing of the reviewer
+  seat, pure solo included (the operator's confirmation on the PR), and
+  assumes no ruleset. The implementer contract carries the exception and its
+  test, the reviewer contract checks the claim and sends a misclassified PR
+  back for a task, and the coordinator's review loop has the housekeeping
+  row. A verb enforcing the gate was deferred to a backlog capture (#365).
+- New verb `gh codecrew roles sync [<role>...] [--dry-run]` writes the
+  embedded contract wherever the hub's is absent or an earlier release's
+  unedited text — recognised by a table of every tagged release's contracts
+  that `scripts/contract-history` generates — as one local commit, never
+  pushed, on `codecrew-roles-sync` when run on the default branch. A contract
+  that differs from every release's text is the project's fork: the verb
+  refuses the new `CONTRACT_FORKED` before writing anything, naming `roles
+  diff` for each, and naming roles syncs the others past it.
+- `status` reports a contract the hub lacks (`contract missing:`) as well as
+  one that has drifted, and names `roles sync` for a missing contract or a
+  release's text and `roles diff` for a fork. `roles diff` says which of the
+  two it is showing. The release workflow checks the table covers every tag
+  before it builds. (#364)
+
 ### A requirement can be struck by a recorded decision
 
 - `gh codecrew milestone strike <n> <ID> --decision <comment URL>` posts
