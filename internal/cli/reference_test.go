@@ -375,3 +375,37 @@ func sortedKeys[V any](m map[string]V) []string {
 	sort.Strings(out)
 	return out
 }
+
+// The roles sync section's example of a bare run says what a bare run
+// takes since #372 — the agents file beside the contracts in a hub, the
+// agents file alone in a spoke — rather than the contracts alone it took
+// before (checky's finding 2 on PR #373).
+func TestReferenceBareRolesSyncExampleNamesTheAgentsFile(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "CLI.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(data), "\n")
+	for i, l := range lines {
+		if !strings.HasPrefix(l, "gh codecrew roles sync ") || !strings.Contains(l, "#") {
+			continue
+		}
+		if strings.TrimSpace(l[:strings.Index(l, "#")]) != "gh codecrew roles sync" {
+			continue
+		}
+		example := l
+		for _, next := range lines[i+1:] {
+			if !strings.HasPrefix(strings.TrimSpace(next), "#") {
+				break
+			}
+			example += " " + next
+		}
+		for _, want := range []string{"hub:", ".codecrew/AGENTS.md", "spoke: the agents file alone"} {
+			if !strings.Contains(example, want) {
+				t.Errorf("CLI.md's bare roles sync example lacks %q:\n%s", want, example)
+			}
+		}
+		return
+	}
+	t.Error("CLI.md has no bare `gh codecrew roles sync` example")
+}
