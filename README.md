@@ -7,9 +7,9 @@ that enforces it. Project state lives in GitHub and nowhere else: a milestone
 is an issue, a task is an issue with a plan in its body, decisions and
 deviations are comments in a fixed shape, and the work of a task is a branch
 and a PR. The gates — CI green, an approving review from whoever holds the
-reviewer seat, a QA verdict on every requirement, a human sign-off wherever one
-was raised — are checked by the CLI, which exits non-zero with
-`refused[CODE]: detail` when one is unmet. At milestone close the
+reviewer seat, a QA verdict on every requirement not struck by a recorded
+decision, a human sign-off wherever one was raised — are checked by the CLI,
+which exits non-zero with `refused[CODE]: detail` when one is unmet. At milestone close the
 doc-synthesizer seat compiles the recorded comments into
 `docs/milestones/<n>-<slug>.md`. There is no server, no database and no state
 files: the dependencies are `gh` 2.50.0 or later, a GitHub repo, and CI on its
