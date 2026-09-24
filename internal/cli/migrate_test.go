@@ -147,7 +147,7 @@ func TestMigrateHub(t *testing.T) {
 		t.Errorf("1.x layout left behind:\n%s", out.String())
 	}
 	pointer := read(t, dir, config.Pointer)
-	for _, want := range []string{`codecrew: "2.0"`, "app:myorg-coder", "user:alice", "team:myorg/qa-crew", "coordinator"} {
+	for _, want := range []string{`codecrew: "` + protocolVersion + `"`, "app:myorg-coder", "user:alice", "team:myorg/qa-crew", "coordinator"} {
 		if !strings.Contains(pointer, want) {
 			t.Errorf("rewritten pointer missing %q:\n%s", want, pointer)
 		}
@@ -501,7 +501,7 @@ func TestMigrateSpoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	pointer := read(t, dir, config.Pointer)
-	if !strings.Contains(pointer, `codecrew: "2.0"`) || !strings.Contains(pointer, "hub: myorg/hub") {
+	if !strings.Contains(pointer, `codecrew: "`+protocolVersion+`"`) || !strings.Contains(pointer, "hub: myorg/hub") {
 		t.Errorf("spoke pointer = %q", pointer)
 	}
 	if strings.Contains(pointer, "coordinator") {
@@ -568,7 +568,9 @@ func TestMigrateSpokeWithAnEmptyRolesKey(t *testing.T) {
 }
 
 // A repo already on 2.0 moves nothing: it says so, commits nothing and
-// exits 0, so a rerun is safe.
+// exits 0, so a rerun is safe. Its pointer naming 2.0 under a 2.1 binary
+// changes nothing either: a minor is additive and keeps the layout, so an
+// earlier minor's pointer is current and is not rewritten (SPEC §5).
 func TestMigrateAlreadyCurrent(t *testing.T) {
 	dir := legacyRepo(t, "", map[string]string{
 		config.Pointer: "codecrew: \"2.0\"\nhub: self\n",
@@ -578,7 +580,7 @@ func TestMigrateAlreadyCurrent(t *testing.T) {
 	if err := migrate(&out, dir, false); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "already on the protocol 2.0 layout") {
+	if !strings.Contains(out.String(), "already on the protocol "+protocolVersion+" layout") {
 		t.Errorf("output = %q", out.String())
 	}
 	if headSubject(t, dir) != before {
@@ -916,7 +918,7 @@ func TestMigrateRerunDoesTheLabelsAndNothingElse(t *testing.T) {
 			name:    "the first run could not reach GitHub",
 			fake:    &labelFake{},
 			created: []string{tracker.LabelMilestone, tracker.LabelTask, tracker.LabelNeedsDecision},
-			lines:   []string{"already on the protocol 2.0 layout", "created label cc:milestone (#01d4ff)", "created label cc:needs-decision (#f0aeff)"},
+			lines:   []string{"already on the protocol " + protocolVersion + " layout", "created label cc:milestone (#01d4ff)", "created label cc:needs-decision (#f0aeff)"},
 			absent:  []string{"labels already at the protocol defaults", "would create"},
 		},
 		{

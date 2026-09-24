@@ -322,6 +322,19 @@ func TestCompatible(t *testing.T) {
 	}
 }
 
+// A protocol minor is additive (SPEC §5): a binary implementing 2.1 reads
+// a pointer written under 2.0 as current — no note, no refusal, nothing to
+// migrate — and a hub still at 2.0 is no skew for a spoke's check. Every
+// hub on 2.0 when 2.1 shipped depends on this.
+func TestCompatibleEarlierMinor(t *testing.T) {
+	if note, err := Compatible("2.0", "2.1"); note != "" || err != nil {
+		t.Errorf("Compatible(2.0, 2.1) = note %q, err %v; want neither", note, err)
+	}
+	if note, err := CompatibleHub("acme/hub", "2.0", "2.1"); note != "" || err != nil {
+		t.Errorf("CompatibleHub(2.0, 2.1) = note %q, err %v; want neither", note, err)
+	}
+}
+
 // 1.0 accepted "0.1" — the pre-1.0 form of the same conventions — with a
 // note to update the field. Protocol 2.0 deletes the shim (M13-R7): a 0.1
 // pointer is two majors back, its repo is on the 1.x layout, and the only
