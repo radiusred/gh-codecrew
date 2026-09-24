@@ -525,7 +525,8 @@ repo predates this protocol and is moved with `codecrew migrate`; neither
 asks anyone to edit the version field, which describes the repo rather than
 choosing for it. Within the major, a binary must implement at least the
 pointer's minor; the CLI compares majors only, so that check is the
-dispatched agent's, before its first verb, per `.codecrew/AGENTS.md`.
+dispatched agent's, before any verb but `version` and `identity token`,
+per `.codecrew/AGENTS.md`.
 A missing field is assumed current, with a note — the
 pointer's own path is the layout's proof, since a repo still on 1.x has no
 `.codecrew/config.yml` for the check to reach and refuses `LAYOUT_LEGACY`

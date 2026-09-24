@@ -142,34 +142,55 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 // pointer proceeds silently and fails closed later. The check is the
 // dispatched agent's, and it has to be in the text every agent loads —
 // the scaffold init writes, and this hub's own hand-written copy (#372).
+// It must be complete before any verb that reads a pointer: the only two
+// allowed ahead of it are version and identity token, and in a spoke the
+// hub read's mint-and-retry comes before roles show (checky's finding 1
+// on PR #373, rounds one and two).
 func TestAgentsInstructionsCarryTheVersionCheck(t *testing.T) {
 	hub, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(config.AgentsFile)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, text := range map[string]string{
-		"agentsScaffold":                  agentsScaffold,
-		"this hub's " + config.AgentsFile: string(hub),
+	common := []string{
+		"before any verb but",
+		"`gh codecrew version` and `gh codecrew identity token`, which read no pointer and change nothing",
+		"`codecrew:`",
+		"a minor at least",
+		"the CLI checks the major alone",
+		"`gh extension upgrade codecrew`",
+		"`gh codecrew checkpoint` and stop",
+		"Never upgrade mid-task",
+	}
+	spoke := []string{
+		"In a spoke the floor is the hub's field",
+		"`gh api repos/<hub>/contents/.codecrew/config.yml -H \"Accept: application/vnd.github.raw\"`",
+		"under whatever `gh` auth the session has",
+		"if that read is refused, mint your seat identity",
+		"`export GH_TOKEN=$(gh codecrew identity token <slug>)`",
+		"and retry it at once",
+		"Only once the check passes, go on.",
+	}
+	for name, c := range map[string]struct {
+		text  string
+		wants []string
+	}{
+		"agentsScaffold":                  {agentsScaffold, append(append([]string{}, common...), spoke...)},
+		"this hub's " + config.AgentsFile: {string(hub), append(append([]string{}, common...), "this repo is the hub, so that is the floor")},
 	} {
-		flat := strings.Join(strings.Fields(text), " ")
-		for _, want := range []string{
-			"before the first verb",
-			"`gh codecrew version`",
-			"`codecrew:`",
-			"a minor at least the pointer's",
-			"`gh extension upgrade codecrew`",
-			"`gh codecrew checkpoint` and stop",
-			"Never upgrade mid-task",
-			// A spoke's floor is the hub's pointer, which may be ahead of
-			// the spoke's: the text must say how to read it before the
-			// first verb, and what to do when that read is refused
-			// (checky's finding 1 on PR #373).
-			"`gh api repos/<hub>/contents/.codecrew/config.yml -H \"Accept: application/vnd.github.raw\"`",
-			"under whatever `gh` auth the session has",
-			"if that read is refused",
-		} {
-			if !strings.Contains(flat, want) {
+		flat := strings.Join(strings.Fields(c.text), " ")
+		// Every part of the check, the fallback included, reads before the
+		// first instruction to run roles show.
+		show := strings.Index(flat, "`gh codecrew roles show <role>`")
+		if show < 0 {
+			t.Fatalf("%s: no roles show instruction to order the check against", name)
+		}
+		for _, want := range c.wants {
+			at := strings.Index(flat, want)
+			switch {
+			case at < 0:
 				t.Errorf("%s missing %q", name, want)
+			case at > show:
+				t.Errorf("%s: %q comes after the roles show instruction", name, want)
 			}
 		}
 	}
