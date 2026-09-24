@@ -29,7 +29,10 @@ read every seat's credentials through its own 401
    concluding nothing is due: "no open milestones" in one repository is not
    "no open milestones"
    ([#164](https://github.com/radiusred/gh-codecrew/issues/164), finding 62).
-2. `gh codecrew version` against the project's floor, then
+2. `gh codecrew version` against the project's floor — the protocol the
+   hub pointer's `codecrew:` field names: the same major, and a minor at
+   least its own, which the CLI does not check. Upgrade between units of
+   work, never inside a dispatch you have open. Then
    `gh codecrew status` in that repository — the record's state, believed
    over any board the platform keeps.
 3. The record **at the act, not the wake**: immediately before each

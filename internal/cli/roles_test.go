@@ -323,6 +323,26 @@ func TestCoordinatorContractIsEmbedded(t *testing.T) {
 	}
 }
 
+// The coordinator's wake step names "the project's floor"; it is defined
+// there, as the hub pointer's protocol, with upgrades kept out of an open
+// dispatch — the CLI checks the major alone, so nothing else states it (#372).
+func TestCoordinatorContractDefinesTheFloor(t *testing.T) {
+	data, err := fs.ReadFile(codecrew.Roles, contractPath("coordinator"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	flat := strings.Join(strings.Fields(string(data)), " ")
+	for _, want := range []string{
+		"the project's floor — the protocol the hub pointer's `codecrew:` field names",
+		"a minor at least its own",
+		"Upgrade between units of work, never inside a dispatch you have open",
+	} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("coordinator contract lacks %q", want)
+		}
+	}
+}
+
 // The scaffold's comment-only extension composes to nothing; an extension
 // with anything to say composes whole, its comments included.
 func TestCommentOnlyExtensionComposesToNothing(t *testing.T) {
