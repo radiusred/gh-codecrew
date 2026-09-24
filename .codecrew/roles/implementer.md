@@ -67,11 +67,27 @@ Then, every run:
   layer to open one (`gh codecrew task new`). The plan, the decisions and
   the PR's `Closes #N` all need it; a record kept anywhere else is one the
   gates never see.
+- **The one exception is housekeeping** (SPEC §4): a tool states the target
+  and the diff is the whole decision — `gh codecrew roles sync`,
+  `gh codecrew migrate`, a bot's dependency bump, a formatter's or linter's
+  fix. That travels as a `chore:` commit whose body names the tool (and its
+  version) instead of a task, in a PR of its own, with no task, plan,
+  verdict or record entry. The test is not size: if you would write a
+  **Decision:**, if the PR body needs a "because", or if the diff holds
+  anything the tool did not produce — a hand-spotted typo included — it is
+  not housekeeping, and you stop and ask for a task. The PR still needs the
+  review your reviewer seat's routing requires, stated per tier in SPEC §4:
+  the holder's approval when the seat is routed to someone; a non-author
+  human's approval when it is `~` and you are not the operator; in pure
+  solo, the operator's confirmation comment on the PR. Once that is on the
+  PR and the checks it reports are green, you rebase-merge it yourself —
+  no verb gates it, so nothing but this contract stops an early merge.
 - **Plan before the first commit.** Write or update the Plan section of the
   task issue: intended changes, requirement IDs covered, ask-the-human points.
   Trivial tasks get trivial plans, never absent ones.
 - **Atomic commits**, conventional-commit format, every message referencing
-  the task issue (`(#123)`).
+  the task issue (`(#123)`) — a housekeeping commit names its tool
+  instead.
 - **Record decisions as they happen** — a `**Decision:** / **Trade-off:** /
   **Rejected:**` comment on the task issue or PR at the moment of choice
   (`gh issue comment <n> --body-file <file>`; a multi-line body passed
@@ -154,6 +170,8 @@ Then, every run:
 
 - Approve, merge, or mark your own work verified. Green checks plus the
   reviewer role holder's approval end the task — not your self-assessment.
+  The one merge that is yours is a housekeeping PR's, and only once its
+  tier's approval is on it (above).
   In pure solo (reviewer `~`, you author as the operator), the strongly
   encouraged form is still a model review: a dispatched clean-context
   session under .codecrew/roles/reviewer.md — optionally a different

@@ -358,6 +358,44 @@ an existing label, as the verb it reruns.
 
 These are defaults, not enforcement: only the names are protocol.
 
+### Housekeeping
+
+Every change that has a decision in it is a task. A change with none is
+**housekeeping**, and it takes a lighter path. The test is mechanical, not
+a matter of size: **a tool states the target, and the diff is the whole
+decision** — there is no Decision to write, and the pull request needs no
+"because". Bringing the contracts to the embedded release (`roles sync`),
+the layout and labels to the protocol's (`migrate`), a dependency to the
+version a bot proposed, a file to what its formatter or linter asks for:
+each is housekeeping when the tool's output is the diff and nothing else is
+in it. A hand-spotted typo is not — no tool defined it — and neither is
+anything the tool did not produce. The moment the change needs a reason, a
+choice between options, or an edit beyond the tool's output, it is a task
+([#343](https://github.com/radiusred/gh-codecrew/issues/343)).
+
+A housekeeping change travels as a `chore:` commit whose body names the tool
+— and its version, where it has one — that defined the target, and
+references no task; as one pull request per run of the tool; through review;
+and by a rebase merge. There is no task issue, no milestone, no plan, no
+`task start` or `task finish`, no QA verdict and no record entry: the diff
+carries the information those would, and the commit is the record.
+
+The review is what the path keeps, and what it means depends on who holds
+the reviewer seat (§5). No ruleset is assumed — where a repository has one,
+it enforces in addition:
+
+| Reviewer seat | What the housekeeping PR needs before it merges |
+|---|---|
+| Routed to a distinct principal (`app:`, `user:`, `team:`) | That holder's approval. Other approvals do not count — the rule `task finish` applies as `NO_HOLDER_REVIEW`. |
+| Operator-held (`~`), the PR authored by someone else (an App-held seat, a colleague) | A non-author human's approval — the rule `task finish` applies as `NO_NONDOER_APPROVAL`. |
+| Pure solo: operator-held, and the operator is the author | An operator confirmation comment on the PR, in the form `task finish --operator-confirm` posts, stating that no independent principal exists. A crew identity never posts one. The strongly encouraged form is still a clean-context model review whose findings land on the PR first. |
+
+In every case the repository's checks are green where it reports any. The
+PR's author then rebase-merges it; no verb gates the merge, so the contracts
+(§7) are the fence: the reviewer refuses a PR that fails the test and sends
+it back for a task, and a seat never merges a housekeeping PR before its
+approval is on it.
+
 ### Decisions and deviations
 
 Recorded as issue or PR comments **at the moment they occur**, using a
@@ -428,6 +466,8 @@ in comments, and a decision that exists only in a PR body is unrecorded.
 Atomic, one logical change each, every commit referencing the task issue
 (`(#123)` suffix — the local number suffices because commits live in the same
 repo as their task issue). Linear history (rebase merging) is recommended.
+The one exception is housekeeping (above), which has no task: its `chore:`
+commit names in its body the tool that defined the target instead.
 
 ### Milestone document
 
@@ -685,7 +725,13 @@ local conventions, what its orchestrator injects — go in
 the project's fork of the framework's ([CLI.md](CLI.md), `roles diff`); an
 extension is append-only text loaded *after* it, so reconciling the contract
 against a newer release never has to re-merge project additions, and
-`status`'s drift check never sees them. Load order is fixed: the hub's
+`status`'s drift check never sees them. Reconciling a contract that is still
+some release's text, unedited, needs no judgment: `codecrew roles sync`
+writes the embedded contract — and one a newer release added, which `status`
+reports as missing — as one local commit for a housekeeping PR (§4). It
+never overwrites a contract that differs from every release's text: that is
+a fork, reconciled by judgment in a task, with the project's additions moved
+into the extension. Load order is fixed: the hub's
 `.codecrew/roles/<role>.md`, then the hub's
 `.codecrew/roles/<role>.local.md`, then the working repo's
 `.codecrew/roles/<role>.local.md` when it is a spoke. There is no merge
@@ -719,7 +765,9 @@ Three independent layers, attacking different failure modes:
    passed (#165). The norm is a model review: a
    clean-context session under the reviewer contract, optionally a different
    harness — even in pure solo, where its findings land as a PR comment
-   before the operator confirms. Catches correlated self-evaluation failure:
+   before the operator confirms. A housekeeping PR (§4) passes this layer
+   and the checks of layer 1 without `task finish`: the approval each
+   reviewer routing requires is the same, and the contracts hold the fence. Catches correlated self-evaluation failure:
    the model grading its own work shares the blind spots of the model that
    did the work, and a briefed reviewer shares the briefing's.
 3. **Human gates** — pre-marked ask-the-human points plus ad-hoc

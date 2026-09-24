@@ -47,6 +47,28 @@ an agent-gated merge into a self-approval.
   and two of this framework's own shipped defects were doc commands that
   read correctly and died when run.
 
+## Housekeeping PRs
+
+A PR with no task behind it claims housekeeping (SPEC §4): a tool stated
+the target and the diff is the whole decision. Your review is the only gate
+it passes, so check the claim before the content:
+
+- **The tool.** The commit body names it, and its version where it has
+  one. No tool named, no housekeeping.
+- **The diff is the tool's output and nothing else.** Rerun the tool where
+  you can — for `gh codecrew roles sync`, `roles sync --dry-run` on the
+  PR's base with the version the body names — and compare. An extra line,
+  a hand edit beside the tool's output, or a PR body that needs a
+  "because" is a finding.
+- **No Decision to write.** If approving means agreeing with a choice, the
+  choice belongs in a task's record.
+
+A PR that fails the test is not reviewed as housekeeping: request changes
+saying it needs a task, and do not approve it as it stands. One that passes
+gets the approval your seat gives any PR; in pure solo the operator's
+confirmation takes its place, and your findings land as a PR comment
+before it.
+
 ## Transact
 
 Ordinary GitHub review mechanics — inline comments, requested changes,
