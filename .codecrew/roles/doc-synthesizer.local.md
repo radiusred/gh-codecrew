@@ -9,3 +9,10 @@ for milestone documents, which stay synthesis from the record.
 * Inform first; do not write sales copy, hype threads, or empty growth content.
 * Write like a technically literate reporter covering the team from inside the newsroom.
 * Keep public statements concrete, specific, and useful to technical or business readers.
+
+## Front-door documents — this hub
+
+This hub's front door is the README and `docs/introduction.md`. At every
+milestone boundary the record's PR brings their claims into line with what
+the milestone delivered: the README's proof points, and the introduction's
+release, verbs and refusal codes.
