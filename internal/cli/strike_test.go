@@ -391,3 +391,46 @@ func TestStatusReportsStrikes(t *testing.T) {
 		t.Errorf("a struck-through ID that is struck needs no note:\n%s", got)
 	}
 }
+
+// strike → reinstate → strike: the latest of the coordinator's lines
+// decides, so after a reinstatement the ID can be struck again. The final
+// strike posts, and close treats the final state as terminal — even over a
+// not-satisfied verdict QA posted while the requirement was back in scope.
+func TestStrikeReinstateStrikeEndsStruck(t *testing.T) {
+	s := newStrikeWorld()
+	s.say(5, testy, "**M8-R1 — satisfied.** ran it")
+	post := func(link string, reinstate bool) {
+		t.Helper()
+		before := len(s.posted)
+		if _, err := s.strike(t, "M8-R2", link, reinstate); err != nil {
+			t.Fatal(err)
+		}
+		if len(s.posted) != before+1 {
+			t.Fatalf("nothing posted (reinstate=%v): %v", reinstate, s.posted)
+		}
+		// The posted line becomes a coordinator comment on the milestone.
+		line := strings.TrimPrefix(s.posted[len(s.posted)-1], "o/r#5: ")
+		s.say(5, "davison", line)
+	}
+
+	post(commentOn(5, 50), false)
+	if _, err := s.close(t); err != nil {
+		t.Fatalf("struck: %v", err)
+	}
+	post(commentOn(6, 60), true)
+	s.say(5, testy, "**M8-R2 — not satisfied.** back in scope and broken")
+	if _, err := s.close(t); strikeCode(err) != "VERDICT_UNSATISFIED" {
+		t.Fatalf("reinstated: the verdict must count again, got %v", err)
+	}
+	s.closed = nil
+	post(commentOn(5, 50), false)
+	if got := s.posted[len(s.posted)-1]; got != "o/r#5: **M8-R2 — struck.** "+commentOn(5, 50) {
+		t.Errorf("the final strike posted %q", got)
+	}
+	if _, err := s.close(t); err != nil {
+		t.Fatalf("struck again: close must treat it as terminal, got %v", err)
+	}
+	if len(s.closed) != 1 || !strings.Contains(s.closed[0], "Struck by recorded decision: M8-R2.") {
+		t.Errorf("closing comment: %v", s.closed)
+	}
+}
