@@ -404,7 +404,9 @@ verdicts. [`VERDICT_MISSING`](SPEC.md#10-the-cli) — a requirement that is not
 struck has no QA verdict from the qa seat's holder.
 [`VERDICT_UNSATISFIED`](SPEC.md#10-the-cli) — the latest verdict on a
 requirement is not `satisfied`. [`DOC_MISSING`](SPEC.md#10-the-cli) — no
-`docs/milestones/<n>-*.md` on the default branch. Plus the
+`docs/milestones/<n>-*.md` on the default branch; the doc-synthesizer
+delivers it as a housekeeping PR with no task (SPEC §4), and the gate checks
+that it is there, not how it arrived. Plus the
 [common](#common-refusals) refusals. Nothing in the sweep refuses: a branch
 the verb could not read is a `note:` and is left standing, and a repo
 carrying more task branches than one listing holds is swept in part and says
