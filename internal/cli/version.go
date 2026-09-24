@@ -11,8 +11,9 @@ var version = "dev"
 
 // protocolVersion is the SPEC version this binary implements — independent
 // of the release tag (SPEC §5, §10). Pointers of another protocol major are
-// refused; see config.Compatible.
-const protocolVersion = "2.0"
+// refused; a pointer naming another minor of this major is read as current,
+// since a minor is additive (2.1 is the first); see config.Compatible.
+const protocolVersion = "2.1"
 
 func versionCmd(w io.Writer) error {
 	fmt.Fprintf(w, "%s (protocol %s)\n", version, protocolVersion)

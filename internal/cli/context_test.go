@@ -110,7 +110,8 @@ func TestLoadConfigChecksProtocol(t *testing.T) {
 		wantNote bool
 		detail   string
 	}{
-		{yml: "codecrew: \"2.0\"\nhub: self\n"},
+		{yml: "codecrew: \"2.1\"\nhub: self\n"},
+		{yml: "codecrew: \"2.0\"\nhub: self\n"},                                                 // same major, earlier minor: the fleet's pointers under 2.1
 		{yml: "codecrew: \"2.4\"\nhub: self\n"},                                                 // same major, later minor
 		{yml: "hub: self\n", wantNote: true},                                                    // missing: assumed, noted
 		{yml: "codecrew: \"3.0\"\nhub: self\n", refused: true, detail: "upgrade the extension"}, // ahead of us
