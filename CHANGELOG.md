@@ -11,11 +11,12 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 - The CLI compares protocol majors only, so a binary a minor behind its
   hub's pointer runs without a word and fails closed later — on a verb it
   lacks, or a record it cannot read. The scaffolded `.codecrew/AGENTS.md`
-  now opens with a version check: before the first verb, compare the
+  now opens with a version check, finished before any verb but
+  `gh codecrew version` and `gh codecrew identity token`: compare the
   protocol `gh codecrew version` prints with the pointer's `codecrew:`
   field — the same major and a minor at least the pointer's; in a spoke,
-  the hub's field, read with `gh api` under whatever auth the session has
-  or straight after minting — and upgrade
+  the hub's field, read with `gh api` under whatever auth the session has,
+  or after minting the seat identity if that read is refused — and upgrade
   (`gh extension upgrade codecrew`) if you install the tools, otherwise
   raise it with `gh codecrew checkpoint` and stop; never mid-task. This
   hub's own `.codecrew/AGENTS.md` carries the same rule; SPEC §5 says the
