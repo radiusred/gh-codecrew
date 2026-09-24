@@ -137,6 +137,58 @@ func TestScaffoldedAgentsCarriesDispatchAuthorization(t *testing.T) {
 	}
 }
 
+// TestAgentsInstructionsCarryTheVersionCheck: the CLI compares protocol
+// majors only (config.Compatible), so a binary a minor behind its hub's
+// pointer proceeds silently and fails closed later. The check is the
+// dispatched agent's, and it has to be in the text every agent loads —
+// the scaffold init writes, and this hub's own hand-written copy (#372).
+func TestAgentsInstructionsCarryTheVersionCheck(t *testing.T) {
+	hub, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(config.AgentsFile)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, text := range map[string]string{
+		"agentsScaffold":                  agentsScaffold,
+		"this hub's " + config.AgentsFile: string(hub),
+	} {
+		flat := strings.Join(strings.Fields(text), " ")
+		for _, want := range []string{
+			"before the first verb",
+			"`gh codecrew version`",
+			"`codecrew:`",
+			"a minor at least the pointer's",
+			"`gh extension upgrade codecrew`",
+			"`gh codecrew checkpoint` and stop",
+			"Never upgrade mid-task",
+		} {
+			if !strings.Contains(flat, want) {
+				t.Errorf("%s missing %q", name, want)
+			}
+		}
+	}
+}
+
+// TestScaffoldedAgentsContractDriftTakesTheLightPath: a contract that is
+// missing or still a release's text is housekeeping — roles sync, one PR,
+// no task (SPEC §4, §7) — and only a fork is reconciled in a task. The
+// scaffold said "a normal task and PR" for both until #372.
+func TestScaffoldedAgentsContractDriftTakesTheLightPath(t *testing.T) {
+	flat := strings.Join(strings.Fields(agentsScaffold), " ")
+	for _, want := range []string{
+		"`gh codecrew roles sync`, delivered as a housekeeping PR (SPEC §4) with no task",
+		"`gh codecrew roles diff <role>`",
+		"reconciles it in a task with the decision recorded",
+		"Never overwrite a fork blindly",
+	} {
+		if !strings.Contains(flat, want) {
+			t.Errorf("agentsScaffold missing %q", want)
+		}
+	}
+	if strings.Contains(flat, "normal task and PR") {
+		t.Errorf("agentsScaffold still routes every drift through a normal task and PR:\n%s", agentsScaffold)
+	}
+}
+
 // Both scaffolds carry the protocol version this binary implements — a
 // hub pointer its own binary would refuse must be impossible to scaffold.
 func TestScaffoldsCarryProtocolVersion(t *testing.T) {
