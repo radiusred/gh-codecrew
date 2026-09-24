@@ -106,7 +106,7 @@ func TestRolesDiffAndShow(t *testing.T) {
 	if err := rolesDiff(&buf, dir, fakeContracts, "implementer"); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"- local line", "reconcile through a task and PR"} {
+	for _, want := range []string{"- local line", "is a fork", "reconcile it in a task", extensionPath("implementer")} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("diff output missing %q:\n%s", want, buf.String())
 		}

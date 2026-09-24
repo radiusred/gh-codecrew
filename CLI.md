@@ -23,6 +23,7 @@ pointer file resolves the hub.
   [`checkpoint`](#gh-codecrew-checkpoint) · [`role`](#gh-codecrew-role) ·
   [`roles diff`](#gh-codecrew-roles-diff) ·
   [`roles show`](#gh-codecrew-roles-show) ·
+  [`roles sync`](#gh-codecrew-roles-sync) ·
   [`identity new`](#gh-codecrew-identity-new) ·
   [`identity webhook`](#gh-codecrew-identity-webhook) ·
   [`identity token`](#gh-codecrew-identity-token) ·
@@ -48,7 +49,8 @@ An issue reference — the `<ref>` argument of `task start`, `task finish` and
 the repository the verb runs in. A milestone number is `<n>`, and
 `milestone close` also accepts `M<n>`. Where a verb takes options as well as
 a leading argument, the argument may be given before or after them;
-`roles diff` and `roles show` want the role name first, and `task start` and
+`roles diff` and `roles show` want the role name first, `roles sync` takes
+its role names and `--dry-run` in any order, and `task start` and
 `milestone evidence` take their argument and nothing else.
 
 ## Exit status
@@ -110,8 +112,8 @@ pointer only when one is there, to prefer the hub's owner.
 | [`GH_UNREACHABLE`](SPEC.md#10-the-cli) | `gh` never reached GitHub — no route, no DNS, no credentials. Never folded into another condition. |
 
 A hub reads its own pointer from disk and resolves roles with no network.
-`version`, `help`, and `roles show` / `roles diff` in a hub need no network
-at all.
+`version`, `help`, and `roles show` / `roles diff` / `roles sync` in a hub
+need no network at all.
 
 ## `gh codecrew init`
 
@@ -248,7 +250,13 @@ record and falling back to the first assignee only when nothing records a
 start. It then reports the stale task branches of the repository it runs in —
 every `task/<n>-…` branch on the remote whose task issue is closed — with the
 delete-or-keep verdict the next `milestone close` would give it. With no open
-milestone it says so in place of the board and the gates.
+milestone it says so in place of the board and the gates. Last, in a hub,
+a line for every role contract that is not the embedded one: `contract
+missing:` for a contract the release carries and the hub does not, and
+`contract drift:` for one that differs — naming `roles sync` when the local
+file is absent or an earlier release's text, which that verb writes, and
+`roles diff <role>` when it is a fork. A spoke holds no contracts and prints
+none of these.
 
 Under each milestone it prints `struck: <ID> — decision <link>` for every
 requirement struck by a recorded Decision, read and verified exactly as
@@ -263,11 +271,11 @@ requirement.
 milestones, their sub-issues, labels and comments, and the comments a strike
 links to; the running repository's
 remote `task/<n>-…` branches and one issue per branch; the repository's
-delete-branch-on-merge setting; the local `.codecrew/roles/` contracts, for
-the drift note.
+delete-branch-on-merge setting; in a hub, the local `.codecrew/roles/`
+contracts, for the contract lines.
 
 **Writes.** Nothing. The report and every `note:` line it carries — the
-delete-on-merge setting, the contract drift, a branch listing it could not
+delete-on-merge setting, the contract lines, a branch listing it could not
 read or could not finish — go to stdout.
 
 **Refusals.** The [common](#common-refusals) ones. Nothing in the report
@@ -781,13 +789,17 @@ gh codecrew roles diff <role>
 
 Shows how the project's `.codecrew/roles/<role>.md` differs from the contract
 embedded in the installed CLI. A `.codecrew/roles/<role>.local.md` extension
-is never drift. Contracts are the project's own fork: reconciliation is a
-judgment routed through a task and a pull request, never an overwrite.
+is never drift. A contract that is still an earlier release's text,
+unedited, is brought up to date by [`roles sync`](#gh-codecrew-roles-sync);
+one that differs from every release's text is the project's own fork, and
+reconciling it is a judgment routed through a task and a pull request, never
+an overwrite. The diff's last line says which of the two it is.
 
 **Options.** None.
 
 **Reads.** The pointer; the local `.codecrew/roles/<role>.md`; the contract
-embedded in the binary.
+embedded in the binary, and the table of every release's contract text it
+carries.
 
 **Writes.** Nothing. The diff goes to stdout.
 
@@ -833,6 +845,70 @@ refusals. In a hub the verb reads only local files and needs no network.
 ```
 gh codecrew roles show implementer
 gh codecrew roles show implementer --latest
+```
+
+## `gh codecrew roles sync`
+
+```
+gh codecrew roles sync [<role>...] [--dry-run]
+```
+
+Brings the hub's role contracts to the ones embedded in the installed CLI,
+where that needs no judgment. Each contract — every embedded role, or the
+roles named — is read stamp-stripped, with line endings ignored, and is one
+of four things: the embedded text, kept; absent, written; an earlier
+release's text, unedited, written; or anything else, a fork, which refuses
+the whole run before anything is written. A `.codecrew/roles/<role>.local.md`
+extension is never read, written or committed. The result is one local
+commit, never pushed, for a pull request on the housekeeping path
+([SPEC §4](SPEC.md#housekeeping)): the tool defined the target, and the commit
+says so.
+
+A written file keeps its form: one that carried `init`'s provenance stamp,
+or was absent, is written stamped as `init` writes it; one kept unstamped, as
+a hub's own contracts are, stays unstamped.
+
+**Options**
+
+| Option | Argument | Default | Effect |
+|--------|----------|---------|--------|
+| `<role>` | a role name, repeatable | every embedded role | Limits the run to the roles named, so the others can be synced past a fork. |
+| `--dry-run` | none | off | Prints every line the run would print, the commit and the branch it would go on; writes nothing. |
+
+**Reads.** The pointer; the hub's `.codecrew/roles/<role>.md` files; the
+contracts embedded in the binary, and the table of every release's contract
+text it carries; the local git repository — its current branch and the
+default branch as the clone records it (`origin/HEAD`). No network.
+
+**Writes.** The contracts to write, then one commit of exactly those paths
+with the subject `chore: sync codecrew role contracts to <version>` and a
+body naming each file, what it was, and the verb that defined the target;
+every other staged and unstaged change is left as it was. On the default
+branch the commit goes on a new `codecrew-roles-sync` branch cut from it,
+since the housekeeping path is always a pull request; on any other branch it
+goes where it is; with a detached HEAD the files are written and a `note:`
+prints the commit to make by hand. It never pushes. Everything it prints is
+on stdout.
+
+**`--dry-run`.** The same lines with `would write` and `would keep`, the
+commit and the branch it would go on, and the same refusal; nothing written.
+
+**Refusals.** [`CONTRACT_FORKED`](SPEC.md#10-the-cli) — a contract among
+those named is a fork: the detail names each one with its `roles diff`, and
+the `.local.md` mechanism for the project's additions. Plus the
+[common](#common-refusals) refusals. Run from a spoke, which holds no
+contracts, it exits 1 without a code; so does a role name the CLI does not
+embed, a hub outside a git repository, and a `codecrew-roles-sync` branch
+left over from an earlier run when it is run on the default branch.
+
+**Exit status.** 0 when the contracts were written and committed, or were
+already current; 1 on a refusal. `--dry-run` exits 1 when it reports the
+refusal.
+
+```
+gh codecrew roles sync --dry-run          # what would be written, and where
+gh codecrew roles sync                    # the contracts, in one local commit
+gh codecrew roles sync coordinator qa     # only these, past a fork elsewhere
 ```
 
 ## `gh codecrew identity new`

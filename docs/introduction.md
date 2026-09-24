@@ -74,8 +74,9 @@ with machine-readable refusals (`refused[CODE]: detail`, catalogued below)
 when a gate blocks. What each verb takes, what it reads and writes, which
 codes it can refuse with and what `--dry-run` does where it has one is
 [CLI.md](../CLI.md), a section per verb. `milestone new`, `task finish`,
-`milestone close`, `milestone strike` and `migrate` take `--dry-run`, which shows what the verb
-would do and writes nothing. What changed and when:
+`milestone close`, `milestone strike`, `migrate` and — on main, not yet
+released — `roles sync` take `--dry-run`, which shows what the verb would do
+and writes nothing. What changed and when:
 [CHANGELOG.md](../CHANGELOG.md). Not yet here: any backend other than GitHub,
 and GitHub Enterprise Server — github.com only.
 

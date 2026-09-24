@@ -41,30 +41,20 @@ func stripStamp(content string) string {
 	return content
 }
 
-// contractDrift compares each local .codecrew/roles/ contract (stamp-stripped)
-// against the copy embedded in this binary, returning the names that
-// differ. Local files with no embedded counterpart, and embedded contracts
-// with no local file (a pointer-only spoke), are not drift.
+// contractDrift names the local .codecrew/roles/ contracts that differ
+// (stamp-stripped, line endings aside) from the copy embedded in this
+// binary — an earlier release's text and a fork alike. Local files with no
+// embedded counterpart are not drift, and neither is an absent file: that
+// is reported as missing, and only in a hub (status).
 func contractDrift(dir string, contracts fs.FS) ([]string, error) {
-	entries, err := fs.ReadDir(contracts, config.RolesDir)
+	statuses, err := classifyContracts(dir, contracts, contractHistory, nil)
 	if err != nil {
 		return nil, err
 	}
 	var drifted []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), localSuffix) {
-			continue // an extension is never a contract, whatever the embed holds
-		}
-		local, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(config.RolesDir), e.Name()))
-		if err != nil {
-			continue // no local copy — nothing to drift
-		}
-		embedded, err := fs.ReadFile(contracts, config.RolesDir+"/"+e.Name())
-		if err != nil {
-			return nil, err
-		}
-		if stripStamp(string(local)) != string(embedded) {
-			drifted = append(drifted, strings.TrimSuffix(e.Name(), ".md"))
+	for _, s := range statuses {
+		if s.State == contractRelease || s.State == contractForked {
+			drifted = append(drifted, s.Role)
 		}
 	}
 	return drifted, nil
@@ -126,14 +116,18 @@ func rolesDiff(w io.Writer, dir string, contracts fs.FS, role string) error {
 	if err != nil {
 		return fmt.Errorf("no local %s — run from the hub (spokes hold no contracts)", contractPath(role))
 	}
-	stripped := stripStamp(string(local))
+	stripped, _ := normalizeContract(local)
 	if stripped == string(embedded) {
 		fmt.Fprintf(w, "%s matches the embedded %s contract\n", contractPath(role), version)
 		return nil
 	}
 	fmt.Fprintf(w, "%s (local, -) vs embedded %s contract (+):\n", contractPath(role), version)
 	fmt.Fprint(w, unifiedDiff(stripped, string(embedded)))
-	fmt.Fprintf(w, "\ncontracts are this project's fork — reconcile through a task and PR, never a blind overwrite\n")
+	if release := releasedAs(contractHistory, role, stripped); release != "" {
+		fmt.Fprintf(w, "\nthe local contract is the %s text, unedited — gh codecrew roles sync brings it to the embedded contract (housekeeping, SPEC §4)\n", release)
+	} else {
+		fmt.Fprintf(w, "\nthe local contract is a fork, the project's own (SPEC §7) — reconcile it in a task, never a blind overwrite, and keep project additions in %s\n", extensionPath(role))
+	}
 	return nil
 }
 
@@ -268,8 +262,16 @@ func rolesShow(w io.Writer, role string, latest bool, contracts fs.FS, hubRead f
 // rolesCmd dispatches the roles subverbs against the installed binary's
 // embedded contracts and the local hub checkout.
 func rolesCmd(w io.Writer, args []string) error {
+	const rolesUsage = "usage: gh codecrew roles diff <role> | gh codecrew roles show <role> [--latest] | gh codecrew roles sync [<role>...] [--dry-run]"
+	if len(args) >= 1 && args[0] == "sync" {
+		cfg, err := loadPointer(os.Stderr)
+		if err != nil {
+			return err
+		}
+		return rolesSyncCmd(w, args[1:], cfg.Hub, cfg.Dir, codecrew.Roles)
+	}
 	if len(args) < 2 {
-		return fmt.Errorf("usage: gh codecrew roles diff <role> | gh codecrew roles show <role> [--latest]")
+		return fmt.Errorf(rolesUsage)
 	}
 	sub, role := args[0], args[1]
 	cfg, err := loadPointer(os.Stderr)

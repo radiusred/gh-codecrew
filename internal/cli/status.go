@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"io/fs"
 
 	codecrew "github.com/radiusred/gh-codecrew"
 
@@ -61,17 +62,48 @@ func statusReport(w io.Writer, c *ctx) error {
 		fmt.Fprintf(w, "note: stale task branches not listed for %s (%v)\n", c.current, err)
 	}
 
-	// Contract drift: purely local — the embedded contracts ride the
-	// binary, so status can say when a hub's .codecrew/roles/ fork has
-	// diverged from the installed release without touching the network.
-	if drifted, err := contractDrift(c.cfg.Dir, codecrew.Roles); err == nil && len(drifted) > 0 {
-		fmt.Fprintln(w)
-		for _, role := range drifted {
-			fmt.Fprintf(w, "contract drift: %s differs from the embedded %s contract — gh codecrew roles diff %s\n", contractPath(role), version, role)
-		}
+	// Contract drift and absence: purely local — the embedded contracts
+	// ride the binary, so status can say when a hub's .codecrew/roles/ has
+	// diverged from the installed release, or lacks a contract the release
+	// carries (#266), without touching the network. Only a hub holds
+	// contracts; a spoke is pointer-only and has nothing to report.
+	if c.cfg.Hub == "self" {
+		contractReport(w, c.cfg.Dir, codecrew.Roles, contractHistory)
 	}
 
 	return nil
+}
+
+// contractReport prints one line per hub contract that is not the
+// embedded text, naming the verb that acts on it: roles sync for a missing
+// contract and for an earlier release's text, which it can write; roles
+// diff for a fork, which it never touches (SPEC §7). Nothing to report
+// prints nothing, and a classification that fails is not worth failing
+// the board for.
+func contractReport(w io.Writer, dir string, contracts fs.FS, history []releasedContract) {
+	statuses, err := classifyContracts(dir, contracts, history, nil)
+	if err != nil {
+		return
+	}
+	first := true
+	for _, s := range statuses {
+		if s.State == contractCurrent {
+			continue
+		}
+		if first {
+			fmt.Fprintln(w)
+			first = false
+		}
+		p := contractPath(s.Role)
+		switch s.State {
+		case contractAbsent:
+			fmt.Fprintf(w, "contract missing: %s — the embedded %s contract has no local copy; gh codecrew roles sync writes it\n", p, version)
+		case contractRelease:
+			fmt.Fprintf(w, "contract drift: %s is the %s text, behind the embedded %s contract — gh codecrew roles sync\n", p, s.Release, version)
+		case contractForked:
+			fmt.Fprintf(w, "contract drift: %s differs from the embedded %s contract and from every release's, a fork — gh codecrew roles diff %s\n", p, version, s.Role)
+		}
+	}
 }
 
 // staleBranches reports the task branches this repo still carries whose
