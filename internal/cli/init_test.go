@@ -160,6 +160,13 @@ func TestAgentsInstructionsCarryTheVersionCheck(t *testing.T) {
 			"`gh extension upgrade codecrew`",
 			"`gh codecrew checkpoint` and stop",
 			"Never upgrade mid-task",
+			// A spoke's floor is the hub's pointer, which may be ahead of
+			// the spoke's: the text must say how to read it before the
+			// first verb, and what to do when that read is refused
+			// (checky's finding 1 on PR #373).
+			"`gh api repos/<hub>/contents/.codecrew/config.yml -H \"Accept: application/vnd.github.raw\"`",
+			"under whatever `gh` auth the session has",
+			"if that read is refused",
 		} {
 			if !strings.Contains(flat, want) {
 				t.Errorf("%s missing %q", name, want)
