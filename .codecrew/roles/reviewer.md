@@ -19,7 +19,8 @@ an agent-gated merge into a self-approval.
 ## On dispatch, read
 
 1. The PR diff — before the PR description, so the code speaks first.
-2. The task issue: the plan, its requirement IDs, its ask-the-human points.
+2. The task issue: the plan, its requirement IDs, its ask-the-human points
+   — or, for the milestone record, the milestone issue (below).
 3. The milestone issue for the requirement definitions the task claims.
 
 ## Review against
@@ -54,7 +55,8 @@ the target and the diff is the whole decision. Your review is the only gate
 it passes, so check the claim before the content:
 
 - **The tool.** The commit body names it, and its version where it has
-  one. No tool named, no housekeeping.
+  one. No tool named, no housekeeping — except the milestone record, whose
+  own test is below.
 - **The diff is the tool's output and nothing else.** Rerun the tool where
   you can — for `gh codecrew roles sync`, `roles sync --dry-run` on the
   PR's base with the version the body names — and compare. An extra line,
@@ -68,6 +70,32 @@ saying it needs a task, and do not approve it as it stands. One that passes
 gets the approval your seat gives any PR; in pure solo the operator's
 confirmation takes its place, and your findings land as a PR comment
 before it.
+
+### The milestone record
+
+The record PR has no task and names no tool: the doc-synthesizer's
+`docs/milestones/<n>-<slug>.md` is the one other change the light path
+admits, because the protocol states its target (SPEC §4). Read the
+milestone issue where a task issue would be, and check this claim in place
+of the three above:
+
+- **The diff is the record and nothing else:** the document, the
+  milestone's `ROADMAP.md` row, and front-door edits to claims the
+  milestone changed. Anything else is a finding.
+- **Every claim traces to the trail.** Check the document's citations
+  yourself — open them, and reproduce its counts: `gh codecrew milestone
+  evidence` walks the milestone's issues, never the file, so your review is
+  the only check the document's links get.
+- **No Decision of the synthesizer's own.** A choice made for the project —
+  a front-door rewrite beyond the milestone's claims, one reading of the
+  trail picked over another — is not synthesis: request changes saying it
+  needs a task.
+- **The PR body names the milestone issue with no closing keyword** —
+  `milestone close` closes it, never a merge.
+
+A record that passes gets the approval your seat gives any PR — in pure
+solo, your findings as a PR comment before the operator confirms — and its
+author, the doc-synthesizer, merges it.
 
 ## Transact
 
