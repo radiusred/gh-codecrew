@@ -109,21 +109,25 @@ func TestRequirementsNote(t *testing.T) {
 
 // The close's DOC_MISSING detail once said "dispatch the doc-synthesizer,
 // merge its PR, rerun" — and an orchestrator did exactly that, planning a
-// by-hand merge with an identity that could not. The detail names the task
-// path (#119 finding 27).
-func TestDocMissingNamesTheTaskPath(t *testing.T) {
+// by-hand merge with an identity that could not (#119 finding 27). It then
+// named a record task; since M18-R7 the record is a housekeeping PR its
+// author merges (#349), and the advice must not drift back to the task
+// ceremony the gate never checked.
+func TestDocMissingNamesTheHousekeepingPath(t *testing.T) {
 	err := docMissing(6, "radiusred/gh-codecrew")
 	if err == nil {
 		t.Fatal("expected refusal, got nil")
 	}
 	msg := err.Error()
-	for _, want := range []string{"refused[DOC_MISSING]", "docs/milestones/6-*.md", "radiusred/gh-codecrew", "task start", "Closes #", "task finish"} {
+	for _, want := range []string{"refused[DOC_MISSING]", "docs/milestones/6-*.md", "radiusred/gh-codecrew", "doc-synthesizer", "housekeeping PR", "no task", "SPEC §4", "pure solo", "its author rebase-merges"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("DOC_MISSING detail missing %q: %s", want, msg)
 		}
 	}
-	if strings.Contains(msg, "merge its PR") {
-		t.Errorf("DOC_MISSING detail still sends the coordinator to merge by hand: %s", msg)
+	for _, gone := range []string{"task start", "Closes #", "task finish", "merge its PR"} {
+		if strings.Contains(msg, gone) {
+			t.Errorf("DOC_MISSING detail still names %q: %s", gone, msg)
+		}
 	}
 }
 

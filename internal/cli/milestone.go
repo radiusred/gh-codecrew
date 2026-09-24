@@ -607,11 +607,15 @@ func requirementsNote(ids []string) string {
 	return fmt.Sprintf("requirements counted: %s (%d)", strings.Join(ids, ", "), len(ids))
 }
 
-// docMissing is the close's last refusal. Its detail names the task path
-// rather than "merge its PR": a document PR with no task behind it has no
-// owner for its review loop and nothing that can merge it — the orchestrator
-// run's coordinator, sent there by the old wording, planned to merge by hand
-// with an App that could not (#119 finding 27).
+// docMissing is the close's last refusal. The gate checks that the
+// document is on the default branch, not how it got there — deliberately,
+// as no verb gates a housekeeping merge (SPEC §4) — so the detail names the
+// path the contracts require: the doc-synthesizer's housekeeping PR, with no
+// task, reviewed per the reviewer seat's routing and merged by its author.
+// It once said "merge its PR" and an orchestrator's coordinator planned a
+// by-hand merge with an App that could not (#119 finding 27); then it named
+// a record task, the ceremony M18-R7 retired (#349). The owner of the
+// review loop is now the PR's author, and the author merges.
 func docMissing(n int, hub string) error {
-	return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer as a task: it writes the plan, runs task start, opens the PR with Closes #<task>, and task finish merges it; then rerun", n, hub)
+	return refuse("DOC_MISSING", "docs/milestones/%d-*.md not on the default branch of %s — dispatch the doc-synthesizer: it delivers the record as a housekeeping PR with no task (SPEC §4), reviewed as the reviewer seat's routing requires (in pure solo, the operator confirms on the PR), and its author rebase-merges it; then rerun", n, hub)
 }
