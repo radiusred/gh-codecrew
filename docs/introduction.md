@@ -80,7 +80,7 @@ codes it can refuse with and what `--dry-run` does where it has one is
 Protocol 2.1 adds three things to the 2.0 lifecycle. A requirement can be
 **struck** by a recorded decision of the coordination layer
 (`milestone strike`), and `milestone close` counts a struck requirement as
-terminal, as it does a QA `pass`. A change with no decision in it — a
+terminal, as it does a QA `satisfied`. A change with no decision in it — a
 tool's output, such as a contract sync or a dependency bump — is
 **housekeeping** and takes a light path: a reviewed `chore:` pull request
 with no task, milestone or verdict; the milestone record takes the same
