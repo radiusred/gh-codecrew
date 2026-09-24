@@ -65,7 +65,8 @@ GitHub issues and PRs, per the protocol at
   of ` + "`.codecrew/config.yml`" + `: the binary must implement the same major and a
   minor at least the pointer's — the CLI checks the major alone. In a
   spoke the floor is the hub's field, which may be ahead of the spoke's:
-  read it with ` + "`gh api repos/<hub>/contents/.codecrew/config.yml -H \"Accept: application/vnd.github.raw\"`" + `
+  read it with ` + "`gh api repos/<hub>/contents/.codecrew/config.yml " +
+	"-H \"Accept: application/vnd.github.raw\"`" + `
   (` + "`<hub>`" + ` is the spoke pointer's ` + "`hub:`" + `) under whatever ` + "`gh`" + ` auth the
   session has, or straight after minting your identity if that read is
   refused. If the binary falls short and you install the tools, upgrade
