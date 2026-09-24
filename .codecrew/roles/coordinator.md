@@ -67,7 +67,9 @@ read every seat's credentials through its own 401
 - **Every task opens with a goal and its requirement IDs; none starts
   without a plan.** `gh codecrew task new --milestone <n>`; the seat writes
   the plan and runs `task start`. A seat dispatched with no task issue
-  behind it stops and asks for one — that is its contract, not a stall.
+  behind it stops and asks for one — that is its contract, not a stall —
+  except the doc-synthesizer dispatched for the milestone record, whose
+  charter is the milestone issue (SPEC §4, Housekeeping).
 - **A milestone adopts a backlog capture with `--adopts`, not with
   prose.** When a task delivers what an unlabelled capture already
   describes, name it on the task that carries it:
@@ -107,7 +109,10 @@ read every seat's credentials through its own 401
   dispatch the reviewer when it opens, as for any PR; changes requested
   saying it needs a task means opening one; approved (or, in pure solo,
   confirmed by the operator) means its author rebase-merges it — no
-  `task finish`, and nothing for you to run.
+  `task finish`, and nothing for you to run. The milestone record is such
+  a PR, and its author is the doc-synthesizer: changes requested → the
+  doc-synthesizer, then the reviewer again on the new head — unless the
+  review says the record needs a task, which you then open.
 - **One wake path per transition.** A transition GitHub emits — a PR
   opened, a review posted, a merge — travels by that event and is never
   also hand-mentioned; a deliverable GitHub does not emit is handed back by
@@ -119,7 +124,7 @@ read every seat's credentials through its own 401
   | implementer | PR opened; a fix pushed | GitHub's event — no hand-back |
   | reviewer | review posted | GitHub's event — no hand-back |
   | the task's owner | `task finish` merged | the merge event where it is routed to you; otherwise one hand-back naming repository and milestone |
-  | implementer, doc-synthesizer | plan written | hand-back — GitHub emits nothing |
+  | implementer | plan written | hand-back — GitHub emits nothing |
   | qa | verdicts posted | hand-back — GitHub emits nothing |
   | doc-synthesizer | document PR merged | hand-back naming repository and milestone |
 
@@ -135,8 +140,10 @@ read every seat's credentials through its own 401
   cite: task and PR numbers, decisions, gates.
 - **Milestone end, in order:** `gh codecrew milestone evidence <milestone number>` →
   dispatch qa for one verdict per requirement not struck, on the milestone
-  issue → a not-satisfied verdict becomes a chartered remedy task → the milestone
-  document as the doc-synthesizer's task → `gh codecrew milestone close <milestone number>`.
+  issue → a not-satisfied verdict becomes a chartered remedy task → dispatch
+  the doc-synthesizer for the milestone record, a housekeeping PR with no
+  task (SPEC §4) that its author merges → `gh codecrew milestone close
+  <milestone number>`.
   Read every `refused[CODE]` and act on the code; never anticipate a gate
   instead of running the verb — `--dry-run` on `task finish` and
   `milestone close` shows every gate and what the verb would do, writing

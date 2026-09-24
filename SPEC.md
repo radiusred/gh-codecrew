@@ -373,12 +373,33 @@ anything the tool did not produce. The moment the change needs a reason, a
 choice between options, or an edit beyond the tool's output, it is a task
 ([#343](https://github.com/radiusred/gh-codecrew/issues/343)).
 
+One change besides a tool's output takes the path, and only one: **the
+milestone record** (below). No tool states its target, but the protocol
+does — `docs/milestones/<n>-<slug>.md`, the milestone's `ROADMAP.md` row,
+and the front-door claims the milestone changed (§7) — and its content is a
+synthesis of Decisions and Deviations already on the trail, so it has no
+Decision of its own to write. Its test, in place of the tool's: the diff is
+those three things and nothing else, every claim in the document traces to
+the trail, and nothing in it is a choice the doc-synthesizer made for the
+project. A record that needs such a choice — a front-door rewrite beyond
+the milestone's claims, one reading of the trail over another — is a task,
+as any housekeeping change that fails its test is. Nothing else a contract
+or this document names is admitted by this clause
+([#349](https://github.com/radiusred/gh-codecrew/issues/349)).
+
 A housekeeping change travels as a `chore:` commit whose body names the tool
 — and its version, where it has one — that defined the target, and
 references no task; as one pull request per run of the tool; through review;
 and by a rebase merge. There is no task issue, no milestone, no plan, no
 `task start` or `task finish`, no QA verdict and no record entry: the diff
-carries the information those would, and the commit is the record.
+carries the information those would, and the commit is the record. The
+milestone record travels the same way, except that its commits are `docs:` and
+reference the milestone issue in place of a task; its pull request names
+the milestone issue with no closing keyword, because `milestone close`
+closes the milestone and a merge never does; and it belongs to the
+milestone it records, whose issue carries the doc-synthesizer's Deviations
+and any raised at the close — where `milestone close` gathers them and
+`milestone evidence` walks them.
 
 The review is what the path keeps, and what it means depends on who holds
 the reviewer seat (§5). No ruleset is assumed — where a repository has one,
@@ -394,7 +415,15 @@ In every case the repository's checks are green where it reports any. The
 PR's author then rebase-merges it; no verb gates the merge, so the contracts
 (§7) are the fence: the reviewer refuses a PR that fails the test and sends
 it back for a task, and a seat never merges a housekeeping PR before its
-approval is on it.
+approval is on it. The milestone record's author is the doc-synthesizer,
+which merges it and deletes its branch; `milestone close` sweeps task
+branches only.
+
+`milestone close`'s `DOC_MISSING` gate is deliberately as loose as the rest
+of the path: it checks that the document is on the default branch, not how
+it got there. A record committed straight to the default branch passes the
+gate and breaches the doc-synthesizer's contract all the same — the gate
+does not see provenance, and no verb claims to.
 
 ### Decisions and deviations
 
@@ -466,8 +495,9 @@ in comments, and a decision that exists only in a PR body is unrecorded.
 Atomic, one logical change each, every commit referencing the task issue
 (`(#123)` suffix — the local number suffices because commits live in the same
 repo as their task issue). Linear history (rebase merging) is recommended.
-The one exception is housekeeping (above), which has no task: its `chore:`
-commit names in its body the tool that defined the target instead.
+The exceptions are housekeeping (above), which has no task: its `chore:`
+commit names in its body the tool that defined the target instead, and the
+milestone record's `docs:` commits reference the milestone issue.
 
 ### Milestone document
 
@@ -477,7 +507,8 @@ choices made during the milestone, their trade-offs and rejected alternatives �
 synthesized from the Decision and Deviation comments recorded during the work,
 never reconstructed from raw history. Its requirement table gives each ID its
 final status — the latest QA verdict, or `struck` with the Decision linked. It
-lands via a normal PR and passes the same review gate as code.
+lands as a housekeeping PR (above) with no task behind it, through the same
+review gate as code, merged by its author, the doc-synthesizer.
 
 ## 5. Configuration
 
@@ -702,7 +733,8 @@ App creation). v1 roles:
   findings as issue/PR comments. `struck` is not QA's word: QA did not judge
   a struck requirement, verdicts none, and does not strike.
 - **doc-synthesizer** — at milestone close, compiles the recorded decisions
-  and deviations into the milestone document and opens its PR.
+  and deviations into the milestone document, opens its PR on the
+  housekeeping path (§4) and merges it once the review is on it.
 - **coordinator** — the coordination layer as a seat: opens milestones
   (`--requirement`) and tasks, dispatches the four crew seats by the routing
   table, owns the review loop in both directions (reviewer on a PR,
@@ -864,7 +896,7 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | `CONTRACT_FORKED` | `roles sync` | A hub contract differs from the embedded one and from every release's text: it is the project's fork (§7), and the verb never overwrites one. Checked before anything is written. |
 | `CREW_BYPASS` | `task finish` | `--bypass` was given by a crew identity; the override is a human operator's act. |
 | `DECISION_UNRECORDED` | `milestone strike`, `milestone close` | A struck or reinstated line's link is not a comment on the milestone issue or one of its tasks carrying a `**Decision:**` or `**Gate resolved:**` record that names the ID (§4). |
-| `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a task before the close. |
+| `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a housekeeping PR (§4) before the close. |
 | `EVIDENCE_UNREACHABLE` | `milestone evidence` | A github.com citation in the milestone's record does not resolve. |
 | `FOREIGN_ROLES_DIR` | `migrate` | A root `roles/` holding CodeCrew's files also holds entries it does not recognise; it stops rather than guess which are its own. |
 | `GATED` | `task finish` | The task carries `cc:needs-decision`: a human gate is open. |
