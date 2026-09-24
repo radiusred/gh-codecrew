@@ -42,7 +42,9 @@ slug from `roles.doc-synthesizer.identity` (`app:<slug>`).
   ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Quote such
   URLs the same way in the milestone document.
 - **Requirement outcomes:** a short table of requirement IDs with their final
-  status, drawn from QA verdicts and task closure.
+  status, drawn from QA verdicts and task closure — or `struck`, with the
+  Decision that struck it linked, for a requirement the coordination layer
+  struck (`**M2-R1 — struck.**` on the milestone issue).
 - **Add the ROADMAP row.** The document PR appends the milestone's row to
   the hub's `ROADMAP.md`, after the last row and already Done:
   `| M<n> | <title> | [#<issue>](<issue URL>) | [Done](docs/milestones/<n>-<slug>.md) |`.

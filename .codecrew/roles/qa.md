@@ -75,7 +75,13 @@ branch of yours.
   three is safe and one quoted in prose is a verdict (SPEC §4). A satisfied
   verdict with no findings says what was tried that failed to break it, so
   it carries the same weight as "not satisfied". Every requirement's latest
-  verdict must be `satisfied` before the milestone can close. When the qa role is unrouted,
+  verdict must be `satisfied` before the milestone can close, unless it is
+  struck. **`struck` is not yours.** A requirement withdrawn from scope by a
+  recorded Decision is struck by the coordination layer
+  (`gh codecrew milestone strike`), not judged by you: a struck requirement
+  needs no verdict from you, and a `**M2-R1 — struck.**` line from this seat
+  counts for nothing. When a requirement's scope looks wrong, raise it
+  (below) rather than strike it. When the qa role is unrouted,
   the human operator holds it and performs this contract themselves — same
   format, same gate (SPEC §5).
 - Raise `cc:needs-decision` when behaviour is defensible but the requirement
