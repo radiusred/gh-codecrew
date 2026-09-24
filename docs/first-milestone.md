@@ -311,9 +311,15 @@ it — the "why" record: what was decided, what was traded off, what deviated
 from plan — add the milestone's row to `ROADMAP.md`, already Done and
 linking the document
 (`| M1 | Walking skeleton | [#<issue>](…) | [Done](docs/milestones/1-<slug>.md) |`),
-and merge it like any other change (a PR, `--operator-confirm` if you like
-the discipline). The roadmap lists finished milestones; `gh codecrew status`
-reports the open one.
+and land it on the light path the protocol gives the record ([SPEC
+§4](../SPEC.md#housekeeping)): no task this time — a `docs:` commit
+referencing the milestone issue, a PR whose body names that issue without a
+closing keyword (the close closes it, not the merge), a clean-context review
+if you like the discipline, then your operator confirmation comment on the
+PR — you are the author and there is no one independent to approve it —
+and a rebase merge. `task finish --operator-confirm` is not involved: there
+is no task for it to finish. The roadmap lists finished milestones;
+`gh codecrew status` reports the open one.
 
 ## 8. Close
 

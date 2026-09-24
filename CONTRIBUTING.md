@@ -20,7 +20,9 @@ the contribution process.
   no task. Regenerating the release table `roles sync` reads is one: after a
   release is tagged, `scripts/contract-history` in a PR of its own — the
   release workflow will not build the next release until the table covers
-  every tag.
+  every tag. The milestone record is the one other kind: the
+  doc-synthesizer's `docs:` PR, referencing the milestone issue, reviewed
+  the same way and merged by its author.
 - **Code ships with tests** in the same PR (the #46 convention); documented
   commands are executed by the reviewer, verbatim.
 - **Decisions and deviations** are recorded as comments when they happen
