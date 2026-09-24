@@ -6,6 +6,39 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [2.1.0] — 2026-09-24
+
+The first protocol minor. 2.1 is additive: every pointer, layout and
+recorded comment 2.0 accepted stays valid, a `codecrew: "2.0"` pointer is
+current under it with nothing to migrate, and four refusal codes are added
+with none repurposed. It carries M18's work on how much ceremony a change
+costs. A requirement can be struck by a recorded coordination-layer
+decision with `milestone strike`, and `milestone close` counts it as
+terminal. A change with no decision in it — a tool's output — is
+housekeeping, and travels as a reviewed `chore:` pull request with no task;
+the milestone record takes the same light path. `roles sync` brings a hub's
+contracts, and any repository's `.codecrew/AGENTS.md`, up to the embedded
+text where they are absent or an earlier release's, and refuses a fork;
+`status` reports a missing contract as well as a drifted one. The
+doc-synthesizer's front-door obligation no longer assumes this hub's
+documents. And because the CLI compares protocol majors only, so that a
+binary a minor behind its hub runs without a word and fails closed later,
+the scaffolded `.codecrew/AGENTS.md` now opens with a version check: a
+dispatched agent compares the protocol `gh codecrew version` prints with the
+hub pointer's `codecrew:` before its first verb, and upgrades or raises it
+with the human. What an operator does: upgrade every seat's binary — every
+machine and orchestrator that runs the verbs — with
+`gh extension upgrade codecrew`, before running `roles sync` anywhere; then
+run `gh codecrew status` in each repository and, where it reports a contract
+or the agents file missing or at an earlier release's text, run
+`gh codecrew roles sync` and deliver its commit as a housekeeping pull
+request, which is how an existing project receives the version check. A
+hand-written `.codecrew/AGENTS.md` is the project's own and is refused, not
+overwritten; a hub whose record relied on the old doc-synthesizer text names
+its front door in its own `doc-synthesizer.local.md`.
+
 ### A dispatched agent checks its CLI against the hub's protocol
 
 - The CLI compares protocol majors only, so a binary a minor behind its
@@ -1623,7 +1656,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.0.2...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/radiusred/gh-codecrew/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/radiusred/gh-codecrew/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/radiusred/gh-codecrew/compare/v1.2.0...v2.0.0

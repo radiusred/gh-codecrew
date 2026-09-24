@@ -346,8 +346,7 @@ in the crew, and it's a ladder:
    fix: have your harness launch a sub-agent per role, each briefed with the
    role's contract from `.codecrew/roles/` (plus any
    `.codecrew/roles/<role>.local.md` beside
-   it — from the next release, `gh codecrew roles show <role>` prints the
-   two composed) — so a fresh-context QA reading `.codecrew/roles/qa.md`
+   it — `gh codecrew roles show <role>` prints the two composed) — so a fresh-context QA reading `.codecrew/roles/qa.md`
    probes what
    the implementer's context wouldn't. Or cross model families:
    dispatch another LLM through its own CLI for the reviewer or qa seat.

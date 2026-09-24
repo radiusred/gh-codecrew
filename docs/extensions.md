@@ -43,7 +43,7 @@ for milestone documents, which stay synthesis from the record.
 * Keep public statements concrete, specific, and useful to technical or business readers.
 ```
 
-## A front door (this hub, `.codecrew/roles/doc-synthesizer.local.md`, 2026-09-24, next release v2.1.0)
+## A front door (this hub, `.codecrew/roles/doc-synthesizer.local.md`, 2026-09-24, v2.1.0)
 
 The contract obliges the doc-synthesizer to refresh the hub's front-door
 documents wherever the milestone changed their claims, and leaves which
