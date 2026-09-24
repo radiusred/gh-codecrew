@@ -336,8 +336,10 @@ func TestStatusFallsBackToTheAssigneeAndReadsOnlyTasksInFlight(t *testing.T) {
 	if !strings.Contains(got, "[ready      ] o/r#7") || !strings.Contains(got, "Seven\n") {
 		t.Errorf("a ready task names no holder:\n%s", got)
 	}
-	if len(f.read) != 1 || f.read[0] != 6 {
-		t.Errorf("comments were read for %v, want only the task in flight [6]", f.read)
+	// The milestone issue's own comments are read once, for its strikes
+	// (M18-R4); of the tasks, only the one in flight.
+	if fmt.Sprint(f.read) != "[5 6]" {
+		t.Errorf("comments were read for %v, want the milestone issue and only the task in flight [5 6]", f.read)
 	}
 }
 

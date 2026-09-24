@@ -148,6 +148,7 @@ func milestoneBoard(w io.Writer, c *ctx, milestones []tracker.Milestone) error {
 					fmt.Fprintf(w, "  %s\n", requirementIDMismatchNote(num, bad))
 				}
 			}
+			strikeLines(w, c, &m, body)
 		}
 		if len(m.Tasks) == 0 {
 			fmt.Fprintln(w, "  no tasks yet")
@@ -216,4 +217,40 @@ func taskHolder(c *ctx, ref tracker.IssueRef, task tracker.Task) string {
 		return task.Assignees[0]
 	}
 	return ""
+}
+
+// strikeLines reports the milestone's strikes as milestone close counts
+// them, through the same function (M18-R4): a verified strike as a line, an
+// unverified one as the note naming the code close will refuse with, and a
+// still-bold ID struck through in the body with no strike behind it as a
+// note that the protocol does not read the body's strikethrough. status
+// reports rather than gates, so a comments read that fails is a note too.
+func strikeLines(w io.Writer, c *ctx, m *tracker.Milestone, body string) {
+	ids := tracker.RequirementIDs(body)
+	if len(ids) == 0 {
+		return
+	}
+	comments, err := c.t.Comments(m.Ref)
+	var states map[string]strikeState
+	if err == nil {
+		states, err = milestoneStrikes(c, m, comments)
+	}
+	if err != nil {
+		fmt.Fprintf(w, "  note: strikes not read for %s (%v)\n", m.Ref, err)
+		return
+	}
+	struck, unrecorded := struckIDs(ids, states)
+	isStruck := map[string]bool{}
+	for _, id := range struck {
+		isStruck[id] = true
+		fmt.Fprintf(w, "  struck: %s — decision %s\n", id, states[id].Decision)
+	}
+	for _, u := range unrecorded {
+		fmt.Fprintf(w, "  note: a strike does not verify — milestone close refuses DECISION_UNRECORDED: %s\n", u)
+	}
+	for _, id := range tracker.StruckThroughIDs(body) {
+		if !isStruck[id] {
+			fmt.Fprintf(w, "  note: %s is struck through in the body, which the protocol does not read — it is still a requirement; strike it with gh codecrew milestone strike and a recorded Decision (SPEC §4)\n", id)
+		}
+	}
 }

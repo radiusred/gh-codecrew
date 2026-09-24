@@ -352,10 +352,26 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 			latest[v.ID] = v.State
 		}
 	}
+	// A requirement struck by a recorded Decision is terminal whatever the
+	// verdicts before or after it say — a verdict is not a scope change —
+	// and only the coordinator seat's holder's lines count, each one's
+	// link re-verified here, so a line posted by hand is held to the
+	// verb's own check (M18-R4). One that fails refuses ahead of the
+	// verdicts, so the code points at the real fault.
+	states, err := milestoneStrikes(c, milestone, comments)
+	if err != nil {
+		return nil, nil, err
+	}
+	struck, unrecorded := struckIDs(ids, states)
+	isStruck := map[string]bool{}
+	for _, id := range struck {
+		isStruck[id] = true
+	}
 	var missing, unsatisfied []string
 	for _, id := range ids {
 		state, ok := latest[id]
 		switch {
+		case isStruck[id]:
 		case !ok:
 			missing = append(missing, id)
 		case state != "satisfied":
@@ -364,6 +380,8 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	}
 	e = nil
 	switch {
+	case len(unrecorded) > 0:
+		e = refuse("DECISION_UNRECORDED", "the latest struck or reinstated line does not verify for: %s", strings.Join(unrecorded, "; "))
 	case len(missing) > 0:
 		e = refuse("VERDICT_MISSING", "no QA verdict on %s for: %s — dispatch QA (%s)", milestone.Ref, strings.Join(missing, ", "), contractPath("qa"))
 	case len(unsatisfied) > 0:
@@ -371,6 +389,9 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	}
 	if !p.gate("QA verdicts", e) {
 		return p.stop(closeGates), nil, nil
+	}
+	for _, id := range struck {
+		p.note(fmt.Sprintf("struck: %s — decision %s", id, states[id].Decision))
 	}
 	if len(latest) > 0 && c.rolesConfig().Roles["qa"].Identity.Operator() {
 		// Said here, before the document gate, as it always was — a live
@@ -447,6 +468,9 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	}
 	closing := func(swept, sweptStale []string) string {
 		comment := fmt.Sprintf("Closed by `gh codecrew milestone close %d`: all %d tasks done, milestone document merged.", n, len(milestone.Tasks))
+		if len(struck) > 0 {
+			comment += fmt.Sprintf(" Struck by recorded decision: %s.", strings.Join(struck, ", "))
+		}
 		if len(swept) > 0 {
 			comment += fmt.Sprintf(" Swept %d task branch(es): %s.", len(swept), strings.Join(swept, ", "))
 		}
@@ -472,13 +496,23 @@ func planClose(c *ctx, n int, dryRun bool, w io.Writer) (*plan, func(io.Writer) 
 	return p, run, nil
 }
 
-// gatherRecords collects Decision/Deviation records from every task issue
-// in the milestone and each task's PRs (open and closed), and lists each
+// gatherRecords collects Decision/Deviation records from the milestone
+// issue, every task issue in the milestone and each task's PRs (open and
+// closed), and lists each
 // task's PRs so the doc-synthesizer has the summary pointers without
 // another walk. PR bodies are never gathered (SPEC §4).
 func gatherRecords(c *ctx, m *tracker.Milestone) ([]tracker.Record, []string, error) {
 	var records []tracker.Record
 	var summaries []string
+	// The milestone issue's own records first: a requirement struck by
+	// decision, and a requirement question answered at a gate raised
+	// there, are recorded on the milestone issue, and the record's
+	// requirement table has to see them (M18-R4).
+	own, err := c.t.Comments(m.Ref)
+	if err != nil {
+		return nil, nil, err
+	}
+	records = append(records, tracker.ExtractRecords(m.Ref, own)...)
 	for _, ref := range m.Tasks {
 		comments, err := c.t.Comments(ref)
 		if err != nil {

@@ -26,6 +26,10 @@ verbs:
   milestone close <milestone number>         close a milestone (gates: milestone open, no gate raised, tasks closed, requirements declared,
                                              QA verdicts, milestone document)
            [--dry-run]                       (print every gate and the sweep; write nothing)
+  milestone strike <milestone number> <ID>   strike a requirement by a recorded Decision: posts "**<ID> — struck.** <link>" on
+           --decision <comment URL>          the milestone issue (--decision: a Decision naming the ID, on the milestone or a task)
+           [--reinstate]                     (post "**<ID> — reinstated.** <link>" instead: QA verdicts count again)
+           [--dry-run]                       (print every gate and the line it would post; write nothing)
   milestone evidence <milestone number>      verify the record's citations resolve: a dead github.com link refuses, a dead external
                                              link warns; URLs inside code are content, not citations (M2 → 2)
   task new --milestone N --title T           create a task issue, linked into the milestone
@@ -119,6 +123,8 @@ func run(args []string) error {
 			return milestoneClose(os.Stdout, rest[1:])
 		case "milestone evidence":
 			return milestoneEvidence(os.Stdout, rest[1:])
+		case "milestone strike":
+			return milestoneStrike(os.Stdout, rest[1:])
 		case "task new":
 			return taskNew(os.Stdout, rest[1:])
 		case "task start":

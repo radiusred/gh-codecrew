@@ -227,6 +227,33 @@ another milestone; `status` prints the same condition as a line, because it
 reports the board rather than gating it. IDs written outside the section
 are not requirements at all.
 
+A requirement can be **struck**: withdrawn from the milestone's scope by a
+recorded Decision, because nothing was built and nothing is owed. Striking
+is a scope change, and it belongs to the coordination layer, not to QA:
+whoever holds coordination owns it and records it — the human, a human and
+an agent jointly, or an agent the human has deliberately put in charge of
+coordination. The Decision comes first, as a `**Decision:**` (or the
+`**Gate resolved:**` answering a question about the requirement) that names
+the ID, on the milestone issue or one of its tasks. Then `milestone strike`
+posts one line on the milestone issue:
+
+```markdown
+**M1-R2 — struck.** <link to the Decision comment>
+```
+
+The body is never edited: the requirement's line stays verbatim and bold,
+and a strikethrough written into the body means nothing to the protocol — a
+body edit is not a record, so `~~**M1-R2**~~` is still a requirement. The
+verb refuses `DECISION_UNRECORDED` unless the link is such a Decision, and
+`milestone close` checks every struck line it counts again, so a line posted
+by hand is held to the same record. Only the coordinator seat's holder's
+lines count, and a struck requirement is terminal: it wants no QA verdict,
+and no verdict before or after it undoes it. A strike is undone the same way
+it is made — a Decision, then `milestone strike --reinstate`, which posts
+`**M1-R2 — reinstated.** <link>` — after which QA verdicts count again.
+`status` reports each strike, and the milestone document's requirement table
+carries the word.
+
 ### Task
 
 An **issue in the spoke whose code it changes**, labeled `cc:task`, attached
@@ -381,7 +408,8 @@ three code forms — an inline code span, a fenced block, or a block indented
 four columns anywhere it does not continue a paragraph — is not a verdict,
 exactly as a URL in code is not a citation ([CLI.md](CLI.md), `milestone
 evidence`). Those are the shapes a form quoted from a contract and an
-earlier verdict shown verbatim take.
+earlier verdict shown verbatim take. The struck and reinstated lines (§4,
+Milestone) are read by the same reading, from the coordinator seat's holder.
 
 Line endings are not part of the grammar: a body saved with CRLF — what a
 web editor writes — is read exactly as the same body written with LF, in
@@ -407,8 +435,9 @@ repo as their task issue). Linear history (rebase merging) is recommended.
 closes. It is the "why" document: the architectural, pattern, and technology
 choices made during the milestone, their trade-offs and rejected alternatives —
 synthesized from the Decision and Deviation comments recorded during the work,
-never reconstructed from raw history. It lands via a normal PR and passes the
-same review gate as code.
+never reconstructed from raw history. Its requirement table gives each ID its
+final status — the latest QA verdict, or `struck` with the Decision linked. It
+lands via a normal PR and passes the same review gate as code.
 
 ## 5. Configuration
 
@@ -630,7 +659,8 @@ App creation). v1 roles:
   different model/harness from the implementer, per role routing.
 - **qa** — exercises the built thing against the milestone's gates and the
   requirements' intent (not just the tests the implementer wrote); reports
-  findings as issue/PR comments.
+  findings as issue/PR comments. `struck` is not QA's word: QA did not judge
+  a struck requirement, verdicts none, and does not strike.
 - **doc-synthesizer** — at milestone close, compiles the recorded decisions
   and deviations into the milestone document and opens its PR.
 - **coordinator** — the coordination layer as a seat: opens milestones
@@ -638,13 +668,16 @@ App creation). v1 roles:
   table, owns the review loop in both directions (reviewer on a PR,
   implementer on changes requested, the task's owner on approval), raises
   the gates only a human can answer, and drives `milestone evidence` and
-  `milestone close`. It never writes code, reviews, verdicts or merges; its
+  `milestone close`. It never writes code, reviews, QA verdicts or merges; its
   App holds contents: read, issues: write, pull requests: read and
   metadata, never more. Unrouted it is the operator — every project has a
   coordinator, solo included. The contract states what the orchestrator
   run taught the seat (#119, #164): one wake path per transition, state
   re-read at the act, execution events one-shot, dispatch on the platform
   and cite on GitHub, never the milestone number in requirement prose.
+  Striking a requirement (§4) is this seat's: the scope change is the
+  coordination layer's, recorded as a Decision and posted with `milestone
+  strike`, whoever holds coordination.
 
 **Local extensions.** A project's own instructions for a role — house style,
 local conventions, what its orchestrator injects — go in
@@ -761,7 +794,7 @@ diff` are the mechanism, reconciliation the project's judgment. A change to
 this document that invalidates existing pointers or recorded comments is a
 protocol major, and the CLI that implements it refuses the old pointer.
 
-**The refusal codes.** Forty-three, and this table is the catalogue: a code
+**The refusal codes.** Forty-five, and this table is the catalogue: a code
 absent from it is not one the protocol promises. Every row is raised as
 `refused[CODE]: detail` (§6), and every one of them exits `1`. "any verb"
 below means any verb that loads and validates the working repo's pointer —
@@ -779,6 +812,7 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | `CHECKS_PENDING` | `task finish` | The closing PR's checks are still running. |
 | `CLOSED` | `task start`, `task finish` | The task issue is already closed. |
 | `CREW_BYPASS` | `task finish` | `--bypass` was given by a crew identity; the override is a human operator's act. |
+| `DECISION_UNRECORDED` | `milestone strike`, `milestone close` | A struck or reinstated line's link is not a comment on the milestone issue or one of its tasks carrying a `**Decision:**` or `**Gate resolved:**` record that names the ID (§4). |
 | `DOC_MISSING` | `milestone close` | No `docs/milestones/<n>-*.md` on the default branch: the milestone document is delivered as a task before the close. |
 | `EVIDENCE_UNREACHABLE` | `milestone evidence` | A github.com citation in the milestone's record does not resolve. |
 | `FOREIGN_ROLES_DIR` | `migrate` | A root `roles/` holding CodeCrew's files also holds entries it does not recognise; it stops rather than guess which are its own. |
@@ -795,7 +829,7 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | `MILESTONE_GATED` | `milestone close` | The milestone issue itself carries `cc:needs-decision`: a requirement-level question, answered before anything is counted. |
 | `MILESTONE_NUMBER_TAKEN` | `milestone new` | The issue was created but another milestone holds its `M<n>:` prefix, and the verb's own renumbering did not settle it. |
 | `NOT_A_TASK` | `task start` | The issue is not labelled `cc:task`. |
-| `NOT_FOUND` | `task new`, `milestone close`, `milestone evidence` | No milestone with that number — open, for the first two; open or closed, for `evidence`. |
+| `NOT_FOUND` | `task new`, `milestone close`, `milestone evidence`, `milestone strike` | No milestone with that number — open, for all but `evidence`; open or closed, for `evidence`. |
 | `NOT_OWNER` | `task finish` | The caller is not the seat that started the task, or nothing records a start at all (§8). |
 | `NO_CHECKS` | `task finish` | The closing PR reports no CI checks; absence cannot satisfy a deterministic gate, and there is no override. |
 | `NO_CHECKS_PERMISSION` | `task finish` | The installation token cannot read the PR's checks at all: a private repo needs permissions the App has not been granted. |
@@ -810,6 +844,7 @@ and `init` and `migrate`, which raise the layout codes themselves.
 | `OPEN_TASKS` | `milestone close` | Tasks under the milestone are still open. |
 | `PROTOCOL_MISMATCH` | any verb | A pointer's protocol major differs from the one this binary implements — the local one, or the hub's on the spoke's fetch (§5). |
 | `REQUIREMENT_ID_MISMATCH` | `milestone close`, `milestone evidence` | An ID under `## Requirements` is not the milestone's own; the grammar is `M<milestone>-R<k>` (§4). |
+| `REQUIREMENT_UNDECLARED` | `milestone strike` | The ID to strike is not declared under that milestone's `## Requirements`. |
 | `REVIEW_NOT_COUNTED` | `task finish` | The protocol's review gate passed but GitHub's own required-review rule has not; the detail names the supported paths. |
 | `SELF_CONFIRM` | `task finish` | `--operator-confirm` was given by a crew identity; agents never waive review, in any tier. |
 | `SPOKE_ROUTING` | any verb, `migrate` | A spoke's pointer carries a `roles:` block; the hub carries the one routing table (§5). |
