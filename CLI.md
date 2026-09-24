@@ -928,7 +928,8 @@ refusal.
 
 ```
 gh codecrew roles sync --dry-run          # what would be written, and where
-gh codecrew roles sync                    # the contracts, in one local commit
+gh codecrew roles sync                    # hub: the contracts and .codecrew/AGENTS.md;
+                                          # spoke: the agents file alone; one local commit
 gh codecrew roles sync coordinator qa     # only these, past a fork elsewhere
 ```
 
