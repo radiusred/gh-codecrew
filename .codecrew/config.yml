@@ -1,4 +1,4 @@
-codecrew: "2.0"
+codecrew: "2.1"
 hub: self
 
 # Advisory role routing, read by whoever dispatches agents (see SPEC.md §5).
