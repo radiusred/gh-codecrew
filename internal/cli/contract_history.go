@@ -4,7 +4,9 @@ package cli
 
 // contractHistory is every role contract text a tagged release shipped,
 // by SHA-256, in release order: before 2.0 under roles/, from 2.0 under
-// .codecrew/roles/. roles sync reads it to recognise a release text.
+// .codecrew/roles/; and, as Role ".codecrew/AGENTS.md", the agents file
+// each release on the 2.0 layout wrote. roles sync reads it to recognise
+// a release text.
 var contractHistory = []releasedContract{
 	{Release: "v0.1.0", Role: "implementer", SHA256: "caeaa940f9970058db03dd336640fc22bc6709716c6fd373559459e6a902f3c6"},
 	{Release: "v0.1.0", Role: "reviewer", SHA256: "e4cd1805719a691e10de958b3027480f5a4ed473405dda006c8401d303daa258"},
@@ -73,14 +75,17 @@ var contractHistory = []releasedContract{
 	{Release: "v2.0.0", Role: "qa", SHA256: "f1df204fab7a3497adc36b7335ad7768a7b60337a22e8b1514fe10408bed456e"},
 	{Release: "v2.0.0", Role: "doc-synthesizer", SHA256: "9616e679a33f96414ce33d138ae14b4d18f27ee9e418bffd8f664ec767bc984a"},
 	{Release: "v2.0.0", Role: "coordinator", SHA256: "74bb4364d127b0aa877fec5256c13ee957dbf151e6e981748463265940d8a923"},
+	{Release: "v2.0.0", Role: ".codecrew/AGENTS.md", SHA256: "2576ddde0e587c5f6631f6f602a4cce730f4742d36902ef4564b9542931f62a2"},
 	{Release: "v2.0.1", Role: "implementer", SHA256: "6af445656b43a7b8f01f81fd9ca091af69dad4e5fd5731ffcecd1cba71724740"},
 	{Release: "v2.0.1", Role: "reviewer", SHA256: "3a3fd4648fd4a3db11a44b80b2ac4f5ef7a551a1a26f7b72f3b4bc0e806f4736"},
 	{Release: "v2.0.1", Role: "qa", SHA256: "f1df204fab7a3497adc36b7335ad7768a7b60337a22e8b1514fe10408bed456e"},
 	{Release: "v2.0.1", Role: "doc-synthesizer", SHA256: "9616e679a33f96414ce33d138ae14b4d18f27ee9e418bffd8f664ec767bc984a"},
 	{Release: "v2.0.1", Role: "coordinator", SHA256: "74bb4364d127b0aa877fec5256c13ee957dbf151e6e981748463265940d8a923"},
+	{Release: "v2.0.1", Role: ".codecrew/AGENTS.md", SHA256: "2576ddde0e587c5f6631f6f602a4cce730f4742d36902ef4564b9542931f62a2"},
 	{Release: "v2.0.2", Role: "implementer", SHA256: "6af445656b43a7b8f01f81fd9ca091af69dad4e5fd5731ffcecd1cba71724740"},
 	{Release: "v2.0.2", Role: "reviewer", SHA256: "3a3fd4648fd4a3db11a44b80b2ac4f5ef7a551a1a26f7b72f3b4bc0e806f4736"},
 	{Release: "v2.0.2", Role: "qa", SHA256: "f1df204fab7a3497adc36b7335ad7768a7b60337a22e8b1514fe10408bed456e"},
 	{Release: "v2.0.2", Role: "doc-synthesizer", SHA256: "9616e679a33f96414ce33d138ae14b4d18f27ee9e418bffd8f664ec767bc984a"},
 	{Release: "v2.0.2", Role: "coordinator", SHA256: "74bb4364d127b0aa877fec5256c13ee957dbf151e6e981748463265940d8a923"},
+	{Release: "v2.0.2", Role: ".codecrew/AGENTS.md", SHA256: "2576ddde0e587c5f6631f6f602a4cce730f4742d36902ef4564b9542931f62a2"},
 }
