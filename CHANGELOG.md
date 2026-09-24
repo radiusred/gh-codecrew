@@ -6,6 +6,31 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A dispatched agent checks its CLI against the hub's protocol
+
+- The CLI compares protocol majors only, so a binary a minor behind its
+  hub's pointer runs without a word and fails closed later — on a verb it
+  lacks, or a record it cannot read. The scaffolded `.codecrew/AGENTS.md`
+  now opens with a version check: before the first verb, compare the
+  protocol `gh codecrew version` prints with the pointer's `codecrew:`
+  field — the same major and a minor at least the pointer's — and upgrade
+  (`gh extension upgrade codecrew`) if you install the tools, otherwise
+  raise it with `gh codecrew checkpoint` and stop; never mid-task. This
+  hub's own `.codecrew/AGENTS.md` carries the same rule; SPEC §5 says the
+  check is the dispatched agent's; the coordinator contract defines "the
+  project's floor" as the protocol the hub pointer names, and upgrades
+  between units of work, never inside an open dispatch.
+- The scaffold's contract-drift bullet now matches SPEC §7 and `status`: a
+  missing contract or one still at a release's text goes through
+  `gh codecrew roles sync` as a housekeeping PR, and only a fork is
+  reconciled in a task.
+- An existing project does not receive the new text from any verb: `init`
+  keeps an existing `.codecrew/AGENTS.md`, and `migrate` on a repository
+  already on the `.codecrew/` layout moves nothing. Edit it by hand, or
+  remove it and run `gh codecrew init` again (with `--hub owner/repo` in a
+  spoke), which writes only the files that are absent and commits them. No
+  verb's behaviour changed. (#372)
+
 ### The milestone record takes the housekeeping light path
 
 - The milestone record is no longer delivered as a task. SPEC §4
