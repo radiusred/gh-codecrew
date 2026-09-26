@@ -21,6 +21,7 @@
 | M17 | The frontier builds the coordinator | [#345](https://github.com/radiusred/gh-codecrew/issues/345) | [Done](docs/milestones/17-the-frontier-builds-the-coordinator.md) |
 | M18 | The protocol scales down | [#353](https://github.com/radiusred/gh-codecrew/issues/353) | [Done](docs/milestones/18-the-protocol-scales-down.md) |
 | M19 | The front page tells the crew story | [#382](https://github.com/radiusred/gh-codecrew/issues/382) | [Done](docs/milestones/19-the-front-page-tells-the-crew-story.md) |
+| M20 | The 2.1 post | [#384](https://github.com/radiusred/gh-codecrew/issues/384) | [Done](docs/milestones/20-the-2-1-post.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
