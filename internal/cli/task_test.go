@@ -247,6 +247,7 @@ type taskNewFake struct {
 	labels  []string // the labels CreateIssue was last given
 	linked  []string // "<parent> <- <child>" per AddSubIssue
 	posted  []string // "<ref>: <body>" per Comment
+	repoWorkflows
 }
 
 func (f *taskNewFake) OpenMilestones(string) ([]tracker.Milestone, error) {
@@ -533,6 +534,7 @@ type startFake struct {
 	rulesErr  error               // what the rules endpoint answers with
 	heads     []string            // the newest pull requests' head SHAs
 	reported  map[string][]string // the check names reported on each head
+	repoWorkflows
 }
 
 func (f *startFake) Task(tracker.IssueRef) (tracker.Task, error) { return f.task, nil }

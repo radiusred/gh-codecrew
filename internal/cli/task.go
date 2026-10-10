@@ -86,6 +86,11 @@ func runTaskNew(c *ctx, w io.Writer, n int, target, title, goal, requirements st
 		}
 		fmt.Fprintf(w, "adopts %s — recorded on the capture\n", a.Ref)
 	}
+	// Whether the task's pull request will have a check to report, said
+	// before the task is planned (#391).
+	for _, n := range workflowNotes(c.t, target) {
+		fmt.Fprintln(w, n)
+	}
 	return nil
 }
 
@@ -279,6 +284,11 @@ func runTaskStart(c *ctx, w io.Writer, ref tracker.IssueRef) error {
 		// The policy the task's pull request will meet, said while the
 		// missing workflow is still cheap to add (#392).
 		for _, n := range startPolicyNotes(c.t, ref.Repo) {
+			fmt.Fprintln(w, n)
+		}
+		// And whether anything will report a check on that pull request
+		// at all — task finish refuses NO_CHECKS otherwise (#391).
+		for _, n := range workflowNotes(c.t, ref.Repo) {
 			fmt.Fprintln(w, n)
 		}
 	}
