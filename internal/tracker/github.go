@@ -836,9 +836,10 @@ func (GitHub) RepoInfo(repo string) (RepoInfo, error) {
 	var r struct {
 		DefaultBranch       string `json:"default_branch"`
 		DeleteBranchOnMerge bool   `json:"delete_branch_on_merge"`
+		Private             bool   `json:"private"`
 	}
 	if err := gh.JSON(&r, "api", "repos/"+repo); err != nil {
 		return RepoInfo{}, err
 	}
-	return RepoInfo{DefaultBranch: r.DefaultBranch, DeleteBranchOnMerge: r.DeleteBranchOnMerge}, nil
+	return RepoInfo{DefaultBranch: r.DefaultBranch, DeleteBranchOnMerge: r.DeleteBranchOnMerge, Private: r.Private}, nil
 }

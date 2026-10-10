@@ -73,25 +73,108 @@ func TestHelperVenueGH(t *testing.T) {
 
 // The venue's URL grammar. It is knowledge, not I/O — there is nothing to
 // script and nothing to fake — so it is package functions beside the
-// interface, and this is where it is pinned.
+// interface, and this is where it is pinned: one case or more per row of
+// recordShapes, and a check that no row goes untested (M21-R3, #388).
 func TestRecordAPIPath(t *testing.T) {
-	for _, tc := range []struct {
+	cases := []struct {
 		url, path string
 		ok        bool
 	}{
+		// repository root, as a private hub's Plan cited it (#388)
+		{"https://github.com/o/r", "repos/o/r", true},
+		{"https://github.com/o/r/", "repos/o/r", true},
+		{"https://github.com/o/r.git", "repos/o/r", true},
+		{"https://github.com/o/r?tab=readme-ov-file#install", "repos/o/r", true},
+		{"http://github.com/o/r", "repos/o/r", true},
+		// issues and their comments
 		{"https://github.com/o/r/issues/68", "repos/o/r/issues/68", true},
+		{"https://github.com/o/r/issues/68#issuecomment-99", "repos/o/r/issues/comments/99", true},
+		{"https://github.com/o/r/issues/68#event-5", "repos/o/r/issues/68", true},
+		// pull requests, their comments, reviews and review comments
 		{"https://github.com/o/r/pull/100", "repos/o/r/issues/100", true},
-		{"https://github.com/o/r/issues/68#issuecomment-99", "repos/o/r/issues/68", true},
+		{"https://github.com/o/r/pull/100#issuecomment-7", "repos/o/r/issues/comments/7", true},
+		{"https://github.com/o/r/pull/100#pullrequestreview-8", "repos/o/r/pulls/100/reviews/8", true},
+		{"https://github.com/o/r/pull/100#discussion_r9", "repos/o/r/pulls/comments/9", true},
+		{"https://github.com/o/r/pull/100/files#discussion_r9", "repos/o/r/pulls/comments/9", true},
+		{"https://github.com/o/r/pull/100/files#r10", "repos/o/r/pulls/comments/10", true},
+		{"https://github.com/o/r/pull/100/commits/abc123", "repos/o/r/commits/abc123", true},
+		{"https://github.com/o/r/pull/100/files", "repos/o/r/issues/100", true},
+		{"https://github.com/o/r/pull/100/checks?check_run_id=1", "repos/o/r/issues/100", true},
+		// commits and branches
 		{"https://github.com/o/r/commit/abc123", "repos/o/r/commits/abc123", true},
+		{"https://github.com/o/r/commit/abc123#diff-1", "repos/o/r/commits/abc123", true},
+		{"https://github.com/o/r/commits/main", "repos/o/r/commits/main", true},
+		{"https://github.com/o/r/tree/task-branch", "repos/o/r/commits/task-branch", true},
+		// blob and tree at a ref
 		{"https://github.com/o/r/blob/main/docs/x.md", "repos/o/r/contents/docs/x.md?ref=main", true},
+		{"https://github.com/o/r/blob/abc123/SPEC.md#L10-L20", "repos/o/r/contents/SPEC.md?ref=abc123", true},
+		{"https://github.com/o/r/tree/main/internal/cli", "repos/o/r/contents/internal/cli?ref=main", true},
+		// compare
+		{"https://github.com/o/r/compare/v2.1.0...main", "repos/o/r/compare/v2.1.0...main", true},
+		{"https://github.com/o/r/compare/main...feat/x", "repos/o/r/compare/main...feat/x", true},
+		// releases
+		{"https://github.com/o/r/releases", "repos/o/r/releases", true},
+		{"https://github.com/o/r/releases/latest", "repos/o/r/releases/latest", true},
+		{"https://github.com/o/r/releases/tag/v2.1.0", "repos/o/r/releases/tags/v2.1.0", true},
+		// Actions, in the shapes the fleet cited (#388)
+		{"https://github.com/o/r/actions/runs/123", "repos/o/r/actions/runs/123", true},
+		{"https://github.com/o/r/actions/runs/123?pr=45", "repos/o/r/actions/runs/123", true},
+		{"https://github.com/o/r/actions/runs/123/job/456", "repos/o/r/actions/jobs/456", true},
+		{"https://github.com/o/r/actions/runs/123/job/456?pr=45#step:4:12", "repos/o/r/actions/jobs/456", true},
+		{"https://github.com/o/r/actions/runs/123/jobs/456", "repos/o/r/actions/jobs/456", true},
+		{"https://github.com/o/r/actions/runs/123/attempts/2", "repos/o/r/actions/runs/123/attempts/2", true},
+		{"https://github.com/o/r/actions/workflows/ci.yml", "repos/o/r/actions/workflows/ci.yml", true},
+		// milestones
+		{"https://github.com/o/r/milestone/3", "repos/o/r/milestones/3", true},
+		// no row: the caller classifies these
+		{"https://github.com/o/r/wiki/Home", "", false},
+		{"https://github.com/o/r/issues/new", "", false},   // a form, not issue "new"
+		{"https://github.com/o/r/compare/main", "", false}, // no base...head
+		{"https://github.com/o/r/actions", "", false},
 		{"https://github.com/apps/some-app", "", false}, // App pages: plain HTTP
-		{"https://github.com/o/r", "", false},           // bare repo page
-		{"https://docs.github.com/en/apps", "", false},  // not github.com
+		{"https://github.com/orgs/o/projects/1", "", false},
+		{"https://github.com/o", "", false},            // a user or an organization
+		{"https://docs.github.com/en/apps", "", false}, // not github.com
 		{"https://example.com/o/r/issues/1", "", false},
-	} {
-		path, ok := RecordAPIPath(tc.url)
+	}
+	covered := map[int]bool{}
+	for _, tc := range cases {
+		row, path, ok := resolveShape(tc.url)
 		if path != tc.path || ok != tc.ok {
 			t.Errorf("RecordAPIPath(%q) = %q,%v want %q,%v", tc.url, path, ok, tc.path, tc.ok)
+		}
+		if got, gotOK := RecordAPIPath(tc.url); got != path || gotOK != ok {
+			t.Errorf("RecordAPIPath(%q) disagrees with its table lookup", tc.url)
+		}
+		covered[row] = true
+	}
+	for i, s := range recordShapes {
+		if !covered[i] {
+			t.Errorf("row %d (%s #%s) has no case here: every shape the table maps is pinned", i, s.Path, s.Anchor)
+		}
+	}
+}
+
+// A github.com link no row maps is classified by the repository it lies
+// under: RecordRepo names it and the shape, the segment after the
+// repository. github.com's own pages lie under none.
+func TestRecordRepo(t *testing.T) {
+	for _, tc := range []struct {
+		url, repo, shape string
+		ok               bool
+	}{
+		{"https://github.com/o/r/wiki/Home", "o/r", "wiki", true},
+		{"https://github.com/o/r/security/advisories/GHSA-x", "o/r", "security", true},
+		{"https://github.com/o/r.git", "o/r", "", true},
+		{"https://github.com/o/r/actions?query=branch%3Amain", "o/r", "actions", true},
+		{"https://github.com/apps/some-app", "", "", false},
+		{"https://github.com/orgs/o/projects/1", "", "", false},
+		{"https://github.com/o", "", "", false},
+		{"https://example.com/o/r", "", "", false},
+	} {
+		repo, shape, ok := RecordRepo(tc.url)
+		if repo != tc.repo || shape != tc.shape || ok != tc.ok {
+			t.Errorf("RecordRepo(%q) = %q,%q,%v want %q,%q,%v", tc.url, repo, shape, ok, tc.repo, tc.shape, tc.ok)
 		}
 	}
 }
@@ -206,6 +289,26 @@ func TestAPIReachable(t *testing.T) {
 	scriptGH(t, "", 1)
 	if err := (GitHub{}).APIReachable("repos/o/r/issues/404"); err == nil {
 		t.Error("a dead path resolved")
+	}
+}
+
+// RepoInfo reads the repository's visibility: milestone evidence asks it
+// whether an unmapped github.com link can be fetched at all (M21-R3).
+func TestRepoInfoReadsVisibility(t *testing.T) {
+	calls := scriptGH(t, `{"default_branch":"main","delete_branch_on_merge":true,"private":true}`, 0)
+	info, err := GitHub{}.RepoInfo("o/r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Private || info.DefaultBranch != "main" || !info.DeleteBranchOnMerge {
+		t.Errorf("RepoInfo = %+v", info)
+	}
+	if got := calls(); len(got) != 1 || got[0] != "api repos/o/r" {
+		t.Errorf("asked gh %v", got)
+	}
+	scriptGH(t, `{"default_branch":"main","private":false}`, 0)
+	if info, _ := (GitHub{}).RepoInfo("o/r"); info.Private {
+		t.Error("a public repository read as private")
 	}
 }
 
