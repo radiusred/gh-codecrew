@@ -22,6 +22,7 @@
 | M18 | The protocol scales down | [#353](https://github.com/radiusred/gh-codecrew/issues/353) | [Done](docs/milestones/18-the-protocol-scales-down.md) |
 | M19 | The front page tells the crew story | [#382](https://github.com/radiusred/gh-codecrew/issues/382) | [Done](docs/milestones/19-the-front-page-tells-the-crew-story.md) |
 | M20 | The 2.1 post | [#384](https://github.com/radiusred/gh-codecrew/issues/384) | [Done](docs/milestones/20-the-2-1-post.md) |
+| M21 | v2.1.1: what the fleet's first fortnight on 2.1 taught | [#393](https://github.com/radiusred/gh-codecrew/issues/393) | [Done](docs/milestones/21-v2-1-1-what-the-fleets-first-fortnight-on-2-1-taught.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
