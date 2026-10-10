@@ -248,34 +248,207 @@ func IsRecordLink(link string) bool {
 	return strings.HasPrefix(link, "https://github.com/") || strings.HasPrefix(link, "http://github.com/")
 }
 
-// RecordAPIPath maps a record link — issue, pull request, comment anchor,
-// commit, blob — to the API path that answers for it, so reachability is
-// checked with the caller's auth instead of an anonymous page fetch. A
-// venue knows its own URL grammar; links this one cannot map are checked
-// as plain HTTP by the caller.
-func RecordAPIPath(link string) (string, bool) {
+// recordShape is one row of the venue's URL grammar: a github.com page the
+// record cites, and the REST path that answers for it under the caller's
+// own auth. Path is the URL's path after the host, by segment: a literal
+// matches itself, {x} one segment, and a final {x*} the one or more that
+// remain. Anchor, when set, is the fragment the row requires — a literal
+// prefix and one {x} capture — and a row without one matches whatever
+// fragment the link carries, or none. API is the REST path with the
+// captures put back.
+type recordShape struct {
+	Path, Anchor, API string
+}
+
+// recordShapes is every github.com shape the fleet cites, mapped onto the
+// API (#388, M21-R3): first match wins, so an anchored row comes before
+// the plain row for the same page. A private repository answers 404 to an
+// anonymous fetch of any of its pages, so a shape left off this table is
+// one the verbs cannot verify there; adding the row is the fix.
+var recordShapes = []recordShape{
+	{"{o}/{r}", "", "repos/{o}/{r}"},
+	{"{o}/{r}/issues/{n}", "issuecomment-{id}", "repos/{o}/{r}/issues/comments/{id}"},
+	{"{o}/{r}/issues/{n}", "", "repos/{o}/{r}/issues/{n}"},
+	{"{o}/{r}/pull/{n}", "issuecomment-{id}", "repos/{o}/{r}/issues/comments/{id}"},
+	{"{o}/{r}/pull/{n}", "pullrequestreview-{id}", "repos/{o}/{r}/pulls/{n}/reviews/{id}"},
+	{"{o}/{r}/pull/{n}", "discussion_r{id}", "repos/{o}/{r}/pulls/comments/{id}"},
+	{"{o}/{r}/pull/{n}/{tab}", "discussion_r{id}", "repos/{o}/{r}/pulls/comments/{id}"},
+	{"{o}/{r}/pull/{n}/{tab}", "r{id}", "repos/{o}/{r}/pulls/comments/{id}"},
+	{"{o}/{r}/pull/{n}/commits/{sha}", "", "repos/{o}/{r}/commits/{sha}"},
+	{"{o}/{r}/pull/{n}", "", "repos/{o}/{r}/issues/{n}"},
+	{"{o}/{r}/pull/{n}/{tab*}", "", "repos/{o}/{r}/issues/{n}"},
+	{"{o}/{r}/commit/{sha}", "", "repos/{o}/{r}/commits/{sha}"},
+	{"{o}/{r}/commits/{ref}", "", "repos/{o}/{r}/commits/{ref}"},
+	{"{o}/{r}/tree/{ref}", "", "repos/{o}/{r}/commits/{ref}"},
+	{"{o}/{r}/tree/{ref}/{path*}", "", "repos/{o}/{r}/contents/{path}?ref={ref}"},
+	{"{o}/{r}/blob/{ref}/{path*}", "", "repos/{o}/{r}/contents/{path}?ref={ref}"},
+	{"{o}/{r}/compare/{basehead*}", "", "repos/{o}/{r}/compare/{basehead}"},
+	{"{o}/{r}/releases", "", "repos/{o}/{r}/releases"},
+	{"{o}/{r}/releases/latest", "", "repos/{o}/{r}/releases/latest"},
+	{"{o}/{r}/releases/tag/{tag}", "", "repos/{o}/{r}/releases/tags/{tag}"},
+	{"{o}/{r}/actions/runs/{run}", "", "repos/{o}/{r}/actions/runs/{run}"},
+	{"{o}/{r}/actions/runs/{run}/job/{job}", "", "repos/{o}/{r}/actions/jobs/{job}"},
+	{"{o}/{r}/actions/runs/{run}/jobs/{job}", "", "repos/{o}/{r}/actions/jobs/{job}"},
+	{"{o}/{r}/actions/runs/{run}/attempts/{attempt}", "", "repos/{o}/{r}/actions/runs/{run}/attempts/{attempt}"},
+	{"{o}/{r}/actions/workflows/{file}", "", "repos/{o}/{r}/actions/workflows/{file}"},
+	{"{o}/{r}/milestone/{n}", "", "repos/{o}/{r}/milestones/{n}"},
+}
+
+// numericCaptures are the captures that are only ever a number on the
+// venue: issues/new is a form, not issue "new".
+var numericCaptures = map[string]bool{"n": true, "id": true, "run": true, "job": true, "attempt": true}
+
+// reservedOwners are github.com's own top-level pages: a link under one of
+// them is an App, an organization's settings, a user list — never a
+// repository, so nothing under it maps to repos/.
+var reservedOwners = map[string]bool{
+	"about": true, "apps": true, "codespaces": true, "collections": true,
+	"contact": true, "customer-stories": true, "dashboard": true,
+	"enterprise": true, "enterprises": true, "events": true, "explore": true,
+	"features": true, "issues": true, "login": true, "logout": true,
+	"marketplace": true, "new": true, "notifications": true, "orgs": true,
+	"organizations": true, "pricing": true, "pulls": true, "search": true,
+	"security": true, "sessions": true, "settings": true, "site": true,
+	"sponsors": true, "stars": true, "team": true, "topics": true,
+	"trending": true, "users": true, "watching": true,
+}
+
+// splitRecordLink takes a github.com link apart: the path segments, a
+// repository's `.git` suffix and any trailing slash dropped, and the
+// fragment. A query (`?pr=12`, `?tab=readme`) is the page's view, not
+// what it is, and is dropped. ok is false for any other host.
+func splitRecordLink(link string) (segs []string, fragment string, ok bool) {
 	rest, ok := strings.CutPrefix(link, "https://github.com/")
 	if !ok {
-		return "", false
-	}
-	rest, _, _ = strings.Cut(rest, "#") // comment anchors resolve via the issue
-	parts := strings.Split(rest, "/")
-	if len(parts) < 4 {
-		return "", false
-	}
-	owner, repo, kind := parts[0], parts[1], parts[2]
-	tail := parts[3:]
-	switch kind {
-	case "issues", "pull":
-		return fmt.Sprintf("repos/%s/%s/issues/%s", owner, repo, tail[0]), true
-	case "commit":
-		return fmt.Sprintf("repos/%s/%s/commits/%s", owner, repo, tail[0]), true
-	case "blob", "tree":
-		if len(tail) < 2 {
-			return "", false
+		if rest, ok = strings.CutPrefix(link, "http://github.com/"); !ok {
+			return nil, "", false
 		}
-		ref, path := tail[0], strings.Join(tail[1:], "/")
-		return fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), true
 	}
-	return "", false
+	rest, fragment, _ = strings.Cut(rest, "#")
+	rest, _, _ = strings.Cut(rest, "?")
+	rest = strings.TrimRight(rest, "/")
+	if rest == "" {
+		return nil, fragment, true
+	}
+	segs = strings.Split(rest, "/")
+	if len(segs) >= 2 {
+		segs[1] = strings.TrimSuffix(segs[1], ".git")
+	}
+	return segs, fragment, true
+}
+
+// match fits a link's segments and fragment to one row, returning the
+// captures.
+func (s recordShape) match(segs []string, fragment string) (map[string]string, bool) {
+	caps := map[string]string{}
+	pat := strings.Split(s.Path, "/")
+	for i, p := range pat {
+		if name, ok := strings.CutPrefix(p, "{"); ok {
+			name = strings.TrimSuffix(name, "}")
+			if rest, ok := strings.CutSuffix(name, "*"); ok && i == len(pat)-1 {
+				if len(segs) <= i {
+					return nil, false
+				}
+				caps[rest] = strings.Join(segs[i:], "/")
+				return caps, s.capturesValid(caps) && s.matchAnchor(fragment, caps)
+			}
+			if i >= len(segs) || segs[i] == "" {
+				return nil, false
+			}
+			caps[name] = segs[i]
+			continue
+		}
+		if i >= len(segs) || segs[i] != p {
+			return nil, false
+		}
+	}
+	if len(segs) != len(pat) {
+		return nil, false
+	}
+	return caps, s.capturesValid(caps) && s.matchAnchor(fragment, caps)
+}
+
+func (s recordShape) matchAnchor(fragment string, caps map[string]string) bool {
+	if s.Anchor == "" {
+		return true
+	}
+	prefix, name, _ := strings.Cut(s.Anchor, "{")
+	name = strings.TrimSuffix(name, "}")
+	id, ok := strings.CutPrefix(fragment, prefix)
+	if !ok || !isDigits(id) {
+		return false
+	}
+	caps[name] = id
+	return true
+}
+
+func (s recordShape) capturesValid(caps map[string]string) bool {
+	for name, v := range caps {
+		if numericCaptures[name] && !isDigits(v) {
+			return false
+		}
+	}
+	if bh, ok := caps["basehead"]; ok && !strings.Contains(bh, "..") {
+		return false
+	}
+	return true
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// RecordAPIPath maps a record link to the API path that answers for it —
+// recordShapes, first match — so reachability is checked with the
+// caller's auth instead of an anonymous page fetch. A venue knows its own
+// URL grammar; a link no row maps is the caller's to classify: RecordRepo
+// says which repository it lies under, if any.
+func RecordAPIPath(link string) (string, bool) {
+	_, path, ok := resolveShape(link)
+	return path, ok
+}
+
+// resolveShape is RecordAPIPath with the row that matched, so the test
+// can hold every row of the table to a link.
+func resolveShape(link string) (row int, path string, ok bool) {
+	segs, fragment, ok := splitRecordLink(link)
+	if !ok || len(segs) < 2 || reservedOwners[segs[0]] {
+		return -1, "", false
+	}
+	for i, s := range recordShapes {
+		caps, ok := s.match(segs, fragment)
+		if !ok {
+			continue
+		}
+		path := s.API
+		for name, v := range caps {
+			path = strings.ReplaceAll(path, "{"+name+"}", v)
+		}
+		return i, path, true
+	}
+	return -1, "", false
+}
+
+// RecordRepo names the repository a github.com link lies under, and the
+// link's shape there — the first path segment after the repository, the
+// part of the address that decides what kind of page it is. ok is false
+// for another host and for github.com's own pages (an App, a user, an
+// organization's listing), which lie under no repository.
+func RecordRepo(link string) (repo, shape string, ok bool) {
+	segs, _, ok := splitRecordLink(link)
+	if !ok || len(segs) < 2 || reservedOwners[segs[0]] {
+		return "", "", false
+	}
+	if len(segs) > 2 {
+		shape = segs[2]
+	}
+	return segs[0] + "/" + segs[1], shape, true
 }

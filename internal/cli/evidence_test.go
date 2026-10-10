@@ -39,10 +39,11 @@ func TestCheckURLRouting(t *testing.T) {
 	checkHTTP = func(url string) error { httpURLs = append(httpURLs, url); return fmt.Errorf("HTTP 404") }
 	v := &faketracker.Venue{}
 
-	if err := checkURL(v, "https://github.com/o/r/issues/5"); err != nil {
+	c := newLinkChecker(v)
+	if err := c.check("https://github.com/o/r/issues/5"); err != nil {
 		t.Errorf("API-mapped link errored: %v", err)
 	}
-	if err := checkURL(v, "https://example.com/gone"); err == nil {
+	if err := c.check("https://example.com/gone"); err == nil {
 		t.Error("dead HTTP link resolved")
 	}
 	apiPaths := venuePaths(v)
@@ -242,6 +243,188 @@ func TestCheckEvidenceClassifiesCitations(t *testing.T) {
 		if strings.Contains(p, "example.test") || strings.Contains(p, "in-code") {
 			t.Errorf("a URL inside code reached the network: %s", p)
 		}
+	}
+}
+
+// privateHub is the venue of a private hub, as #388 met it: the API reads
+// the repository and everything in it but one dead issue, and an anonymous
+// fetch of any of its pages answers 404 — so a link that reaches checkHTTP
+// is a link the verb would have refused before M21-R3. "o/pub" is a public
+// repository beside it, and "gone/repo" one the API cannot read.
+func privateHub(t *testing.T) (*faketracker.Venue, *[]string) {
+	t.Helper()
+	origHTTP := checkHTTP
+	t.Cleanup(func() { checkHTTP = origHTTP })
+	var fetched []string
+	checkHTTP = func(url string) error {
+		fetched = append(fetched, url)
+		if strings.HasPrefix(url, "https://github.com/apps/") {
+			return nil
+		}
+		return fmt.Errorf("HTTP 404")
+	}
+	v := &faketracker.Venue{
+		RepoInfoFn: func(repo string) (tracker.RepoInfo, error) {
+			switch repo {
+			case "o/priv":
+				return tracker.RepoInfo{DefaultBranch: "main", Private: true}, nil
+			case "o/pub":
+				return tracker.RepoInfo{DefaultBranch: "main"}, nil
+			}
+			return tracker.RepoInfo{}, fmt.Errorf("gh api: Not Found (HTTP 404)")
+		},
+		APIReachableFn: func(path string) error {
+			if strings.HasPrefix(path, "repos/gone/") || path == "repos/o/priv/issues/404" {
+				return fmt.Errorf("gh api: Not Found (HTTP 404)")
+			}
+			return nil
+		},
+	}
+	return v, &fetched
+}
+
+// Every shape the venue's table maps resolves in a private repository
+// through the API — none reaches the anonymous fetch that answered 404
+// (#388: an Actions job URL and a bare repository link refused a private
+// hub's record while gh api reached both). One link per row of
+// tracker.recordShapes, whose own test holds every row to a case.
+func TestCheckEvidenceResolvesEveryMappedShapeInAPrivateRepository(t *testing.T) {
+	v, fetched := privateHub(t)
+	links := []string{
+		"https://github.com/o/priv",
+		"https://github.com/o/priv/issues/2#issuecomment-11",
+		"https://github.com/o/priv/issues/2",
+		"https://github.com/o/priv/pull/3#issuecomment-12",
+		"https://github.com/o/priv/pull/3#pullrequestreview-13",
+		"https://github.com/o/priv/pull/3#discussion_r14",
+		"https://github.com/o/priv/pull/3/files#discussion_r15",
+		"https://github.com/o/priv/pull/3/files#r16",
+		"https://github.com/o/priv/pull/3/commits/abc123",
+		"https://github.com/o/priv/pull/3",
+		"https://github.com/o/priv/pull/3/checks",
+		"https://github.com/o/priv/commit/def456",
+		"https://github.com/o/priv/commits/main",
+		"https://github.com/o/priv/tree/task-branch",
+		"https://github.com/o/priv/tree/main/internal",
+		"https://github.com/o/priv/blob/main/SPEC.md#L3",
+		"https://github.com/o/priv/compare/v1.0.0...main",
+		"https://github.com/o/priv/releases",
+		"https://github.com/o/priv/releases/latest",
+		"https://github.com/o/priv/releases/tag/v1.0.0",
+		"https://github.com/o/priv/actions/runs/123?pr=4",
+		"https://github.com/o/priv/actions/runs/123/job/456",
+		"https://github.com/o/priv/actions/runs/123/jobs/457",
+		"https://github.com/o/priv/actions/runs/123/attempts/2",
+		"https://github.com/o/priv/actions/workflows/ci.yml",
+		"https://github.com/o/priv/milestone/1",
+	}
+	var text strings.Builder
+	for _, l := range links {
+		fmt.Fprintf(&text, "- [evidence](%s)\n", l)
+	}
+	rep := checkEvidence(v, []evidenceRecord{{Ref: tracker.IssueRef{Repo: "o/priv", Number: 1}, Texts: []string{text.String()}}})
+	if rep.Total != len(links) || len(rep.Unreachable) != 0 || len(rep.Unverifiable) != 0 || len(rep.Warnings) != 0 {
+		t.Errorf("a mapped shape in a private repository did not resolve: %+v", rep)
+	}
+	if len(*fetched) != 0 {
+		t.Errorf("mapped links fell back to an anonymous fetch: %v", *fetched)
+	}
+	if got := len(venuePaths(v)); got != len(links) {
+		t.Errorf("%d API resolutions for %d links: %v", got, len(links), venuePaths(v))
+	}
+	if n := v.Count("RepoInfo"); n != 0 {
+		t.Errorf("a mapped link asked for the repository's visibility (%d calls)", n)
+	}
+	var out bytes.Buffer
+	if err := reportEvidence(&out, rep, 1); err != nil || !strings.Contains(out.String(), "all 26 cited links resolve") {
+		t.Errorf("report: %v\n%s", err, out.String())
+	}
+}
+
+// A github.com shape the table does not map, under a private repository
+// the API reads, cannot be verified either way — an anonymous fetch would
+// 404 whatever the page holds — so it is a warning naming the shape, and
+// the verb passes (the coordination layer's decision on #396). It is
+// never fetched, and the repository is asked about once however many such
+// links it has.
+func TestCheckEvidenceWarnsOnAnUnmappedPrivateShape(t *testing.T) {
+	v, fetched := privateHub(t)
+	ref := tracker.IssueRef{Repo: "o/priv", Number: 5}
+	rep := checkEvidence(v, []evidenceRecord{{Ref: ref, Texts: []string{
+		"the [design page](https://github.com/o/priv/wiki/Design), the [notes](https://github.com/o/priv/wiki/Notes) and https://github.com/o/priv/issues/2",
+	}}})
+	if len(rep.Unreachable) != 0 {
+		t.Errorf("an unverifiable link refused: %v", rep.Unreachable)
+	}
+	if len(rep.Unverifiable) != 2 || !strings.HasPrefix(rep.Unverifiable[0], "https://github.com/o/priv/wiki/Design (the repository is private and its /wiki pages have no API mapping) — cited on o/priv#5") {
+		t.Errorf("unverifiable = %v", rep.Unverifiable)
+	}
+	if len(*fetched) != 0 {
+		t.Errorf("a private page was fetched anonymously: %v", *fetched)
+	}
+	if n := v.Count("RepoInfo"); n != 1 {
+		t.Errorf("RepoInfo asked %d times for one repository", n)
+	}
+	var out bytes.Buffer
+	if err := reportEvidence(&out, rep, 1); err != nil {
+		t.Fatalf("an unverifiable link blocked the verb: %v", err)
+	}
+	got := out.String()
+	for _, want := range []string{
+		"warning: github.com link cannot be verified — https://github.com/o/priv/wiki/Design (the repository is private and its /wiki pages have no API mapping)",
+		"1 of 3 cited links resolve across 1 issues — no github.com citation is dead; the 2 github.com links above cannot be verified, and QA weighs them — evidence is reachable",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+// What the change leaves alone: a public repository's unmapped page is
+// still fetched, and its 404 still refuses; a mapped resource the API
+// cannot find still refuses, private repository or not; a page under no
+// repository the API reads (an App, a repository that is gone) is
+// fetched as before; and a URL in a code span is still not a citation.
+func TestCheckEvidenceStillRefusesDeadGitHubLinks(t *testing.T) {
+	v, fetched := privateHub(t)
+	ref := tracker.IssueRef{Repo: "o/priv", Number: 5}
+	rep := checkEvidence(v, []evidenceRecord{{Ref: ref, Texts: []string{
+		"[public wiki](https://github.com/o/pub/wiki/Gone), [dead issue](https://github.com/o/priv/issues/404), " +
+			"[gone repo](https://github.com/gone/repo/wiki/X), [app](https://github.com/apps/some-app), " +
+			"and `https://github.com/o/priv/wiki/InCode` in code, then https://github.com/o/priv/wiki/Mixed and https://example.com/x",
+	}}})
+	wantUnreachable := []string{
+		"https://github.com/gone/repo/wiki/X (HTTP 404) — cited on o/priv#5",
+		"https://github.com/o/priv/issues/404 (gh api: Not Found (HTTP 404)) — cited on o/priv#5",
+		"https://github.com/o/pub/wiki/Gone (HTTP 404) — cited on o/priv#5",
+	}
+	if len(rep.Unreachable) != len(wantUnreachable) {
+		t.Fatalf("unreachable = %v, want %v", rep.Unreachable, wantUnreachable)
+	}
+	for i, w := range wantUnreachable {
+		if rep.Unreachable[i] != w {
+			t.Errorf("unreachable[%d] = %q, want %q", i, rep.Unreachable[i], w)
+		}
+	}
+	if len(rep.Unverifiable) != 1 || !strings.HasPrefix(rep.Unverifiable[0], "https://github.com/o/priv/wiki/Mixed ") {
+		t.Errorf("unverifiable = %v", rep.Unverifiable)
+	}
+	if len(rep.Warnings) != 1 || !strings.HasPrefix(rep.Warnings[0], "https://example.com/x ") {
+		t.Errorf("warnings = %v", rep.Warnings)
+	}
+	if rep.Total != 6 {
+		t.Errorf("total = %d, want 6 (the code span is not a citation)", rep.Total)
+	}
+	for _, u := range *fetched {
+		if strings.Contains(u, "InCode") || strings.Contains(u, "/o/priv/") {
+			t.Errorf("fetched %s: a code span or a private page reached the network", u)
+		}
+	}
+	var out bytes.Buffer
+	err := reportEvidence(&out, rep, 1)
+	var r refusal
+	if !errors.As(err, &r) || r.Code != "EVIDENCE_UNREACHABLE" || !strings.Contains(r.Detail, "3 of 6 cited links") {
+		t.Fatalf("dead github.com links did not refuse: %v", err)
 	}
 }
 

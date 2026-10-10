@@ -386,6 +386,9 @@ type Workflow struct {
 type RepoInfo struct {
 	DefaultBranch       string
 	DeleteBranchOnMerge bool
+	// Private is whether the venue serves the repository's pages only to
+	// those it admits — an anonymous fetch of any of them answers 404.
+	Private bool
 }
 
 // InferState derives a task's lifecycle state from tracker signals, most

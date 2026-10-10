@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -75,12 +76,50 @@ var checkHTTP = func(url string) error {
 	return nil
 }
 
-// checkURL resolves one link by the right mechanism: a record link
-// through the venue's own API, with the caller's auth and private
-// repositories included; anything else as a plain HTTP fetch.
-func checkURL(v tracker.Tracker, url string) error {
+// unverifiable is a github.com citation the verb can check neither way: it
+// lies under a private repository the API reads, so an anonymous fetch
+// answers 404 whatever the page holds, and its shape is not one the
+// venue's table maps onto the API. That is not dead evidence, and it does
+// not refuse; it is a warning that names the shape (M21-R3, #388).
+type unverifiable struct{ shape string }
+
+func (u unverifiable) Error() string {
+	return fmt.Sprintf("the repository is private and its /%s pages have no API mapping", u.shape)
+}
+
+// linkChecker resolves citations for one walk, remembering the API's
+// answer on each repository it had to ask about: private, or not (public,
+// or unreadable to the caller).
+type linkChecker struct {
+	v       tracker.Tracker
+	private map[string]bool
+}
+
+func newLinkChecker(v tracker.Tracker) *linkChecker {
+	return &linkChecker{v: v, private: map[string]bool{}}
+}
+
+// check resolves one link by the right mechanism. A github.com shape the
+// venue maps goes to the API with the caller's auth, private repositories
+// included. Any other github.com link under a repository the API reads is
+// fetched plainly when the repository is public — a 404 there is a dead
+// link — and is unverifiable when it is private. Everything else — another
+// host, github.com's own pages, a repository the API cannot read — is a
+// plain HTTP fetch, as it always was.
+func (c *linkChecker) check(url string) error {
 	if path, ok := tracker.RecordAPIPath(url); ok {
-		return v.APIReachable(path)
+		return c.v.APIReachable(path)
+	}
+	if repo, shape, ok := tracker.RecordRepo(url); ok {
+		private, asked := c.private[repo]
+		if !asked {
+			info, err := c.v.RepoInfo(repo)
+			private = err == nil && info.Private
+			c.private[repo] = private
+		}
+		if private {
+			return unverifiable{shape: shape}
+		}
 	}
 	return checkHTTP(url)
 }
@@ -94,18 +133,21 @@ type evidenceRecord struct {
 
 // evidenceReport is what checkEvidence found: how many distinct citations
 // the record makes, the github.com ones that do not resolve (a refusal),
-// and the external ones that do not resolve (warnings).
+// the github.com ones that cannot be verified (warnings), and the external
+// ones that do not resolve (warnings).
 type evidenceReport struct {
-	Total       int
-	Unreachable []string
-	Warnings    []string
+	Total        int
+	Unreachable  []string
+	Unverifiable []string
+	Warnings     []string
 }
 
 // checkEvidence resolves every citation across the records once, in the
-// order first cited, and sorts the two failure lists for a stable report.
+// order first cited, and sorts the failure lists for a stable report.
 func checkEvidence(v tracker.Tracker, records []evidenceRecord) evidenceReport {
 	var rep evidenceReport
 	seen := map[string]bool{}
+	c := newLinkChecker(v)
 	for _, rec := range records {
 		for _, text := range rec.Texts {
 			for _, u := range extractURLs(text) {
@@ -114,29 +156,38 @@ func checkEvidence(v tracker.Tracker, records []evidenceRecord) evidenceReport {
 				}
 				seen[u] = true
 				rep.Total++
-				err := checkURL(v, u)
+				err := c.check(u)
 				if err == nil {
 					continue
 				}
 				line := fmt.Sprintf("%s (%v) — cited on %s", u, err, rec.Ref)
-				if tracker.IsRecordLink(u) {
+				var unv unverifiable
+				switch {
+				case errors.As(err, &unv):
+					rep.Unverifiable = append(rep.Unverifiable, line)
+				case tracker.IsRecordLink(u):
 					rep.Unreachable = append(rep.Unreachable, line)
-				} else {
+				default:
 					rep.Warnings = append(rep.Warnings, line)
 				}
 			}
 		}
 	}
 	sort.Strings(rep.Unreachable)
+	sort.Strings(rep.Unverifiable)
 	sort.Strings(rep.Warnings)
 	return rep
 }
 
 // reportEvidence prints the walk's outcome: every warning, every
 // unreachable github.com citation, then the refusal or the summary line.
+// Neither kind of warning refuses: QA weighs them.
 func reportEvidence(w io.Writer, rep evidenceReport, issues int) error {
 	for _, u := range rep.Warnings {
 		fmt.Fprintf(w, "warning: external link does not resolve — %s\n", u)
+	}
+	for _, u := range rep.Unverifiable {
+		fmt.Fprintf(w, "warning: github.com link cannot be verified — %s\n", u)
 	}
 	for _, u := range rep.Unreachable {
 		fmt.Fprintf(w, "unreachable: %s\n", u)
@@ -144,12 +195,22 @@ func reportEvidence(w io.Writer, rep evidenceReport, issues int) error {
 	if len(rep.Unreachable) > 0 {
 		return refuse("EVIDENCE_UNREACHABLE", "%d of %d cited links do not resolve — commit or repair the evidence before dispatching QA", len(rep.Unreachable), rep.Total)
 	}
-	if n := len(rep.Warnings); n > 0 {
+	n, u := len(rep.Warnings), len(rep.Unverifiable)
+	switch {
+	case u > 0:
+		var above []string
+		above = append(above, fmt.Sprintf("the %d github.com %s above cannot be verified", u, plural("link", u)))
+		if n > 0 {
+			above = append(above, fmt.Sprintf("the %d external %s above do not resolve", n, plural("link", n)))
+		}
+		fmt.Fprintf(w, "%d of %d cited %s resolve across %d issues — no github.com citation is dead; %s, and QA weighs them — evidence is reachable\n",
+			rep.Total-n-u, rep.Total, plural("link", rep.Total), issues, strings.Join(above, " and "))
+	case n > 0:
 		fmt.Fprintf(w, "%d of %d cited %s resolve across %d issues — every github.com citation does; the %d external %s above do not, and QA weighs them — evidence is reachable\n",
 			rep.Total-n, rep.Total, plural("link", rep.Total), issues, n, plural("link", n))
-		return nil
+	default:
+		fmt.Fprintf(w, "all %d cited %s resolve across %d issues — evidence is reachable\n", rep.Total, plural("link", rep.Total), issues)
 	}
-	fmt.Fprintf(w, "all %d cited %s resolve across %d issues — evidence is reachable\n", rep.Total, plural("link", rep.Total), issues)
 	return nil
 }
 
