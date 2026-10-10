@@ -35,9 +35,11 @@ branch of yours.
   paragraph — is content the verb does not check: a probe target that is
   unreachable by design, a verbatim command or error string
   ([#222](https://github.com/radiusred/gh-codecrew/issues/222)). Write
-  your own findings the same way. A `warning:` line names an external
-  citation that does not resolve without refusing: weigh it in the verdict
-  it supports — a dead external link is not a dead record.
+  your own findings the same way. A `warning:` line names a link the verb
+  could not verify without refusing — an external one that does not
+  resolve, or a github.com one in a private repository whose shape it
+  cannot map: weigh it in the verdict it supports — an unverified link is
+  not a dead record.
 - **Rerun is the floor, not the product.** Run the implementer's suite on
   merged `main` next; green there is the first sentence of every verdict,
   never its evidence — the implementer ran it before opening the PR, and

@@ -26,7 +26,8 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
   instead of refusing: a refusal means the evidence is dead, and this
   evidence is unverifiable. In a public repository such a link is fetched as
   before and a 404 still refuses; links to other hosts are unchanged.
-  CLI.md's `milestone evidence` entry lists the table. (#396)
+  CLI.md's `milestone evidence` entry lists the table, and the qa
+  contract says a `warning:` names either kind of unverified link. (#396)
 
 ### A new repository learns before its first task that `task finish` needs a reporting check
 
