@@ -6,6 +6,22 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `task finish` reads the task back after the merge instead of asserting it closed
+
+- `task finish` printed `merged PR #N; <task> closes via its closing
+  keyword` and moved on, trusting GitHub to act on the keyword. On
+  davison/md-notes#231 it did not, and the task stayed open until someone
+  read its state. The merge line is now `merged PR #N`, and the verb reads
+  the task back — up to four reads two seconds apart, since GitHub closes
+  asynchronously — printing `<task> closed`, or `note: <task> is still open
+  after the merge: GitHub did not act on the closing reference; close it by
+  hand with a comment naming PR #N and <merge sha>`. Each capture closed by
+  `--adopts` is read back the same way and reported closed only once it
+  reads so, with the same `note:` when it does not. A still-open issue is a
+  note, not a refusal: the exit status is unchanged, and so is the dry
+  run's `would merge` line. The verb does not close the task itself; that
+  needs SPEC text and is a protocol 2.2 capture (#407) (#400).
+
 ### Milestone evidence resolves a private repository's Actions and repository links
 
 - `gh codecrew milestone evidence` resolved issue, pull request, commit and
