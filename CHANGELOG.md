@@ -6,6 +6,32 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### A new repository learns before its first task that `task finish` needs a reporting check
+
+- A hub scaffolded by `init` has no workflow, and nothing said so until its
+  first task — chartered, implemented, reviewed and approved — met
+  `refused[NO_CHECKS]` at `task finish --dry-run`; the fix landed in a second
+  task, after which the first was rebased and its approval dismissed
+  (radiusred/trading-hub#4). `init`'s `next:` lines, hub and spoke mode
+  alike, now say that `task finish` requires at least one check reporting on
+  every pull request and refuses `NO_CHECKS` without one (SPEC §8), and that
+  a repository without a workflow on `pull_request` adds one before its
+  first task.
+- `task new` and `task start` print one `note:` when the task's repository
+  has no workflow triggered on `pull_request` — none at all, or none whose
+  `on:` names it as an event, in a list or as a map key
+  (`pull_request_target` does not count, nor a disabled workflow):
+  `task finish` will refuse `NO_CHECKS` until a check reports on the task's
+  pull request, so add a workflow that runs on `pull_request` and let it
+  report.
+  The read is the Actions workflow listing and each active workflow file on
+  the default branch; any read that fails says nothing. A note, not a
+  refusal — no exit status changes.
+- `CLI.md`'s `init` and `task finish` entries cross-reference `NO_CHECKS`,
+  and the `task new` and `task start` entries list the new read and the
+  note. `init` scaffolding an always-reporting workflow is deferred to
+  protocol 2.2 (#409). (#398)
+
 ### `init`, `migrate` and `roles sync` write the body SPEC §4 asks of their commits
 
 - `init`'s scaffold commit had the subject `chore: scaffold codecrew` and no
