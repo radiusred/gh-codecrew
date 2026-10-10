@@ -6,7 +6,21 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
-Nothing yet.
+### The contracts say what a task's start looks like when an App holds it
+
+- The reviewer contract says what the evidence of `task start` is: the
+  `**Started by**` comment on the task issue and the linked `task/<n>-…`
+  branch. An App implementer's task carries no assignee, because GitHub
+  accepts no App as one (CLI.md, `task start`), and the empty assignee
+  field is not a finding — two reviews on 2026-10-09 requested changes on
+  clean PRs for it (#390).
+- The reviewer contract's housekeeping test cites the body `init` writes —
+  the tool, its release and protocol, the files, and
+  `Housekeeping (SPEC §4); no task.` — as the shape a tool-made
+  housekeeping commit takes (#389).
+- The implementer contract asks the PR body to link the start record on
+  the task issue, so the reviewer never has to look for it. Hubs pick the
+  new text up through `gh codecrew roles sync` once v2.1.1 ships (#399).
 
 ## [2.1.0] — 2026-09-24
 
