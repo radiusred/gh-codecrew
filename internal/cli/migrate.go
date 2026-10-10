@@ -180,6 +180,7 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 	}
 
 	stage, paths := commitPaths(moves, written)
+	body := migrateBody(moves, written)
 	if branch == "" {
 		// The moves are already on disk, so the labels are done here too —
 		// one rule, "once the move reached disk the labels run", rather
@@ -188,10 +189,10 @@ func migrate(w io.Writer, root string, dryRun bool) error {
 		// (checky's finding 2). The note stays last: it is the act asked
 		// of a human.
 		migrateLabels(w, false)
-		fmt.Fprintf(w, "note: HEAD is detached — the files are moved but not committed; switch to a branch and run: %s\n", commitByHand(migrateSubject, paths))
+		fmt.Fprintf(w, "note: HEAD is detached — the files are moved but not committed; switch to a branch and run: %s\n", commitByHand(migrateSubject, body, stage, paths))
 		return nil
 	}
-	sha, ok := pathspecCommit(w, root, migrateSubject, "", "the migration", stage, paths)
+	sha, ok := pathspecCommit(w, root, migrateSubject, body, "the migration", stage, paths)
 	if !ok {
 		// Same rule: the move is on disk, so the labels run — after
 		// pathspecCommit's own note, which named the command to run.
@@ -268,6 +269,24 @@ func currentBranch(dir string) string {
 		return branch
 	}
 	return "HEAD"
+}
+
+// migrateBody is the body of migrate's commit (SPEC §4, #389): the tool,
+// then each move as from -> to — the pointer marked rewritten, since it
+// is moved and edited in the one commit — and each file written outright.
+func migrateBody(moves []move, written []scaffolded) string {
+	var files []string
+	for _, m := range moves {
+		line := m.from + " -> " + m.to
+		if m.to == config.Pointer {
+			line += ", rewritten"
+		}
+		files = append(files, line)
+	}
+	for _, f := range written {
+		files = append(files, f.path)
+	}
+	return housekeepingBody("Migrated", "migrate", files)
 }
 
 // commitPaths splits the migration into what has to be staged (every

@@ -555,3 +555,41 @@ func TestInitRefusesTheLegacyLayout(t *testing.T) {
 		}
 	}
 }
+
+// Outside a git repository init commits nothing and prints the commit for
+// the operator to make. That command carries the body init would have
+// written, so following it satisfies SPEC §4 as init's own commit does:
+// pasted as printed, up to the repo create, it makes the shaped commit
+// (#389).
+func TestInitOutsideAGitRepoPrintsTheCommitWithItsBody(t *testing.T) {
+	dir := t.TempDir()
+	wd, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := initCmd(&out, []string{"--hub", "myorg/platform"})
+	os.Chdir(wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repoRoot(dir) != "" {
+		t.Skip("the temp directory is inside a git repository; init would commit, not print")
+	}
+	_, rest, ok := strings.Cut(out.String(), "first: ")
+	if !ok {
+		t.Fatalf("no first: instruction:\n%s", out.String())
+	}
+	command, _, ok := strings.Cut(rest, " &&\n       gh repo create")
+	if !ok {
+		t.Fatalf("the instruction does not end in the repo create:\n%s", out.String())
+	}
+	var written []string
+	for _, l := range strings.Split(out.String(), "\n") {
+		if f, ok := strings.CutPrefix(l, "wrote "); ok {
+			written = append(written, filepath.ToSlash(f))
+		}
+	}
+	runPrinted(t, dir, command)
+	assertHousekeepingMessage(t, headMessage(t, dir), scaffoldSubject, toolLine("Scaffolded", "init --hub myorg/platform"), written)
+}

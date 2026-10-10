@@ -333,6 +333,13 @@ func TestMigrateCommitsTheEntryPointsItWrites(t *testing.T) {
 			t.Errorf("%s is not in the migration commit:\n%s", f, files)
 		}
 	}
+	// The body names migrate, the release and the protocol, then each
+	// move and each file written outright (SPEC §4, #389).
+	assertHousekeepingMessage(t, headMessage(t, dir), migrateSubject, toolLine("Migrated", "migrate"), []string{
+		config.LegacyPointer + " -> " + config.Pointer + ", rewritten",
+		"roles/qa.md -> " + config.RolesDir + "/qa.md",
+		config.AgentsFile, "AGENTS.md", "CLAUDE.md",
+	})
 	status, err := git(dir, "status", "--short")
 	if err != nil {
 		t.Fatal(err)
@@ -1015,6 +1022,19 @@ func TestMigrateDoesTheLabelsWhenTheCommitDoesNotHappen(t *testing.T) {
 	if label < 0 || note < 0 || label > note {
 		t.Errorf("the labels must be reported before the detached-HEAD note:\n%s", out.String())
 	}
+	// The commit left to the operator carries the body migrate would
+	// have written: run as printed on a branch, it lands the move (#389).
+	_, command, ok := strings.Cut(strings.TrimRight(out.String(), "\n"), "switch to a branch and run: ")
+	if !ok {
+		t.Fatalf("no command to run:\n%s", out.String())
+	}
+	git(dir, "switch", "-q", "-c", "migration")
+	runPrinted(t, dir, command)
+	assertHousekeepingMessage(t, headMessage(t, dir), migrateSubject, toolLine("Migrated", "migrate"), []string{
+		config.LegacyPointer + " -> " + config.Pointer + ", rewritten",
+		"roles/qa.md -> " + config.RolesDir + "/qa.md",
+		config.AgentsFile, "AGENTS.md", "CLAUDE.md",
+	})
 }
 
 // The other commit-less path: `git commit` refused. The moves are on disk

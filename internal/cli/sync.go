@@ -310,17 +310,19 @@ func rolesSync(w io.Writer, dir string, src syncSource, history []releasedContra
 		return nil
 	}
 
-	subject, target, noun := "chore: sync codecrew role contracts to "+version, "the role contracts", "the contracts"
+	subject, noun := "chore: sync codecrew role contracts to "+version, "the contracts"
 	switch {
 	case agentsWritten && contractsWritten:
 		subject = "chore: sync codecrew role contracts and agents file to " + version
-		target, noun = "the role contracts and "+config.AgentsFile, "the contracts and the agents file"
+		noun = "the contracts and the agents file"
 	case agentsWritten:
 		subject = "chore: sync the codecrew agents file to " + version
-		target, noun = config.AgentsFile, "the agents file"
+		noun = "the agents file"
 	}
-	body := strings.Join(lines, "\n") + "\n\n" +
-		fmt.Sprintf("Target: %s embedded in gh codecrew %s, written by\n`gh codecrew roles sync` (SPEC §7). Housekeeping (SPEC §4): reviewed, no task.", target, version)
+	// The invocation names the targets as the operator gave them, so the
+	// body records the run a reviewer can repeat (SPEC §4, #389).
+	invocation := strings.Join(append([]string{"roles sync"}, targets...), " ")
+	body := housekeepingBody("Written", invocation, lines)
 
 	branch, detached := currentBranchOf(dir)
 	onDefault := !detached && branch == defaultBranchOffline(dir)
@@ -376,12 +378,12 @@ func rolesSync(w io.Writer, dir string, src syncSource, history []releasedContra
 		are = "is"
 	}
 	if detached {
-		fmt.Fprintf(w, "note: HEAD is detached — %s %s written but not committed; switch to a branch and run: %s\n", noun, are, commitByHand(subject, paths))
+		fmt.Fprintf(w, "note: HEAD is detached — %s %s written but not committed; switch to a branch and run: %s\n", noun, are, commitByHand(subject, body, paths, paths))
 		return nil
 	}
 	if onDefault {
 		if _, err := git(dir, "switch", "-q", "-c", syncBranch); err != nil {
-			fmt.Fprintf(w, "note: could not create %s (%v) — %s %s written but not committed; on a branch of your own run: %s\n", syncBranch, err, noun, are, commitByHand(subject, paths))
+			fmt.Fprintf(w, "note: could not create %s (%v) — %s %s written but not committed; on a branch of your own run: %s\n", syncBranch, err, noun, are, commitByHand(subject, body, paths, paths))
 			return nil
 		}
 		branch = syncBranch
