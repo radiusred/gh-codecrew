@@ -593,3 +593,51 @@ func TestInitOutsideAGitRepoPrintsTheCommitWithItsBody(t *testing.T) {
 	runPrinted(t, dir, command)
 	assertHousekeepingMessage(t, headMessage(t, dir), scaffoldSubject, toolLine("Scaffolded", "init --hub myorg/platform"), written)
 }
+
+// init's next: lines, pinned for both modes: where the project goes next,
+// then the requirement task finish holds every pull request to — said
+// before the first task exists, since nothing init writes meets it.
+func TestInitNextSaysTaskFinishNeedsAReportingCheck(t *testing.T) {
+	check := "\nnext: task finish requires at least one check reporting on every pull request\n" +
+		"and refuses NO_CHECKS without one (SPEC §8: the gate cannot be satisfied by\n" +
+		"absence); a repository without a workflow on pull_request adds one before its\n" +
+		"first task — " + U + "/docs/first-milestone.md shows a ten-line one\n"
+	for _, tc := range []struct{ hub, want string }{
+		{"self", "\nnext: every seat is routed to you (~ in .codecrew/config.yml); to hand one to a\n" +
+			"colleague, a team or an App later, see " + U + "/docs/identities.md\n" +
+			"then `gh codecrew milestone new --title \"...\" --goal \"...\"`\n" + check},
+		{"myorg/platform", "\nnext: tasks for this spoke attach to milestones in myorg/platform\n" + check},
+	} {
+		var out bytes.Buffer
+		initNext(&out, tc.hub)
+		if out.String() != tc.want {
+			t.Errorf("--hub %s: next lines:\n%s\nwant:\n%s", tc.hub, out.String(), tc.want)
+		}
+	}
+}
+
+// initCmd prints those lines itself, after the scaffold and before any
+// action-needed block — the last thing on screen stays the one needing a
+// human.
+func TestInitPrintsTheReportingCheckRequirement(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("# mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wd, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := initCmd(&out, nil)
+	os.Chdir(wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	next := strings.Index(got, "\nnext: task finish requires at least one check reporting on every pull request\n")
+	action := strings.Index(got, "action needed")
+	if next < 0 || action < 0 || next > action {
+		t.Errorf("want the NO_CHECKS next: lines before the action-needed block:\n%s", got)
+	}
+}
