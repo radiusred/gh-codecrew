@@ -529,6 +529,10 @@ type startFake struct {
 	posted    []string // the comment bodies posted
 	branches  []string // the branch names DevelopBranch was called with
 	team      []string // the members of whatever team is asked for
+	rules     []tracker.BranchRule
+	rulesErr  error               // what the rules endpoint answers with
+	heads     []string            // the newest pull requests' head SHAs
+	reported  map[string][]string // the check names reported on each head
 }
 
 func (f *startFake) Task(tracker.IssueRef) (tracker.Task, error) { return f.task, nil }
@@ -550,6 +554,17 @@ func (f *startFake) DevelopBranch(_ tracker.IssueRef, n string) error {
 func (f *startFake) Assign(_ tracker.IssueRef, login string) error {
 	f.assigned = append(f.assigned, login)
 	return f.assignErr
+}
+
+func (f *startFake) RepoInfo(string) (tracker.RepoInfo, error) {
+	return tracker.RepoInfo{DefaultBranch: "main"}, nil
+}
+func (f *startFake) BranchRules(string, string) ([]tracker.BranchRule, error) {
+	return f.rules, f.rulesErr
+}
+func (f *startFake) RecentPRHeads(string, string, int) ([]string, error) { return f.heads, nil }
+func (f *startFake) ReportedChecks(_, sha string) ([]string, error) {
+	return f.reported[sha], nil
 }
 
 func startCtx(f *startFake, roles map[string]config.Role) *ctx {
@@ -646,5 +661,56 @@ func TestTaskStartNotesAFailedHumanAssignment(t *testing.T) {
 	}
 	if len(f.posted) != 1 {
 		t.Errorf("the record is posted regardless: %q", f.posted)
+	}
+}
+
+// #392 at the start of the work: no pull request exists yet, so the
+// default branch's required checks are compared with what reported on the
+// newest pull requests into it, and a check none of them carries is named
+// while adding the missing workflow is still the cheap fix. A check any
+// one of them reported is not.
+func TestTaskStartNotesARequiredCheckNothingReports(t *testing.T) {
+	f := &startFake{task: startingTask(), viewer: "myorg-coder[bot]",
+		rules:    []tracker.BranchRule{{Type: "pull_request"}, {Type: "required_status_checks", Checks: []string{"Lint commit messages", "test"}}},
+		heads:    []string{"h1", "h2"},
+		reported: map[string][]string{"h1": {"build"}, "h2": {"test"}},
+	}
+	var out bytes.Buffer
+	if err := runTaskStart(startCtx(f, crewRoles), &out, f.task.Ref); err != nil {
+		t.Fatal(err)
+	}
+	note := `note: the policy on main requires the status check "Lint commit messages", and nothing has reported it on the newest pull requests into main — no workflow in this repository reports it, so the merge will block or rely on a bypass until one does`
+	if !strings.Contains(out.String(), note+"\n") {
+		t.Errorf("no note for the unreported check:\n%s", out.String())
+	}
+	if strings.Count(out.String(), "note:") != 1 {
+		t.Errorf("want exactly one note:\n%s", out.String())
+	}
+	if !strings.Contains(out.String(), "started o/r#7 as @myorg-coder[bot]") {
+		t.Errorf("the start did not complete:\n%s", out.String())
+	}
+}
+
+// Nothing to say is said as nothing: the rules endpoint unavailable (a
+// plan without rulesets), every required check reported somewhere, and a
+// repository with no pull request yet to compare against.
+func TestTaskStartSaysNothingWithoutAPolicyFinding(t *testing.T) {
+	required := []tracker.BranchRule{{Type: "required_status_checks", Checks: []string{"Lint commit messages"}}}
+	for _, tc := range []struct {
+		name string
+		f    *startFake
+	}{
+		{"rules endpoint 404", &startFake{rulesErr: errors.New("gh api: Not Found (HTTP 404)"), rules: required, heads: []string{"h1"}}},
+		{"every required check reported", &startFake{rules: required, heads: []string{"h1", "h2"}, reported: map[string][]string{"h2": {"Lint commit messages"}}}},
+		{"no pull request yet", &startFake{rules: required}},
+	} {
+		tc.f.task, tc.f.viewer = startingTask(), "myorg-coder[bot]"
+		var out bytes.Buffer
+		if err := runTaskStart(startCtx(tc.f, crewRoles), &out, tc.f.task.Ref); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if strings.Contains(out.String(), "note:") {
+			t.Errorf("%s: said something:\n%s", tc.name, out.String())
+		}
 	}
 }

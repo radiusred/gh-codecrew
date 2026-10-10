@@ -93,11 +93,9 @@ func (GitHub) RepoInDir(dir string) (repo, defaultBranch string, err error) {
 // BranchRuleTypes lists the types of the rules that apply to a branch —
 // "pull_request" among them when the branch may only be written through a
 // pull request.
-func (GitHub) BranchRuleTypes(repo, branch string) ([]string, error) {
-	var rules []struct {
-		Type string `json:"type"`
-	}
-	if err := gh.JSON(&rules, "api", fmt.Sprintf("repos/%s/rules/branches/%s", repo, branch)); err != nil {
+func (g GitHub) BranchRuleTypes(repo, branch string) ([]string, error) {
+	rules, err := g.BranchRules(repo, branch)
+	if err != nil {
 		return nil, err
 	}
 	types := make([]string, 0, len(rules))
@@ -105,6 +103,34 @@ func (GitHub) BranchRuleTypes(repo, branch string) ([]string, error) {
 		types = append(types, r.Type)
 	}
 	return types, nil
+}
+
+// BranchRules reads the rules in force on a branch — every active ruleset
+// that targets it, the organization's included — through the endpoint a
+// read-only token may call. A plan without rulesets answers it with an
+// error of its own (404, or 403 on a private repository), which the caller
+// treats as no policy to report on.
+func (GitHub) BranchRules(repo, branch string) ([]BranchRule, error) {
+	var raw []struct {
+		Type       string `json:"type"`
+		Parameters struct {
+			RequiredStatusChecks []struct {
+				Context string `json:"context"`
+			} `json:"required_status_checks"`
+		} `json:"parameters"`
+	}
+	if err := gh.JSON(&raw, "api", "--paginate", fmt.Sprintf("repos/%s/rules/branches/%s", repo, branch)); err != nil {
+		return nil, err
+	}
+	rules := make([]BranchRule, 0, len(raw))
+	for _, r := range raw {
+		rule := BranchRule{Type: r.Type}
+		for _, c := range r.Parameters.RequiredStatusChecks {
+			rule.Checks = append(rule.Checks, c.Context)
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
 }
 
 // TeamMembers returns a team's member logins, child-team members included,

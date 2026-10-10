@@ -26,6 +26,12 @@ type finishFake struct {
 	closesErr error                 // when set, what the closing-references read fails with
 	writes    []string
 	closed    []string // the closing comment of every CloseIssue, in order
+	mergeErr  error    // what GitHub answers the merge request with, when it refuses
+	merged    []string // the head SHA each merge request was pinned to
+	rules     []tracker.BranchRule
+	rulesErr  error               // what the rules endpoint answers with — a 404 on a plan without rulesets
+	reported  map[string][]string // the check names reported on each head SHA
+	checksErr error               // when set, what the reported-checks read fails with
 }
 
 func (f *finishFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
@@ -55,10 +61,30 @@ func (f *finishFake) Comment(_ tracker.IssueRef, body string) error {
 	f.writes = append(f.writes, "comment: "+firstLine(body))
 	return nil
 }
-func (f *finishFake) MergePR(_ string, n int) error { f.writes = append(f.writes, "merge"); return nil }
-func (f *finishFake) MergePRBypass(_ string, n int) error {
+func (f *finishFake) MergePR(_ string, n int, sha string) error {
+	f.merged = append(f.merged, sha)
+	if f.mergeErr != nil {
+		return f.mergeErr
+	}
+	f.writes = append(f.writes, "merge")
+	return nil
+}
+func (f *finishFake) MergePRBypass(_ string, n int, sha string) error {
+	f.merged = append(f.merged, sha)
+	if f.mergeErr != nil {
+		return f.mergeErr
+	}
 	f.writes = append(f.writes, "merge-bypass")
 	return nil
+}
+func (f *finishFake) BranchRules(string, string) ([]tracker.BranchRule, error) {
+	return f.rules, f.rulesErr
+}
+func (f *finishFake) ReportedChecks(_, sha string) ([]string, error) {
+	if f.checksErr != nil {
+		return nil, f.checksErr
+	}
+	return f.reported[sha], nil
 }
 func (f *finishFake) DeleteBranch(_, b string) error {
 	f.writes = append(f.writes, "delete "+b)
@@ -882,5 +908,190 @@ func TestFinishNotesAnUnreadableClosingReference(t *testing.T) {
 	}
 	if !strings.Contains(live.String(), "merged PR #9") {
 		t.Errorf("the merge must still happen:\n%s", live.String())
+	}
+}
+
+// lintRule is the shape that met radiusred/tradedesk-marketdata#88: an
+// organization ruleset requiring a status check the repository has no
+// workflow for (#392), beside the pull-request rule.
+var lintRule = []tracker.BranchRule{
+	{Type: "pull_request"},
+	{Type: "required_status_checks", Checks: []string{"Lint commit messages"}},
+	{Type: "pull_request"},
+}
+
+// #392: every gate passed and GitHub reported the PR BLOCKED, because the
+// caller held a ruleset bypass GitHub would honour. The merge is asked of
+// GitHub — pinned to the head the gates read — and goes through; the dry
+// run and the live run say beforehand that GitHub decides it, naming the
+// caller and the rule types in force, under the bypass-actor gate, which
+// is otherwise unchanged.
+func TestFinishAsksGitHubToMergeABlockedPR(t *testing.T) {
+	f := cleanFinish()
+	f.pr.MergeStateStatus, f.pr.BaseRef = "BLOCKED", "main"
+	f.rules = lintRule
+	f.reported = map[string][]string{"abc": {"Lint commit messages", "test"}}
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	note := "note: GitHub reports PR #9 as BLOCKED although every protocol gate passed — the merge is asked of GitHub as @myorg-coder[bot], and GitHub honours a ruleset bypass that caller holds and refuses otherwise (rules in force on main: pull_request, required_status_checks)"
+	var buf bytes.Buffer
+	p.print(&buf)
+	if want := "gate bypass actor: not applicable\n  " + note + "\n"; !strings.Contains(buf.String(), want) {
+		t.Errorf("the dry run does not say it under the bypass-actor gate:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "requires the status check") {
+		t.Errorf("a required check that reported was noted:\n%s", buf.String())
+	}
+	if len(f.writes) != 0 {
+		t.Fatalf("planning wrote: %v", f.writes)
+	}
+	buf.Reset()
+	if err := run(&buf); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if i, j := strings.Index(out, note), strings.Index(out, "merged PR #9"); i < 0 || j < 0 || i > j {
+		t.Errorf("the live run does not say it before the merge:\n%s", out)
+	}
+	if got := strings.Join(f.writes, ","); got != "merge,delete task/7-x" {
+		t.Errorf("run wrote %v", f.writes)
+	}
+	if len(f.merged) != 1 || f.merged[0] != "abc" {
+		t.Errorf("the merge was pinned to %q, want the gated head abc", f.merged)
+	}
+}
+
+// What GitHub refuses comes back in GitHub's words and stops the verb: the
+// error is the one the merge call returned, unchanged, and nothing after
+// the merge happens — no capture closed, no branch deleted. The --bypass
+// path asks the same endpoint, posts its recorded comment first as it
+// always has, and stops the same way.
+func TestFinishReportsGitHubsMergeRefusalVerbatim(t *testing.T) {
+	refusedByGitHub := errors.New("gh api: Repository rule violations found\n\nRequired status check \"Lint commit messages\" is expected. (HTTP 405)")
+	f := cleanFinish()
+	f.body = "## Goal\ng\n\n## Adopts\n- #193 — the capture\n\n## Plan\np\n"
+	f.pr.MergeStateStatus, f.pr.BaseRef = "BLOCKED", "main"
+	f.mergeErr = refusedByGitHub
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	if err := run(&buf); err != refusedByGitHub {
+		t.Errorf("run returned %v, want GitHub's own error unchanged", err)
+	}
+	if len(f.writes) != 0 {
+		t.Errorf("a refused merge went on to write %v", f.writes)
+	}
+	if strings.Contains(buf.String(), "merged PR") || strings.Contains(buf.String(), "closed o/r#193") {
+		t.Errorf("a refused merge reported one:\n%s", buf.String())
+	}
+
+	f = cleanFinish()
+	f.viewer = "davison"
+	f.pr.ReviewDecision, f.pr.MergeStateStatus = "REVIEW_REQUIRED", "BLOCKED"
+	f.mergeErr = refusedByGitHub
+	p, run, err = planFinish(finishCtx(f, crewRoles), f.task.Ref, false, true)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("bypass plan: err %v refusal %v", err, p.refusal)
+	}
+	buf.Reset()
+	p.print(&buf)
+	if strings.Contains(buf.String(), "as BLOCKED") {
+		t.Errorf("the recorded bypass path carries the BLOCKED note too:\n%s", buf.String())
+	}
+	buf.Reset()
+	if err := run(&buf); err != refusedByGitHub {
+		t.Errorf("bypass run returned %v, want GitHub's own error unchanged", err)
+	}
+	if got := strings.Join(f.writes, ","); !strings.HasPrefix(got, "comment: **Owner bypass:**") || !strings.Contains(got, "comment: **Merge bypass:**") || strings.Contains(got, "merge-bypass") || strings.Contains(got, "delete") {
+		t.Errorf("bypass run wrote %v", f.writes)
+	}
+	if len(f.merged) != 1 || f.merged[0] != "abc" {
+		t.Errorf("the bypass merge was pinned to %q, want abc", f.merged)
+	}
+}
+
+// #392's other half: a check the base branch's policy requires that
+// nothing has reported on the PR head is said once, by name, in the dry
+// run and before the live merge — a note, so the plan passes and the dry
+// run exits 0.
+func TestFinishNotesARequiredCheckNothingReported(t *testing.T) {
+	f := cleanFinish()
+	f.pr.BaseRef = "main"
+	f.rules = []tracker.BranchRule{
+		{Type: "required_status_checks", Checks: []string{"Lint commit messages", "test"}},
+		{Type: "required_status_checks", Checks: []string{"Lint commit messages"}},
+	}
+	f.reported = map[string][]string{"abc": {"test"}}
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	note := `note: the policy on main requires the status check "Lint commit messages", and nothing has reported it on PR #9's head — no workflow in this repository reports it, so the merge will block or rely on a bypass until one does`
+	var buf bytes.Buffer
+	p.print(&buf)
+	if strings.Count(buf.String(), note) != 1 {
+		t.Errorf("the dry run does not say it once:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), `"test"`) {
+		t.Errorf("a check that reported was noted:\n%s", buf.String())
+	}
+	if len(f.writes) != 0 {
+		t.Fatalf("planning wrote: %v", f.writes)
+	}
+	buf.Reset()
+	if err := run(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), note) {
+		t.Errorf("the live run does not say it:\n%s", buf.String())
+	}
+}
+
+// Absence of policy is not a finding: a plan without rulesets answers the
+// rules endpoint 404 (403 on a private repository), and a head whose
+// checks cannot be read cannot show a check as missing. Each says nothing;
+// a BLOCKED PR still gets its note, without the rule types it could not
+// read. And when every required check has reported, nothing is said.
+func TestFinishSaysNothingWithoutAPolicyToReport(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		rulesErr  error
+		checksErr error
+		reported  []string
+	}{
+		{"rules endpoint 404", errors.New("gh api: Not Found (HTTP 404)"), nil, nil},
+		{"rules endpoint 403", errors.New("gh api: Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)"), nil, nil},
+		{"checks unreadable", nil, errors.New("gh api: Resource not accessible by integration (HTTP 403)"), nil},
+		{"every required check reported", nil, nil, []string{"Lint commit messages"}},
+	} {
+		f := cleanFinish()
+		f.pr.BaseRef = "main"
+		f.rules, f.rulesErr, f.checksErr = lintRule, tc.rulesErr, tc.checksErr
+		f.reported = map[string][]string{"abc": tc.reported}
+		p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+		if err != nil || p.refusal != nil {
+			t.Fatalf("%s: err %v refusal %v", tc.name, err, p.refusal)
+		}
+		var buf bytes.Buffer
+		p.print(&buf)
+		if err := run(&buf); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if strings.Contains(buf.String(), "note:") {
+			t.Errorf("%s: said something:\n%s", tc.name, buf.String())
+		}
+	}
+	f := cleanFinish()
+	f.pr.BaseRef, f.pr.MergeStateStatus = "main", "BLOCKED"
+	f.rulesErr = errors.New("gh api: Not Found (HTTP 404)")
+	p, _, _ := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	var buf bytes.Buffer
+	p.print(&buf)
+	if !strings.Contains(buf.String(), "as BLOCKED") || strings.Contains(buf.String(), "rules in force") {
+		t.Errorf("a BLOCKED PR on unreadable rules:\n%s", buf.String())
 	}
 }

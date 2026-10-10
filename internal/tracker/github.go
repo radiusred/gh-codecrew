@@ -358,6 +358,8 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		ReviewDecision string `json:"reviewDecision"`
 		HeadRefName    string `json:"headRefName"`
 		HeadRefOid     string `json:"headRefOid"`
+		BaseRefName    string `json:"baseRefName"`
+		MergeState     string `json:"mergeStateStatus"`
 		IsCrossRepo    bool   `json:"isCrossRepository"`
 		MergedAt       string `json:"mergedAt"`
 		Author         struct {
@@ -371,7 +373,7 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		} `json:"reviews"`
 	}
 	err := gh.JSON(&view, "pr", "view", fmt.Sprint(number), "--repo", repo,
-		"--json", "state,author,reviews,reviewDecision,headRefName,headRefOid,isCrossRepository,mergedAt")
+		"--json", "state,author,reviews,reviewDecision,headRefName,headRefOid,baseRefName,isCrossRepository,mergedAt,mergeStateStatus")
 	if err != nil {
 		return PR{}, err
 	}
@@ -381,11 +383,13 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 		Author:    strings.TrimPrefix(view.Author.Login, "app/"),
 		HeadRef:   view.HeadRefName,
 		HeadSHA:   view.HeadRefOid,
+		BaseRef:   view.BaseRefName,
 		CrossRepo: view.IsCrossRepo,
 		Open:      view.State == "OPEN",
 		Merged:    view.MergedAt != "",
 
-		ReviewDecision: view.ReviewDecision,
+		ReviewDecision:   view.ReviewDecision,
+		MergeStateStatus: view.MergeState,
 	}
 	latest := map[string]string{}
 	for _, r := range view.Reviews {
@@ -430,17 +434,90 @@ func (GitHub) PRInfo(repo string, number int) (PR, error) {
 	return pr, nil
 }
 
-func (GitHub) MergePR(repo string, number int) error {
-	_, err := gh.Run("pr", "merge", fmt.Sprint(number), "--repo", repo, "--rebase")
-	return err
+// MergePR asks GitHub to rebase-merge the PR through the REST merge
+// endpoint, pinned to the head the caller gated. `gh pr merge` was the call
+// until 2.1.1, and its client-side policy check refused a PR GitHub reports
+// BLOCKED without asking — although the caller held the ruleset bypass
+// GitHub would have honoured, and this endpoint under the same token
+// merged it (#392). Here GitHub evaluates the request and a refusal is its
+// own message, unmasked: a rule violation, a head that moved since the
+// gates read it, a PR that is not mergeable.
+func (GitHub) MergePR(repo string, number int, sha string) error {
+	return mergeREST(repo, number, sha)
 }
 
-// MergePRBypass rebase-merges using the ruleset's administrator bypass.
-// GitHub enforces eligibility: without a bypass actor covering the caller,
-// this fails with the platform's own error, unmasked.
-func (GitHub) MergePRBypass(repo string, number int) error {
-	_, err := gh.Run("pr", "merge", fmt.Sprint(number), "--repo", repo, "--rebase", "--admin")
-	return err
+// MergePRBypass is the merge `task finish --bypass` makes: the same
+// request, which `gh pr merge --admin` made through the same platform
+// check. GitHub enforces eligibility — without a bypass actor covering the
+// caller it fails with the platform's own error, unmasked.
+func (GitHub) MergePRBypass(repo string, number int, sha string) error {
+	return mergeREST(repo, number, sha)
+}
+
+func mergeREST(repo string, number int, sha string) error {
+	args := []string{"api", "-X", "PUT", fmt.Sprintf("repos/%s/pulls/%d/merge", repo, number), "-f", "merge_method=rebase"}
+	if sha != "" {
+		args = append(args, "-f", "sha="+sha)
+	}
+	var resp struct {
+		Merged  bool   `json:"merged"`
+		Message string `json:"message"`
+	}
+	if err := gh.JSON(&resp, args...); err != nil {
+		return err
+	}
+	if !resp.Merged {
+		return fmt.Errorf("GitHub did not merge %s#%d: %s", repo, number, resp.Message)
+	}
+	return nil
+}
+
+// ReportedChecks reads both kinds of report a required status check can be
+// satisfied by: check runs, by name, and commit statuses, by context. Each
+// listing is walked whole; the names come back once each, in the order
+// first seen.
+func (GitHub) ReportedChecks(repo, sha string) ([]string, error) {
+	runs, err := gh.Run("api", "--paginate", fmt.Sprintf("repos/%s/commits/%s/check-runs?per_page=100", repo, sha), "--jq", ".check_runs[].name")
+	if err != nil {
+		return nil, err
+	}
+	statuses, err := gh.Run("api", "--paginate", fmt.Sprintf("repos/%s/commits/%s/statuses?per_page=100", repo, sha), "--jq", ".[].context")
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	seen := map[string]bool{}
+	for _, line := range strings.Split(string(runs)+"\n"+string(statuses), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || seen[line] {
+			continue
+		}
+		seen[line] = true
+		names = append(names, line)
+	}
+	return names, nil
+}
+
+// RecentPRHeads reads the head commits of the newest pull requests into
+// base — one page, newest first, closed ones included: a merged PR's head
+// still carries the checks that reported on it.
+func (GitHub) RecentPRHeads(repo, base string, limit int) ([]string, error) {
+	var prs []struct {
+		Head struct {
+			SHA string `json:"sha"`
+		} `json:"head"`
+	}
+	path := fmt.Sprintf("repos/%s/pulls?state=all&base=%s&sort=created&direction=desc&per_page=%d", repo, url.QueryEscape(base), limit)
+	if err := gh.JSON(&prs, "api", path); err != nil {
+		return nil, err
+	}
+	var heads []string
+	for _, pr := range prs {
+		if pr.Head.SHA != "" {
+			heads = append(heads, pr.Head.SHA)
+		}
+	}
+	return heads, nil
 }
 
 // MergeCommit reads the commit a merge left on the base branch. GitHub
