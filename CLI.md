@@ -594,19 +594,32 @@ development branch `task/<n>-<slug>`. An `app:`-typed caller, and any login
 carrying the `[bot]` suffix, is not assigned: GitHub does not accept a GitHub
 App as an issue assignee, and the record is the fact. A caller whose role
 routing resolves to a contract that forbids commits — `qa`, `reviewer` — gets
-no branch.
+no branch. Where it creates the branch, it also reads the branch policy the
+task's pull request will meet: each status check a ruleset in force on the
+default branch requires, and that no check run or commit status has
+reported on the newest pull requests into that branch, is named in a
+`note:` saying no workflow in the repository reports it, so the merge will
+block or rely on a bypass until one does. The note is advisory and changes
+nothing; where the rules cannot be read — a plan without rulesets answers
+404 or 403 — or there is no pull request yet to compare with, it says
+nothing.
 
 **Options.** None.
 
 **Reads.** The pointer and, from a spoke, the hub's routing table; the task
-issue, its labels, its body's `## Plan` section; the caller's login.
+issue, its labels, its body's `## Plan` section; the caller's login; and,
+where it creates the branch, the repository's default branch, the rules in
+force on it (`GET /repos/{owner}/{repo}/rules/branches/{branch}`) and, when
+they require status checks, the check runs and commit statuses on the heads
+of the three newest pull requests into it.
 
 **Writes.** In GitHub: the `**Started by**` comment on the task issue, the
 assignment where the caller is human, and the linked branch. Nothing on disk
 — the branch is created on the remote, and the printed line names the
 `git fetch && git switch` that brings it local. On stdout: the branch
-created, the local command, the start record, and a `note:` for an assignment
-or a branch creation that failed.
+created, the local command, the start record, a `note:` for an assignment
+or a branch creation that failed, and a `note:` for each required status
+check nothing has reported.
 
 **Refusals.** [`CLOSED`](SPEC.md#10-the-cli) — the task issue is already
 closed. [`NOT_A_TASK`](SPEC.md#10-the-cli) — the issue is not labelled
@@ -639,8 +652,25 @@ suffix ignored, or the same routed seat, a team-held role being any member; a
 pull request closes the task; its CI checks exist and are green; the reviewer
 role's holder has approved when that role routes to a distinct principal, and
 otherwise any non-doer has; and GitHub's own required-review rule counts the
-approval. Before the merge it prints a `note:` naming every issue the pull
-request's closing references would close besides the task itself. After the
+approval. The merge is a request GitHub decides: the verb asks GitHub's
+merge endpoint (`PUT /repos/{owner}/{repo}/pulls/{n}/merge`, rebase, pinned
+to the head commit the gates read), so a ruleset bypass the caller holds is
+honoured, and anything GitHub refuses — a rule the caller cannot bypass, a
+head that moved after the gates read it — is reported in GitHub's own words
+and the verb exits `1` with nothing after the merge done. Before the merge it
+prints a `note:` naming every issue the pull request's closing references
+would close besides the task itself; a `note:` for each status check a
+ruleset on the base branch requires that nothing has reported on the pull
+request's head, saying no workflow in the repository reports it, so the
+merge will block or rely on a bypass until one does; and, when GitHub
+reports the pull request `BLOCKED` while every gate passed, a `note:` that
+the merge is asked of GitHub as the caller, who GitHub lets through on a
+ruleset bypass they hold and refuses otherwise, naming the rule types in
+force when they can be read. Whether the caller holds a bypass is not read —
+only an administrator can — so the note reports the record rather than
+predicting the outcome. Where the rules cannot be read — 404 on a plan
+without rulesets, 403 — or the head's checks cannot, these notes say
+nothing; none of them is a gate. After the
 merge it closes each adopted capture with a comment naming the task, the pull
 request and the merge commit, deletes the head branch, and — in a clone of
 the task's own repo that holds the merged branch — fetches with prune,
@@ -652,16 +682,19 @@ it, and deletes the local task branch. Nothing after the merge refuses.
 | Option | Argument | Default | Effect |
 |--------|----------|---------|--------|
 | `--operator-confirm` | none | off | Solo tier: records an explicit operator confirmation on the pull request in place of a non-doer approval. A crew identity is refused. |
-| `--bypass` | none | off | Merges with the ruleset's administrator bypass when GitHub does not count the recorded approval, recorded as a comment on the pull request. For a human operator the ruleset lists as a bypass actor; a crew identity is refused. |
+| `--bypass` | none | off | Merges with the ruleset's administrator bypass when GitHub does not count the recorded approval, recorded as a comment on the pull request. For a human operator the ruleset lists as a bypass actor; a crew identity is refused. The merge is the same request to GitHub's merge endpoint, and GitHub decides eligibility. |
 | `--dry-run` | none | off | Prints every gate in order — ok, refused with its code, not reached, not applicable — then the comments, merge, adopted captures, head deletion and local cleanup it would perform; writes nothing, the clone included; exits with the first refusal's code. |
 
 **Reads.** The pointer and, from a spoke, the hub's routing table; the task
 issue, its labels and comments; the pull requests that close it, their
-checks, reviews and review decision; the closing references GitHub parsed
-from the pull request body; the local clone's branches and remotes.
+checks, reviews, review decision, base branch and merge state; the closing
+references GitHub parsed from the pull request body; the rules in force on
+the base branch (`GET /repos/{owner}/{repo}/rules/branches/{branch}`) and
+the check runs and commit statuses on the pull request's head; the local
+clone's branches and remotes.
 
 **Writes.** In GitHub: the operator-confirmation or bypass comment where one
-applies, the rebase merge, the task closed, a comment on each adopted capture
+applies, the rebase merge through GitHub's merge endpoint, the task closed, a comment on each adopted capture
 and that capture closed, and the head branch deleted. On disk, and only in a
 clone of the task's own repo: a fetch with prune, a switch to the default
 branch, a fast-forward of it, and the deletion of the local task branch —
@@ -669,12 +702,15 @@ forced, and allowed only when the branch sits at the merge commit or is
 contained in the fetched default branch. A branch carrying anything else is
 named and kept. Run anywhere else, the local half does nothing and prints
 nothing. Everything it prints as it works is on stdout: the gate lines, the
-merge, the `note:` lines about the pull request's other closing references
-before it, and every `note:` after it.
+merge, the `note:` lines before it — the `BLOCKED` merge, the pull request's
+other closing references, a required check nothing has reported — and every
+`note:` after it.
 
 **`--dry-run`.** Every gate and every write above, printed and not performed;
-the same `note:` about the pull request's other closing references; the same
-exit code as the real run's first refusal.
+the `BLOCKED` note indented under the `bypass actor` gate; the same `note:`
+lines about the pull request's other closing references and about a
+required check nothing has reported; the same exit code as the real run's
+first refusal.
 
 **Refusals.** [`CLOSED`](SPEC.md#10-the-cli) — the task issue is already
 closed. [`GATED`](SPEC.md#10-the-cli) — the task carries `cc:needs-decision`.
@@ -698,7 +734,8 @@ passed and GitHub's own required-review rule has not; the detail names the
 supported paths. [`SELF_CONFIRM`](SPEC.md#10-the-cli) — `--operator-confirm`
 was given by a crew identity. [`CREW_BYPASS`](SPEC.md#10-the-cli) —
 `--bypass` was given by a crew identity. Plus the
-[common](#common-refusals) refusals. After the merge nothing refuses: a
+[common](#common-refusals) refusals. A merge GitHub refuses is not a
+refusal code: the verb prints GitHub's message and exits `1`. After the merge nothing refuses: a
 capture already closed is reported, one that cannot be closed is a `note:`,
 and so is a failed deletion.
 
