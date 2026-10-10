@@ -123,7 +123,7 @@ func TestOfflineDocQuotesTheBootstrapNote(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	commitScaffold(&out, dir, written)
+	commitScaffold(&out, dir, "self", written)
 
 	note := ""
 	for _, line := range strings.Split(out.String(), "\n") {

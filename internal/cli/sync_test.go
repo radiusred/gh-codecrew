@@ -207,18 +207,12 @@ func TestRolesSyncWritesAbsentAndReleaseTextsInOneCommit(t *testing.T) {
 	if files != contractPath("implementer")+"\n"+contractPath("qa") {
 		t.Errorf("the commit holds %q, want exactly the two contracts", files)
 	}
-	msg := mustGitIn(t, dir, "log", "-1", "--format=%B")
-	for _, want := range []string{
-		"chore: sync codecrew role contracts to " + version,
+	// The body names the verb, the release and the protocol, then each
+	// file with what it was (SPEC §4, #389).
+	assertHousekeepingMessage(t, headMessage(t, dir), "chore: sync codecrew role contracts to "+version, toolLine("Written", "roles sync"), []string{
 		contractPath("implementer") + ": written (was the v1.2.0 text)",
 		contractPath("qa") + ": written (absent)",
-		"`gh codecrew roles sync`",
-		"Housekeeping (SPEC §4)",
-	} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("commit message lacks %q:\n%s", want, msg)
-		}
-	}
+	})
 	status := mustGitIn(t, dir, "status", "--porcelain")
 	for _, want := range []string{"M " + filepath.ToSlash(rolesPath("implementer"+localSuffix)), "A  notes.txt"} {
 		if !strings.Contains(status, want) {
@@ -269,6 +263,11 @@ func TestRolesSyncRefusesAForkBeforeWriting(t *testing.T) {
 	if files := mustGitIn(t, dir, "show", "--name-only", "--format=", "HEAD"); files != contractPath("qa") {
 		t.Errorf("the commit holds %q", files)
 	}
+	// The body names the run as it was made — the role it was limited to —
+	// so a reviewer repeating it gets the same diff (#389).
+	assertHousekeepingMessage(t, headMessage(t, dir), "chore: sync codecrew role contracts to "+version, toolLine("Written", "roles sync qa"), []string{
+		contractPath("qa") + ": written (absent)",
+	})
 }
 
 func TestRolesSyncDryRunWritesNothing(t *testing.T) {
@@ -414,9 +413,11 @@ func TestRolesSyncCarriesTheAgentsFile(t *testing.T) {
 			t.Errorf("the commit lacks %s:\n%s", want, files)
 		}
 	}
-	if body := mustGitIn(t, dir, "log", "-1", "--format=%b"); !strings.Contains(body, "Target: the role contracts and "+config.AgentsFile) {
-		t.Errorf("body = %q", body)
-	}
+	assertHousekeepingMessage(t, headMessage(t, dir), "chore: sync codecrew role contracts and agents file to "+version, toolLine("Written", "roles sync"), []string{
+		contractPath("implementer") + ": written (absent)",
+		contractPath("qa") + ": written (absent)",
+		config.AgentsFile + ": written (absent)",
+	})
 
 	// A role list never touches the agents file; the path alone does.
 	dir = syncRepo(t)
@@ -436,6 +437,9 @@ func TestRolesSyncCarriesTheAgentsFile(t *testing.T) {
 	if files := mustGitIn(t, dir, "show", "--name-only", "--format=", "HEAD"); strings.TrimSpace(files) != config.AgentsFile {
 		t.Errorf("naming the path committed more than the agents file:\n%s", files)
 	}
+	assertHousekeepingMessage(t, headMessage(t, dir), "chore: sync the codecrew agents file to "+version, toolLine("Written", "roles sync "+config.AgentsFile), []string{
+		config.AgentsFile + ": written (was the v2.0.0 text)",
+	})
 }
 
 // A hand-written agents file is the project's own: alone it refuses

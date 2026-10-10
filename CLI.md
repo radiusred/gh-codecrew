@@ -149,7 +149,30 @@ the repository's existing labels.
 `.codecrew/roles/<role>.local.md` — each only when it is absent. One commit
 of exactly those paths, on the current branch, or on `codecrew-bootstrap` cut
 from the default branch when the default branch requires pull requests; it
-never pushes. In GitHub: the missing `cc:task`, `cc:milestone` and
+never pushes. The commit is housekeeping, and its body names the tool that
+defined it, as [SPEC §4](SPEC.md#housekeeping) requires — the invocation
+(`--hub` only in spoke mode), the release `gh codecrew version` prints
+(`dev` on a source build), the protocol the binary implements, each file
+written, and the trailer. No line passes 100 characters: the tool line
+wraps at a space, and an `owner/repo` too long for a line of its own —
+GitHub allows 140 characters — is split just after the slash, the
+repository name continuing on the next line:
+
+```
+chore: scaffold codecrew
+
+Scaffolded by gh codecrew init --hub myorg/platform (gh-codecrew v2.1.1, protocol 2.1):
+.codecrew/AGENTS.md
+.codecrew/config.yml
+AGENTS.md
+CLAUDE.md
+Housekeeping (SPEC §4); no task.
+```
+
+Past 20 files the list is a count. Outside a git repository nothing is
+committed: init prints the `git init`, `git commit` and `gh repo create` to
+run, the commit carrying the same body as a second, single-quoted `-m`; so
+does every `note:` that leaves a commit to make by hand. In GitHub: the missing `cc:task`, `cc:milestone` and
 `cc:needs-decision` labels, with the protocol's colour and description; an
 existing label is left exactly as it is. Everything it prints as it works is
 on stdout: a line per file written or kept, the commit, a line per label,
@@ -205,7 +228,21 @@ one of the ten CodeCrew names; GitHub, for the account behind each bare 1.0
 identity (`users/<login>`, then `users/<login>[bot]`).
 
 **Writes.** The moved and rewritten files above, in one commit of exactly
-those paths on the current branch; it never pushes. In GitHub: the missing
+those paths on the current branch; it never pushes. The commit's subject is
+`chore: migrate codecrew to the 2.0 layout`, and its body, in the shape
+`init` writes ([SPEC §4](SPEC.md#housekeeping)), names the tool and lists
+each move and each file written:
+
+```
+Migrated by gh codecrew migrate (gh-codecrew v2.1.1, protocol 2.1):
+.codecrew.yml -> .codecrew/config.yml, rewritten
+roles/qa.md -> .codecrew/roles/qa.md
+.codecrew/AGENTS.md
+Housekeeping (SPEC §4); no task.
+```
+
+With a detached HEAD the files move and a `note:` prints that commit,
+body included, to make by hand. In GitHub: the missing
 `cc:` labels created, and the existing ones restyled to the protocol's colour
 and description, each reported; every other label untouched. Everything it
 prints as it works is on stdout: a line per step, each `note:`, and last an
@@ -939,12 +976,21 @@ default branch as the clone records it (`origin/HEAD`). No network.
 with the subject `chore: sync codecrew role contracts to <version>` —
 `chore: sync the codecrew agents file to <version>` when the agents file is
 all it writes, `chore: sync codecrew role contracts and agents file to
-<version>` when it writes both — and a body naming each file, what it was, and the verb that defined the target;
-every other staged and unstaged change is left as it was. On the default
+<version>` when it writes both — and a body, in the shape `init` writes
+([SPEC §4](SPEC.md#housekeeping)), naming the run with the targets it was
+given, the release, the protocol, and each file with what it was:
+
+```
+Written by gh codecrew roles sync qa (gh-codecrew v2.1.1, protocol 2.1):
+.codecrew/roles/qa.md: written (was the v2.0.0 text)
+Housekeeping (SPEC §4); no task.
+```
+
+Every other staged and unstaged change is left as it was. On the default
 branch the commit goes on a new `codecrew-roles-sync` branch cut from it,
 since the housekeeping path is always a pull request; on any other branch it
 goes where it is; with a detached HEAD the files are written and a `note:`
-prints the commit to make by hand. It never pushes. Everything it prints is
+prints the commit to make by hand, body included. It never pushes. Everything it prints is
 on stdout.
 
 **`--dry-run`.** The same lines with `would write` and `would keep`, the

@@ -73,8 +73,9 @@ never `AGENTS.md`. If you already have an `AGENTS.md` or a `CLAUDE.md`,
 unless it already points at the instructions, so rerunning `init` on a repo
 it scaffolded asks you for nothing.
 It commits exactly the files it wrote
-(`chore: scaffold codecrew`), leaving anything else you had staged or
-modified as it was. It never pushes; that is yours (run `init` at the
+(`chore: scaffold codecrew`, with a body naming `init`, its release and
+protocol, and each file, as SPEC §4 asks of a housekeeping commit), leaving
+anything else you had staged or modified as it was. It never pushes; that is yours (run `init` at the
 repository root — it refuses a subdirectory, since the pointer belongs at
 the root):
 

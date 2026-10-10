@@ -331,12 +331,15 @@ func initCmd(w io.Writer, args []string) error {
 	}
 	if repoRoot(".") == "" {
 		fmt.Fprintln(w, "\nnote: this directory is not a git repository — the protocol lives in GitHub.")
-		fmt.Fprintln(w, "first: git init && git add -A && git commit -m \"chore: scaffold codecrew\" &&")
+		// The operator makes this commit, so the command carries the body
+		// init would have written: following it satisfies SPEC §4 (#389).
+		// Its lines are flush left — they are the message, not the prompt.
+		fmt.Fprintf(w, "first: git init && git add -A && git commit %s &&\n", commitMessageArgs(scaffoldSubject, scaffoldBody(*hub, written)))
 		fmt.Fprintln(w, "       gh repo create <owner>/<name> --private --source=. --push")
 	} else {
 		// The scaffold is the last commit before the protocol starts: made
 		// here, from exactly the files written, never pushed (#172).
-		commitScaffold(w, ".", written)
+		commitScaffold(w, ".", *hub, written)
 	}
 	// Then the one thing the scaffold cannot write to disk: the protocol's
 	// labels, in the repository GitHub knows. After the commit, never

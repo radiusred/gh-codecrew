@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `init`, `migrate` and `roles sync` write the body SPEC §4 asks of their commits
+
+- `init`'s scaffold commit had the subject `chore: scaffold codecrew` and no
+  body, so a reviewer holding it to SPEC §4 — a housekeeping commit's body
+  names the tool and its version — sent it back; four spoke PRs went back
+  for it on 2026-10-09. `init` now writes a body naming the invocation
+  (`--hub` only in spoke mode), the release `gh codecrew version` prints, the
+  protocol the binary implements, each file it wrote, and the line
+  `Housekeeping (SPEC §4); no task.` `migrate` writes the same shape, listing
+  each move and each file written, and `roles sync`'s body, which named the
+  verb and the release but not the protocol or the targets it was given,
+  takes the shape too, keeping its line per file. Every line is held to the
+  commit lint's 100 characters: the tool line wraps at a space, an
+  `owner/repo` too long for any line is split after its slash, and a list
+  past 20 files becomes a count.
+- The commits these verbs leave to the operator carry the same body: the
+  `git commit` `init` prints outside a git repository, and every `note:` that
+  prints a commit to make by hand, now pass it as a second, single-quoted
+  `-m`. `migrate`'s by-hand command, printed on a detached HEAD, also no
+  longer stages the sources `git mv` already removed, which made it fail as
+  printed. `CLI.md`'s three entries show the body each writes. (#397)
+
 ### `task finish` lets GitHub decide the merge, and names a required check nothing reports
 
 - `task finish` merged through `gh pr merge`, whose client-side policy check
