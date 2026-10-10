@@ -63,8 +63,8 @@ per-milestone records of the decisions that shaped the system and why.
 
 ## What exists
 
-**Shipped:** v2.1.0 of the `gh` extension, implementing protocol 2.1
-(`version` prints both: `v2.1.0 (protocol 2.1)`; the pointer's protocol
+**Shipped:** v2.1.1 of the `gh` extension, implementing protocol 2.1
+(`version` prints both: `v2.1.1 (protocol 2.1)`; the pointer's protocol
 major is checked, another major refuses, and a pointer naming an earlier
 minor such as `"2.0"` is current; `gh` itself must be 2.50.0 or later, or
 the CLI refuses `GH_TOO_OLD` before any verb runs). Verbs:

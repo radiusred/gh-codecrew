@@ -82,7 +82,7 @@ gh codecrew init         # writes and commits .codecrew/, AGENTS.md, CLAUDE.md, 
                          #  with the lines to add to it printed)
 ```
 
-**Already running CodeCrew?** The current release, v2.1.0, implements
+**Already running CodeCrew?** The current release, v2.1.1, implements
 protocol 2.1 — the `.codecrew/` layout the block above and the rest of this
 page describe, unchanged since 2.0, so a 2.0 repo has no migration step:
 upgrade the extension and follow the 2.1.0 section of
