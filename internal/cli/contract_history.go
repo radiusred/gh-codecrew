@@ -94,4 +94,10 @@ var contractHistory = []releasedContract{
 	{Release: "v2.1.0", Role: "doc-synthesizer", SHA256: "97bb03e26872290581b1bc86f8912fabbc2f1e8b08946d9f382f72d57468f9c6"},
 	{Release: "v2.1.0", Role: "coordinator", SHA256: "e10235f294bd7181d5acb2cf280c52ef56bffd53389aa15b55215c319f9b2410"},
 	{Release: "v2.1.0", Role: ".codecrew/AGENTS.md", SHA256: "dffda078fe90672c30b124251e505bb3dad89cb0ff403f3f36f85965bd9e22f6"},
+	{Release: "v2.1.1", Role: "implementer", SHA256: "17113bd4c95193c23f2c33aeee42d51ac3cafa8749589d53993eb344b1d14949"},
+	{Release: "v2.1.1", Role: "reviewer", SHA256: "8fab3e4798f1973865a899ffe221c56f079e33c93540b604cab95cbd7c93b2de"},
+	{Release: "v2.1.1", Role: "qa", SHA256: "f98d77825b4a8db1a114a32230fe804eed30ac9ad6a71253ac43fff6f42eb2b6"},
+	{Release: "v2.1.1", Role: "doc-synthesizer", SHA256: "97bb03e26872290581b1bc86f8912fabbc2f1e8b08946d9f382f72d57468f9c6"},
+	{Release: "v2.1.1", Role: "coordinator", SHA256: "e10235f294bd7181d5acb2cf280c52ef56bffd53389aa15b55215c319f9b2410"},
+	{Release: "v2.1.1", Role: ".codecrew/AGENTS.md", SHA256: "dffda078fe90672c30b124251e505bb3dad89cb0ff403f3f36f85965bd9e22f6"},
 }
