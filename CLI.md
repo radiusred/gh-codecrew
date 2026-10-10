@@ -543,14 +543,41 @@ gh codecrew milestone evidence <milestone number>
 ```
 
 Walks the milestone's record — the tracking issue and every sub-issue, bodies
-and comments — and verifies that every citation resolves: github.com
-references through the API under the caller's auth, everything else by HTTP.
-A citation is a URL in prose or in a Markdown link outside code; a URL inside
-an inline code span, a fenced block, or a block indented four columns where
-it does not continue a paragraph is content and is not checked. It checks the
+and comments — and verifies that every citation resolves. A citation is a URL
+in prose or in a Markdown link outside code; a URL inside an inline code
+span, a fenced block, or a block indented four columns where it does not
+continue a paragraph is content and is not checked. It checks the
 milestone's own requirement-ID grammar before the walk. The milestone
 resolves whatever its state: a closed one resolves too and is reported as
 closed before the citation report.
+
+A github.com citation resolves through the REST API under the caller's
+auth, private repositories included, when its shape is one of these (a
+query such as `?pr=12` is ignored, and so is a fragment the list does not
+name):
+
+| Cited page | Resolved as |
+|---|---|
+| `{o}/{r}` — the repository | `repos/{o}/{r}` |
+| `issues/{n}`, `pull/{n}` and its tabs | `repos/{o}/{r}/issues/{n}` |
+| `…#issuecomment-{id}` on an issue or a pull request | `repos/{o}/{r}/issues/comments/{id}` |
+| `pull/{n}#pullrequestreview-{id}` | `repos/{o}/{r}/pulls/{n}/reviews/{id}` |
+| `pull/{n}#discussion_r{id}`, `pull/{n}/files#r{id}` | `repos/{o}/{r}/pulls/comments/{id}` |
+| `commit/{sha}`, `pull/{n}/commits/{sha}`, `commits/{ref}`, `tree/{ref}` | `repos/{o}/{r}/commits/{sha or ref}` |
+| `blob/{ref}/{path}`, `tree/{ref}/{path}` | `repos/{o}/{r}/contents/{path}?ref={ref}` |
+| `compare/{base}...{head}` | `repos/{o}/{r}/compare/{base}...{head}` |
+| `releases`, `releases/latest`, `releases/tag/{tag}` | `repos/{o}/{r}/releases`, `…/latest`, `…/tags/{tag}` |
+| `actions/runs/{run}`, `…/attempts/{n}` | `repos/{o}/{r}/actions/runs/{run}`, `…/attempts/{n}` |
+| `actions/runs/{run}/job/{job}` | `repos/{o}/{r}/actions/jobs/{job}` |
+| `actions/workflows/{file}` | `repos/{o}/{r}/actions/workflows/{file}` |
+| `milestone/{n}` | `repos/{o}/{r}/milestones/{n}` |
+
+Any other github.com citation under a repository the API reads is fetched
+by HTTP when the repository is public. When it is private, an anonymous
+fetch answers 404 whatever the page holds, so the verb cannot check it: it
+prints a `warning:` naming the path shape (`/wiki`, say) and does not
+refuse. A github.com page under no repository the API reads — an App, a
+user — and every other host are fetched by HTTP.
 
 **Options.** None.
 
@@ -559,18 +586,22 @@ listing in every state; the milestone issue and its sub-issues, bodies and
 comments; each cited URL.
 
 **Writes.** Nothing. The report goes to stdout, including the `note:` that
-says the milestone is closed and a `warning:` line per unresolved external
-citation.
+says the milestone is closed, a `warning:` line per unresolved external
+citation, and a `warning:` line per github.com citation in a private
+repository whose shape the API cannot resolve.
 
 **Refusals.** [`NOT_FOUND`](SPEC.md#10-the-cli) — no milestone carries that
 number, open or closed. [`REQUIREMENT_ID_MISMATCH`](SPEC.md#10-the-cli) — an
 ID under `## Requirements` is not the milestone's own, checked before the
 walk. [`EVIDENCE_UNREACHABLE`](SPEC.md#10-the-cli) — a github.com citation
-does not resolve. An external citation that does not resolve prints a
-`warning:` and does not block. Plus the [common](#common-refusals) refusals.
+does not resolve: the API cannot find what a mapped shape names, or a
+public repository's page answers an error. An external citation that does
+not resolve, and a private one the verb cannot verify, print a `warning:`
+and do not block. Plus the [common](#common-refusals) refusals.
 
-**Exit status.** 0 when every github.com citation resolved; 1 when one did
-not, or on any other refusal.
+**Exit status.** 0 when no github.com citation failed to resolve — every
+one resolved, or warned as unverifiable; 1 when one did not, or on any
+other refusal.
 
 ```
 gh codecrew milestone evidence 4

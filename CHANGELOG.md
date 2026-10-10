@@ -6,6 +6,28 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### Milestone evidence resolves a private repository's Actions and repository links
+
+- `gh codecrew milestone evidence` resolved issue, pull request, commit and
+  blob links through the API and fetched every other github.com link
+  anonymously, which a private repository answers with 404: an Actions job
+  URL and a bare repository link refused a private hub's record
+  `EVIDENCE_UNREACHABLE` while `gh api` reached both. Every github.com shape
+  the fleet cites now resolves through the API under the caller's auth, from
+  one table in the venue: the repository root, Actions runs, attempts, jobs
+  (`actions/runs/{run}/job/{job}`, with `?pr=` and step anchors) and
+  workflows, commits and branches, `blob`/`tree` at a ref, compare,
+  releases by tag, milestones, and issue comments, pull request reviews and
+  review comments by their anchors — a comment anchor now resolves the
+  comment itself, not just its issue.
+- A github.com link of any other shape, under a private repository the API
+  reads, cannot be verified either way, and prints
+  `warning: github.com link cannot be verified` naming the path shape
+  instead of refusing: a refusal means the evidence is dead, and this
+  evidence is unverifiable. In a public repository such a link is fetched as
+  before and a 404 still refuses; links to other hosts are unchanged.
+  CLI.md's `milestone evidence` entry lists the table. (#396)
+
 ### A new repository learns before its first task that `task finish` needs a reporting check
 
 - A hub scaffolded by `init` has no workflow, and nothing said so until its
