@@ -27,6 +27,11 @@ an agent-gated merge into a self-approval.
 
 - **The plan:** does the diff do what the task issue says? Undeclared
   deviations are findings — the fix may be right, but unrecorded is wrong.
+- **The start record:** `task start` posts a `**Started by**` comment on
+  the task issue and links a `task/<n>-…` branch, and assigns only a human
+  caller. An App implementer's task carries no assignee — GitHub accepts
+  no App as one (CLI.md, `task start`) — so that comment and that branch
+  are the evidence, and the empty assignee field is not a finding.
 - **The requirements:** does the change actually satisfy the claimed IDs, not
   just gesture at them?
 - **The premises:** the highest-value review is checking what the spec or plan
@@ -55,8 +60,11 @@ the target and the diff is the whole decision. Your review is the only gate
 it passes, so check the claim before the content:
 
 - **The tool.** The commit body names it, and its version where it has
-  one. No tool named, no housekeeping — except the milestone record, whose
-  own test is below.
+  one. The body `gh codecrew init` writes is the shape:
+  `Scaffolded by gh codecrew init … (gh-codecrew <release>, protocol
+  <major.minor>):`, the files it wrote, and
+  `Housekeeping (SPEC §4); no task.` No tool named, no housekeeping —
+  except the milestone record, whose own test is below.
 - **The diff is the tool's output and nothing else.** Rerun the tool where
   you can — for `gh codecrew roles sync`, `roles sync --dry-run` on the
   PR's base with the version the body names — and compare. An extra line,
