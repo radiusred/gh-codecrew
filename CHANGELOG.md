@@ -6,6 +6,33 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### `task finish` lets GitHub decide the merge, and names a required check nothing reports
+
+- `task finish` merged through `gh pr merge`, whose client-side policy check
+  refuses a pull request GitHub reports `BLOCKED` without asking — although
+  the caller may hold the ruleset bypass GitHub would honour, and the only
+  flags past it are `--admin`, which the protocol forbids a crew identity,
+  and `--auto`, which merges after the protocol's one merge point. It now
+  asks GitHub's merge endpoint (`PUT /repos/{owner}/{repo}/pulls/{n}/merge`,
+  rebase, pinned to the head commit the gates read), so a bypass the caller
+  holds is honoured and anything GitHub refuses is printed in GitHub's own
+  words, exiting `1` with nothing after the merge done. The `--bypass` path
+  makes the same request; its recorded comment is unchanged. The gates,
+  their refusal codes and the comments posted are unchanged.
+- When GitHub reports the pull request `BLOCKED` while every gate passed,
+  `task finish` says so in a `note:` — under the `bypass actor` gate in the
+  dry run, before the merge in the live run — naming the caller the merge is
+  asked as, and the rule types in force on the base branch when they can be
+  read.
+- `task start` and `task finish` print a `note:` for each status check a
+  ruleset on the base branch requires that nothing has reported — on the
+  pull request's head at finish, on the newest pull requests into the
+  default branch at start — saying no workflow in the repository reports
+  it, so the merge will block or rely on a bypass until one does. A note,
+  not a refusal; where the rules endpoint is unavailable (404 or 403 on a
+  plan without rulesets) or the checks cannot be read, nothing is said
+  (#395).
+
 ### The workflows run on a pinned ubuntu-24.04 image
 
 - Every job in `.github/workflows/release.yml` and
