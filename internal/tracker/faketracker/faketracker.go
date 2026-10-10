@@ -80,6 +80,7 @@ type Venue struct {
 	CommentsFn              func(tracker.IssueRef) ([]tracker.Comment, error)
 	HasMilestoneDocFn       func(string, int) (bool, error)
 	FileContentFn           func(string, string) ([]byte, error)
+	WorkflowsFn             func(string) ([]tracker.Workflow, error)
 	LinkedBranchesFn        func(tracker.IssueRef) ([]string, error)
 	TaskBranchesFn          func(string) ([]string, bool, error)
 	OpenPRsForBranchFn      func(string, string) ([]int, error)
@@ -374,6 +375,14 @@ func (v *Venue) FileContent(repo string, path string) ([]byte, error) {
 	v.record("FileContent", repo, path)
 	if v.FileContentFn != nil {
 		return v.FileContentFn(repo, path)
+	}
+	return nil, nil
+}
+
+func (v *Venue) Workflows(repo string) ([]tracker.Workflow, error) {
+	v.record("Workflows", repo)
+	if v.WorkflowsFn != nil {
+		return v.WorkflowsFn(repo)
 	}
 	return nil, nil
 }
