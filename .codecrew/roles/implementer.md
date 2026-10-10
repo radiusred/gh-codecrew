@@ -111,7 +111,9 @@ Then, every run:
   obvious the answer seems.
 - **Open the PR** referencing the task (`Closes #123`) and finalize its
   description as the task summary: what was done, which requirements it
-  satisfies, links to any deviation comments. The task's own number is the
+  satisfies, a link to the `**Started by**` comment `task start` posted on
+  the task issue — so the reviewer never has to look for it — and links to
+  any deviation comments. The task's own number is the
   only one that needs a closing keyword: a backlog capture listed under the
   task's `## Adopts` section is adopted, and `task finish` closes it after
   the merge with a comment pointing back at the task and this PR — do not
