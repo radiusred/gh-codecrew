@@ -649,3 +649,33 @@ func TestRecentPRHeads(t *testing.T) {
 		}
 	}
 }
+
+// The workflow listing, every page of it, each workflow's path and state —
+// the GitHub-managed ones included, which the caller tells apart by path.
+func TestWorkflows(t *testing.T) {
+	calls := recordGH(t, ".github/workflows/ci.yml\tactive\ndynamic/pages/pages-build-deployment\tactive\n.github/workflows/old.yml\tdisabled_manually\n")
+	flows, err := GitHub{}.Workflows("o/r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Workflow{{".github/workflows/ci.yml", "active"}, {"dynamic/pages/pages-build-deployment", "active"}, {".github/workflows/old.yml", "disabled_manually"}}
+	if !slices.Equal(flows, want) {
+		t.Errorf("Workflows = %+v, want %+v", flows, want)
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, w := range []string{"--paginate", "repos/o/r/actions/workflows", "--jq", ".workflows[]"} {
+		if !strings.Contains(line, w) {
+			t.Errorf("the listing call %q is missing %q", line, w)
+		}
+	}
+}
+
+// A repository with no workflow answers an empty listing, which is no
+// workflow — not an error.
+func TestWorkflowsNone(t *testing.T) {
+	recordGH(t, "")
+	flows, err := GitHub{}.Workflows("o/r")
+	if err != nil || len(flows) != 0 {
+		t.Errorf("Workflows = %+v, %v; want none and no error", flows, err)
+	}
+}

@@ -300,6 +300,11 @@ type Tracker interface {
 	HasMilestoneDoc(repo string, n int) (bool, error)
 	// FileContent fetches a file from the default branch of repo.
 	FileContent(repo, path string) ([]byte, error)
+	// Workflows lists the repository's Actions workflows — each one's
+	// path and state — the read that says whether anything will report a
+	// check on a pull request before one exists (#391). A repository with
+	// none answers an empty listing, not an error.
+	Workflows(repo string) ([]Workflow, error)
 	// LinkedBranches lists the branch names linked to an issue — the
 	// relation task start creates through gh issue develop.
 	LinkedBranches(ref IssueRef) ([]string, error)
@@ -367,6 +372,14 @@ type Tracker interface {
 type BranchRule struct {
 	Type   string
 	Checks []string
+}
+
+// Workflow is one Actions workflow as the listing reports it: its path —
+// `.github/workflows/<file>` for one the repository holds, `dynamic/...`
+// for one GitHub manages — and its state, `active` when it runs.
+type Workflow struct {
+	Path  string
+	State string
 }
 
 // RepoInfo is the slice of repository settings the verbs read.

@@ -595,6 +595,26 @@ func (GitHub) FileContent(repo, path string) ([]byte, error) {
 		"-H", "Accept: application/vnd.github.raw+json")
 }
 
+// Workflows reads the Actions workflow listing, every page of it. A
+// repository with no workflow answers it with an empty list; the listing
+// itself fails only when the repository, or its Actions, cannot be read.
+func (GitHub) Workflows(repo string) ([]Workflow, error) {
+	out, err := gh.Run("api", "--paginate", fmt.Sprintf("repos/%s/actions/workflows?per_page=100", repo),
+		"--jq", ".workflows[] | [.path, .state] | @tsv")
+	if err != nil {
+		return nil, err
+	}
+	var flows []Workflow
+	for _, line := range strings.Split(string(out), "\n") {
+		path, state, ok := strings.Cut(strings.TrimSpace(line), "\t")
+		if !ok || path == "" {
+			continue
+		}
+		flows = append(flows, Workflow{Path: path, State: state})
+	}
+	return flows, nil
+}
+
 const taskQuery = `
 query($owner: String!, $repo: String!, $num: Int!) {
   repository(owner: $owner, name: $repo) {
