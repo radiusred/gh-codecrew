@@ -176,10 +176,24 @@ does every `note:` that leaves a commit to make by hand. In GitHub: the missing 
 `cc:needs-decision` labels, with the protocol's colour and description; an
 existing label is left exactly as it is. Everything it prints as it works is
 on stdout: a line per file written or kept, the commit, a line per label,
-each `note:`, and last an `action needed` block naming any kept root entry
-point that does not reach `.codecrew/AGENTS.md`, with the lines to add to it.
-It reads no pointer, so no pointer note reaches stderr; a refusal, or a bad
-flag's diagnostic and usage, does ([Output channels](#output-channels)).
+each `note:`, the `next:` lines, and last an `action needed` block naming any
+kept root entry point that does not reach `.codecrew/AGENTS.md`, with the
+lines to add to it. It reads no pointer, so no pointer note reaches stderr; a
+refusal, or a bad flag's diagnostic and usage, does
+([Output channels](#output-channels)).
+
+**Before the first task.** The `next:` lines say where the project goes from
+here — in hub mode, that every seat is routed to the operator and the
+`milestone new` to run; in spoke mode, the hub its tasks attach to — and, in
+both modes, the one requirement nothing init writes can meet: `task finish`
+requires at least one check reporting on every pull request and refuses
+[`NO_CHECKS`](SPEC.md#10-the-cli) without one
+([SPEC §8](SPEC.md#8-verification-and-gates): the gate cannot be satisfied
+by absence), so a repository without a workflow on `pull_request` adds one
+before its first task. init writes no workflow and reads none, so the lines
+are printed whatever the repository holds; [`task new`](#gh-codecrew-task-new)
+and [`task start`](#gh-codecrew-task-start) say it again, as a `note:`, while
+the repository still has none.
 
 **Refusals.** [`LAYOUT_LEGACY`](SPEC.md#10-the-cli) — the repo is on the 1.x
 layout; `gh codecrew migrate` moves it. A directory that is not the
@@ -594,13 +608,29 @@ found by either fallback is named in the output.
 | `--adopts` | `<ref>[,<ref>]` | none | A backlog issue this task adopts and `task finish` closes; repeatable, and each value may be a comma-separated list. A bare number resolves against the task's own repo. |
 
 **Reads.** The pointer and, from a spoke, the hub's; the hub's milestone
-listing and newest issues; each adopted issue's state.
+listing and newest issues; each adopted issue's state; and, once the task
+exists, the target repository's Actions workflows
+(`GET /repos/{owner}/{repo}/actions/workflows`) and the file of each active
+one under `.github/workflows/`, from the default branch.
 
 **Writes.** In GitHub: one issue in the target repo labelled `cc:task`,
 linked to the milestone as a sub-issue, and one comment on each adopted
 capture. Nothing on disk. On stdout: the issue reference, the adoptions
-recorded, and a `note:` for a comment that could not be posted or a milestone
-found by one of the fallback reads.
+recorded, a `note:` for a comment that could not be posted or a milestone
+found by one of the fallback reads, and the workflow note below.
+
+**The workflow note.** When the target repository — `--repo`, or the current
+one — has no workflow triggered on `pull_request`, one `note:` says that
+`task finish` will refuse [`NO_CHECKS`](SPEC.md#10-the-cli) until a check
+reports on the task's pull request, and to add a workflow that runs on
+`pull_request`, on the task's branch or before it, and let it report. No
+workflow at all counts, and so does a set of workflows none of which names
+`pull_request` in its `on:` — as one event, in a list, or as a key of the
+map; `pull_request_target` is a different event and does not count, nor
+does a disabled workflow, nor a GitHub-managed one with no file in the
+repository. The note is advisory: no refusal, no change to the exit status.
+Where the listing cannot be read (403, 404) or a workflow file cannot be read
+or parsed, it says nothing.
 
 **Refusals.** [`NOT_FOUND`](SPEC.md#10-the-cli) — no open milestone with that
 number, after all three reads. [`ADOPT_NOT_OPEN`](SPEC.md#10-the-cli) — an
@@ -639,7 +669,12 @@ reported on the newest pull requests into that branch, is named in a
 block or rely on a bypass until one does. The note is advisory and changes
 nothing; where the rules cannot be read — a plan without rulesets answers
 404 or 403 — or there is no pull request yet to compare with, it says
-nothing.
+nothing. Beside it, the same workflow note as
+[`task new`](#gh-codecrew-task-new): when the task's repository has no
+workflow triggered on `pull_request`, one `note:` that `task finish` will
+refuse [`NO_CHECKS`](SPEC.md#10-the-cli) until a check reports on the task's
+pull request, and to add a workflow that runs on `pull_request` and let it
+report — silent when any read fails, and no refusal either way.
 
 **Options.** None.
 
@@ -648,15 +683,17 @@ issue, its labels, its body's `## Plan` section; the caller's login; and,
 where it creates the branch, the repository's default branch, the rules in
 force on it (`GET /repos/{owner}/{repo}/rules/branches/{branch}`) and, when
 they require status checks, the check runs and commit statuses on the heads
-of the three newest pull requests into it.
+of the three newest pull requests into it; and the repository's Actions
+workflows (`GET /repos/{owner}/{repo}/actions/workflows`) with the file of
+each active one under `.github/workflows/`, from the default branch.
 
 **Writes.** In GitHub: the `**Started by**` comment on the task issue, the
 assignment where the caller is human, and the linked branch. Nothing on disk
 — the branch is created on the remote, and the printed line names the
 `git fetch && git switch` that brings it local. On stdout: the branch
 created, the local command, the start record, a `note:` for an assignment
-or a branch creation that failed, and a `note:` for each required status
-check nothing has reported.
+or a branch creation that failed, a `note:` for each required status
+check nothing has reported, and the workflow note.
 
 **Refusals.** [`CLOSED`](SPEC.md#10-the-cli) — the task issue is already
 closed. [`NOT_A_TASK`](SPEC.md#10-the-cli) — the issue is not labelled
@@ -760,7 +797,11 @@ pull request closes the task.
 token cannot read the pull request's checks at all.
 [`NO_CHECKS`](SPEC.md#10-the-cli) — the pull request reports no checks; a
 check reporting `skipping` is a reported check and satisfies the gate, a
-`[skip ci]` commit produces none at all, and there is no override.
+`[skip ci]` commit produces none at all, and there is no override. A
+repository needs a workflow on `pull_request` before its first task:
+[`init`](#gh-codecrew-init) says so in its `next:` lines, and
+[`task new`](#gh-codecrew-task-new) and [`task start`](#gh-codecrew-task-start)
+in a `note:` while the repository has none.
 [`CHECKS_PENDING`](SPEC.md#10-the-cli) — its checks are still
 running. [`CHECKS_FAILING`](SPEC.md#10-the-cli) — a check failed.
 [`NO_HOLDER_REVIEW`](SPEC.md#10-the-cli) — the reviewer seat's holder has not
