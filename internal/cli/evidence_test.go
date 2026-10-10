@@ -415,9 +415,26 @@ func TestCheckEvidenceStillRefusesDeadGitHubLinks(t *testing.T) {
 	if rep.Total != 6 {
 		t.Errorf("total = %d, want 6 (the code span is not a citation)", rep.Total)
 	}
+	appFetched := false
 	for _, u := range *fetched {
 		if strings.Contains(u, "InCode") || strings.Contains(u, "/o/priv/") {
 			t.Errorf("fetched %s: a code span or a private page reached the network", u)
+		}
+		appFetched = appFetched || u == "https://github.com/apps/some-app"
+	}
+	// The App page lies under no repository: it keeps its plain fetch and
+	// takes no API route, neither a mapped path nor a visibility read.
+	if !appFetched {
+		t.Errorf("the App page was not fetched: %v", *fetched)
+	}
+	for _, p := range venuePaths(v) {
+		if strings.Contains(p, "apps/") {
+			t.Errorf("the App page took an API route: %s", p)
+		}
+	}
+	for _, c := range v.CallsTo("RepoInfo") {
+		if repo := c.Args[0].(string); strings.HasPrefix(repo, "apps/") {
+			t.Errorf("the App page was read as a repository: %s", repo)
 		}
 	}
 	var out bytes.Buffer
