@@ -71,8 +71,10 @@ type Venue struct {
 	ClosingPRsFn            func(tracker.IssueRef, bool) ([]int, error)
 	PRInfoFn                func(string, int) (tracker.PR, error)
 	ClosingReferencesFn     func(string, int) ([]tracker.TitledIssue, error)
-	MergePRFn               func(string, int) error
-	MergePRBypassFn         func(string, int) error
+	MergePRFn               func(string, int, string) error
+	MergePRBypassFn         func(string, int, string) error
+	ReportedChecksFn        func(string, string) ([]string, error)
+	RecentPRHeadsFn         func(string, string, int) ([]string, error)
 	MergeCommitFn           func(string, int) (string, error)
 	CloseIssueFn            func(tracker.IssueRef, string) error
 	CommentsFn              func(tracker.IssueRef) ([]tracker.Comment, error)
@@ -88,6 +90,7 @@ type Venue struct {
 	CurrentRepoFn           func() (string, error)
 	RepoInDirFn             func(string) (string, string, error)
 	BranchRuleTypesFn       func(string, string) ([]string, error)
+	BranchRulesFn           func(string, string) ([]tracker.BranchRule, error)
 	TeamMembersFn           func(string, string) ([]string, error)
 	AccountTypeFn           func(string) (string, error)
 	APIReachableFn          func(string) error
@@ -303,20 +306,36 @@ func (v *Venue) ClosingReferences(repo string, number int) ([]tracker.TitledIssu
 	return nil, nil
 }
 
-func (v *Venue) MergePR(repo string, number int) error {
-	v.record("MergePR", repo, number)
+func (v *Venue) MergePR(repo string, number int, sha string) error {
+	v.record("MergePR", repo, number, sha)
 	if v.MergePRFn != nil {
-		return v.MergePRFn(repo, number)
+		return v.MergePRFn(repo, number, sha)
 	}
 	return nil
 }
 
-func (v *Venue) MergePRBypass(repo string, number int) error {
-	v.record("MergePRBypass", repo, number)
+func (v *Venue) MergePRBypass(repo string, number int, sha string) error {
+	v.record("MergePRBypass", repo, number, sha)
 	if v.MergePRBypassFn != nil {
-		return v.MergePRBypassFn(repo, number)
+		return v.MergePRBypassFn(repo, number, sha)
 	}
 	return nil
+}
+
+func (v *Venue) ReportedChecks(repo string, sha string) ([]string, error) {
+	v.record("ReportedChecks", repo, sha)
+	if v.ReportedChecksFn != nil {
+		return v.ReportedChecksFn(repo, sha)
+	}
+	return nil, nil
+}
+
+func (v *Venue) RecentPRHeads(repo string, base string, limit int) ([]string, error) {
+	v.record("RecentPRHeads", repo, base, limit)
+	if v.RecentPRHeadsFn != nil {
+		return v.RecentPRHeadsFn(repo, base, limit)
+	}
+	return nil, nil
 }
 
 func (v *Venue) MergeCommit(repo string, number int) (string, error) {
@@ -435,6 +454,14 @@ func (v *Venue) BranchRuleTypes(repo string, branch string) ([]string, error) {
 	v.record("BranchRuleTypes", repo, branch)
 	if v.BranchRuleTypesFn != nil {
 		return v.BranchRuleTypesFn(repo, branch)
+	}
+	return nil, nil
+}
+
+func (v *Venue) BranchRules(repo string, branch string) ([]tracker.BranchRule, error) {
+	v.record("BranchRules", repo, branch)
+	if v.BranchRulesFn != nil {
+		return v.BranchRulesFn(repo, branch)
 	}
 	return nil, nil
 }

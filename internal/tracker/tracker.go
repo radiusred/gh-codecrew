@@ -147,10 +147,16 @@ type PR struct {
 	Author         string
 	HeadRef        string // the PR's head branch name
 	HeadSHA        string // the head commit as GitHub last saw it — frozen at merge
-	CrossRepo      bool   // head lives in another repo (a fork)
-	Open           bool
-	Merged         bool
-	NoChecks       bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
+	BaseRef        string // the branch the PR merges into, whose policy applies
+	// MergeStateStatus is GitHub's own reading of whether the PR can merge
+	// now — "CLEAN", "BLOCKED", "BEHIND", "UNSTABLE", "UNKNOWN" and the
+	// rest. task finish does not gate on it: GitHub decides the merge, and
+	// "BLOCKED" may be a ruleset the caller holds a bypass for (#392).
+	MergeStateStatus string
+	CrossRepo        bool // head lives in another repo (a fork)
+	Open             bool
+	Merged           bool
+	NoChecks         bool // zero CI checks reported — the deterministic gate cannot be satisfied by absence
 	// ChecksUnreadable is the permission the installation token lacks to
 	// read the checks at all ("checks: read" or "actions: read"), set in
 	// place of the raw GraphQL error so the gate can name it (#198).
@@ -263,12 +269,23 @@ type Tracker interface {
 	// prose the protocol never treats as a reference (#303). Titled,
 	// because a note about an issue nobody meant to close has to name it.
 	ClosingReferences(repo string, number int) ([]TitledIssue, error)
-	// MergePR rebase-merges a PR.
-	MergePR(repo string, number int) error
-	// MergePRBypass rebase-merges with the ruleset's administrator bypass
-	// (task finish --bypass; fails with GitHub's own error when the caller
-	// is not a bypass actor).
-	MergePRBypass(repo string, number int) error
+	// MergePR asks GitHub to rebase-merge a PR whose head is still sha —
+	// the head task finish gated. GitHub evaluates the request, a ruleset
+	// bypass the caller holds included, and a refusal comes back as its
+	// own error (#392).
+	MergePR(repo string, number int, sha string) error
+	// MergePRBypass is the merge task finish --bypass makes. It is the same
+	// request as MergePR — GitHub decides bypass eligibility, and fails
+	// with its own error when the caller is not a bypass actor — kept as
+	// its own call so the recorded bypass is its own path in the verb.
+	MergePRBypass(repo string, number int, sha string) error
+	// ReportedChecks lists the names of the check runs and the contexts
+	// of the commit statuses that have reported on a commit — what a
+	// branch policy's required status check is matched against.
+	ReportedChecks(repo, sha string) ([]string, error)
+	// RecentPRHeads returns the head commits of the newest pull requests
+	// into base, open or closed, newest first, at most limit of them.
+	RecentPRHeads(repo, base string, limit int) ([]string, error)
 	// MergeCommit returns the commit a merged PR left on the base branch,
 	// or "" when it has none yet. A rebase merge rewrites the head, so the
 	// head SHA is not that commit — task finish names this one when it
@@ -323,6 +340,9 @@ type Tracker interface {
 	RepoInDir(dir string) (repo, defaultBranch string, err error)
 	// BranchRuleTypes lists the types of the rules that apply to a branch.
 	BranchRuleTypes(repo, branch string) ([]string, error)
+	// BranchRules lists the rules in force on a branch, each with the
+	// status checks it requires.
+	BranchRules(repo, branch string) ([]BranchRule, error)
 	// TeamMembers returns a team's member logins.
 	TeamMembers(org, team string) ([]string, error)
 	// AccountType reports what the venue holds at a login — "User",
@@ -338,6 +358,15 @@ type Tracker interface {
 	// neither a user nor an installation credential. Status and body come
 	// back unread; the caller names its own conditions from them.
 	AppRequest(client *http.Client, jwt, method, path string, body any) (status int, data []byte, err error)
+}
+
+// BranchRule is one rule in force on a branch, as the rules endpoint
+// reports it: its type, and for a "required_status_checks" rule the
+// contexts it requires — the name a check run or commit status must report
+// under for the merge to proceed.
+type BranchRule struct {
+	Type   string
+	Checks []string
 }
 
 // RepoInfo is the slice of repository settings the verbs read.

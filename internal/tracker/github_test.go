@@ -43,7 +43,7 @@ func TestHelperGH(t *testing.T) {
 	if len(args) >= 2 && args[0] == "pr" {
 		switch args[1] {
 		case "view":
-			fmt.Print(`{"state":"OPEN","reviewDecision":"","headRefName":"task/1-x","headRefOid":"abc","isCrossRepository":false,"mergedAt":"","author":{"login":"app/myorg-coder"},"reviews":[]}`)
+			fmt.Print(`{"state":"OPEN","reviewDecision":"","headRefName":"task/1-x","headRefOid":"abc","baseRefName":"main","mergeStateStatus":"BLOCKED","isCrossRepository":false,"mergedAt":"","author":{"login":"app/myorg-coder"},"reviews":[]}`)
 			os.Exit(0)
 		case "checks":
 			if body := os.Getenv("GH_HELPER_CHECKS_JSON"); body != "" {
@@ -171,6 +171,11 @@ func TestPRInfoSkippingChecksSatisfyTheGate(t *testing.T) {
 		pr, err := GitHub{}.PRInfo("o/r", 9)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
+		}
+		// The two fields #392 reads: the policy's branch, and GitHub's own
+		// view of whether the merge is blocked.
+		if pr.BaseRef != "main" || pr.MergeStateStatus != "BLOCKED" {
+			t.Errorf("%s: BaseRef=%q MergeStateStatus=%q, want main/BLOCKED", tc.name, pr.BaseRef, pr.MergeStateStatus)
 		}
 		if pr.ChecksOK != tc.ok || pr.ChecksPending != tc.pending || pr.NoChecks != tc.none {
 			t.Errorf("%s: ChecksOK=%v ChecksPending=%v NoChecks=%v, want %v/%v/%v",
@@ -530,5 +535,117 @@ func TestClosingReferences(t *testing.T) {
 	}
 	if len(*calls) != 1 {
 		t.Errorf("the refusal reached the API: %v", *calls)
+	}
+}
+
+// The merge is a request GitHub decides (#392): the REST merge endpoint,
+// rebase, pinned to the head the gates read — never `gh pr merge`, whose
+// client-side check refused a BLOCKED PR without asking, and never its
+// --admin. The --bypass path makes the same request.
+func TestMergeAsksGitHubsMergeEndpoint(t *testing.T) {
+	for name, merge := range map[string]func(string, int, string) error{
+		"MergePR":       GitHub{}.MergePR,
+		"MergePRBypass": GitHub{}.MergePRBypass,
+	} {
+		calls := recordGH(t, `{"sha":"d1ff00d","merged":true,"message":"Pull Request successfully merged"}`)
+		if err := merge("o/r", 9, "abc"); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(*calls) != 1 {
+			t.Fatalf("%s: calls = %v", name, *calls)
+		}
+		line := strings.Join((*calls)[0], " ")
+		if line != "api -X PUT repos/o/r/pulls/9/merge -f merge_method=rebase -f sha=abc" {
+			t.Errorf("%s asked gh %q", name, line)
+		}
+	}
+	// A 200 that does not say merged is not a merge.
+	recordGH(t, `{"merged":false,"message":"Merge already in progress"}`)
+	if err := (GitHub{}).MergePR("o/r", 9, "abc"); err == nil || !strings.Contains(err.Error(), "Merge already in progress") {
+		t.Errorf("merged:false = %v", err)
+	}
+}
+
+// GitHub's refusal is reported in its own words: gh api prints the API's
+// message on stderr and exits nonzero, and that message is the error.
+func TestMergeRefusalIsGitHubsOwnMessage(t *testing.T) {
+	msg := "gh: Repository rule violations found\n\nRequired status check \"Lint commit messages\" is expected. (HTTP 405)"
+	orig := gh.Command
+	gh.Command = func(_ string, args ...string) *exec.Cmd {
+		return exec.Command("sh", "-c", `printf '{"message":"Repository rule violations found"}'; printf '%s' "$0" >&2; exit 1`, msg)
+	}
+	t.Cleanup(func() { gh.Command = orig })
+	err := GitHub{}.MergePR("o/r", 9, "abc")
+	if err == nil || !strings.Contains(err.Error(), msg) {
+		t.Errorf("err = %v, want it to carry %q", err, msg)
+	}
+}
+
+// The rules in force on a branch, read whole, with the contexts a
+// required_status_checks rule names — the shape the endpoint returned for
+// the organization ruleset #392 met.
+func TestBranchRules(t *testing.T) {
+	calls := recordGH(t, `[{"type":"pull_request","ruleset_source_type":"Organization","ruleset_id":1,"parameters":{"required_approving_review_count":0}},`+
+		`{"type":"required_status_checks","ruleset_source_type":"Organization","ruleset_id":1,"parameters":{"strict_required_status_checks_policy":false,"required_status_checks":[{"context":"Lint commit messages","integration_id":15368},{"context":"test"}]}},`+
+		`{"type":"deletion"}]`)
+	rules, err := GitHub{}.BranchRules("o/r", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []BranchRule{{Type: "pull_request"}, {Type: "required_status_checks", Checks: []string{"Lint commit messages", "test"}}, {Type: "deletion"}}
+	if len(rules) != len(want) {
+		t.Fatalf("rules = %+v", rules)
+	}
+	for i := range want {
+		if rules[i].Type != want[i].Type || !slices.Equal(rules[i].Checks, want[i].Checks) {
+			t.Errorf("rule %d = %+v, want %+v", i, rules[i], want[i])
+		}
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, w := range []string{"--paginate", "repos/o/r/rules/branches/main"} {
+		if !strings.Contains(line, w) {
+			t.Errorf("the rules call %q is missing %q", line, w)
+		}
+	}
+}
+
+// Both kinds of report count: check runs by name and commit statuses by
+// context, each listing walked whole, each name once.
+func TestReportedChecks(t *testing.T) {
+	calls := recordGH(t, "Lint commit messages\ntest\n")
+	names, err := GitHub{}.ReportedChecks("o/r", "abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(names, []string{"Lint commit messages", "test"}) {
+		t.Errorf("names = %q", names)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("calls = %v", *calls)
+	}
+	for i, w := range []string{"repos/o/r/commits/abc/check-runs", "repos/o/r/commits/abc/statuses"} {
+		line := strings.Join((*calls)[i], " ")
+		if !strings.Contains(line, w) || !strings.Contains(line, "--paginate") || !strings.Contains(line, "--jq") {
+			t.Errorf("call %d = %q, want a paginated %s read", i, line, w)
+		}
+	}
+}
+
+// The newest pull requests into a base, closed ones included, newest
+// first, as many as asked for.
+func TestRecentPRHeads(t *testing.T) {
+	calls := recordGH(t, `[{"number":3,"head":{"sha":"c3"}},{"number":2,"head":{"sha":"b2"}}]`)
+	heads, err := GitHub{}.RecentPRHeads("o/r", "main", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(heads, []string{"c3", "b2"}) {
+		t.Errorf("heads = %q", heads)
+	}
+	line := strings.Join((*calls)[0], " ")
+	for _, w := range []string{"repos/o/r/pulls?", "state=all", "base=main", "direction=desc", "per_page=3"} {
+		if !strings.Contains(line, w) {
+			t.Errorf("the listing call %q is missing %q", line, w)
+		}
 	}
 }

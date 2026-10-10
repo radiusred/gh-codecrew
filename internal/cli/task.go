@@ -276,6 +276,11 @@ func runTaskStart(c *ctx, w io.Writer, ref tracker.IssueRef) error {
 			fmt.Fprintf(w, "linked branch %s created\n", branch)
 			fmt.Fprintf(w, "locally: git fetch && git switch %s\n", branch)
 		}
+		// The policy the task's pull request will meet, said while the
+		// missing workflow is still cheap to add (#392).
+		for _, n := range startPolicyNotes(c.t, ref.Repo) {
+			fmt.Fprintln(w, n)
+		}
 	}
 	fmt.Fprintf(w, "started %s as @%s\n", ref, viewer)
 	return nil
@@ -595,6 +600,24 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	} else {
 		p.na("bypass actor")
 	}
+	// The branch policy, read once every gate has passed and only to say
+	// what the record should show (#392): a BLOCKED PR whose gates all
+	// passed is a merge GitHub will decide — a bypass the caller holds, or
+	// a refusal in GitHub's words — and a required check nothing reports is
+	// the usual reason. A failed read says nothing; see policy.go.
+	var rules []tracker.BranchRule
+	rulesRead := false
+	if pr.BaseRef != "" {
+		if r, err := c.t.BranchRules(pr.Repo, pr.BaseRef); err == nil {
+			rules, rulesRead = r, true
+		}
+	}
+	var preMerge []string
+	if !admin && pr.MergeStateStatus == "BLOCKED" {
+		line := blockedNote(pr, viewer, rules, rulesRead)
+		p.note(line)
+		preMerge = append(preMerge, line)
+	}
 	// The captures this task adopted, read once every gate has passed —
 	// the last two of them depend on the flags, so this comes after them
 	// and a refused finish pays for none of it.
@@ -626,6 +649,11 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 		}
 		notes = append(notes, fmt.Sprintf("note: this PR would also close %s (%s) — not the task", it.Ref, it.Title))
 	}
+	if rulesRead && pr.HeadSHA != "" {
+		for _, check := range unreportedChecks(c.t, pr.Repo, requiredChecks(rules), []string{pr.HeadSHA}) {
+			notes = append(notes, unreportedNote(pr.BaseRef, check, fmt.Sprintf("PR #%d's head", pr.Number)))
+		}
+	}
 	for _, n := range notes {
 		p.remark("%s", n)
 	}
@@ -653,6 +681,9 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 	// merged state.
 	planClone(c.t, pr, c.current, false).would(p)
 	run := func(w io.Writer) error {
+		for _, n := range preMerge {
+			fmt.Fprintln(w, n)
+		}
 		for _, n := range notes {
 			fmt.Fprintln(w, n)
 		}
@@ -662,12 +693,12 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 			}
 		}
 		if admin {
-			if err := c.t.MergePRBypass(pr.Repo, pr.Number); err != nil {
+			if err := c.t.MergePRBypass(pr.Repo, pr.Number, pr.HeadSHA); err != nil {
 				return err
 			}
 			fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
 		} else {
-			if err := c.t.MergePR(pr.Repo, pr.Number); err != nil {
+			if err := c.t.MergePR(pr.Repo, pr.Number, pr.HeadSHA); err != nil {
 				return err
 			}
 			fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
