@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/radiusred/gh-codecrew/internal/config"
 	"github.com/radiusred/gh-codecrew/internal/tracker"
@@ -32,19 +33,50 @@ type finishFake struct {
 	rulesErr  error               // what the rules endpoint answers with — a 404 on a plan without rulesets
 	reported  map[string][]string // the check names reported on each head SHA
 	checksErr error               // when set, what the reported-checks read fails with
+	// After the merge the fake plays GitHub's close: the task reads closed
+	// once stillOpen reads have found it open (negative: it never closes),
+	// and a capture the verb closed reads closed unless captureOpen names it.
+	stillOpen   int
+	readBackErr error        // when set, every read of the task after the merge fails with it
+	captureOpen map[int]bool // captures GitHub leaves open after the close call
+	mergedOK    bool         // a merge request went through
+	taskReads   int          // reads of the task after the merge
+	closedRefs  map[int]bool // captures the verb asked to close
+	reads       map[int]int  // reads of each capture after the verb closed it
+	shaReads    int          // reads of the merge commit
 }
 
 func (f *finishFake) Task(ref tracker.IssueRef) (tracker.Task, error) {
+	if f.mergedOK && ref == f.task.Ref {
+		f.taskReads++
+		if f.readBackErr != nil {
+			return tracker.Task{}, f.readBackErr
+		}
+		task := f.task
+		task.Closed = f.stillOpen >= 0 && f.taskReads > f.stillOpen
+		return task, nil
+	}
+	if f.closedRefs[ref.Number] {
+		f.reads[ref.Number]++
+		return tracker.Task{Ref: ref, Closed: !f.captureOpen[ref.Number]}, nil
+	}
 	if issue, ok := f.issues[ref.Number]; ok {
 		return issue, nil
 	}
 	return f.task, nil
 }
 func (f *finishFake) IssueBody(tracker.IssueRef) (string, error) { return f.body, nil }
-func (f *finishFake) MergeCommit(string, int) (string, error)    { return f.mergeSHA, nil }
+func (f *finishFake) MergeCommit(string, int) (string, error) {
+	f.shaReads++
+	return f.mergeSHA, nil
+}
 func (f *finishFake) CloseIssue(ref tracker.IssueRef, c string) error {
 	f.writes = append(f.writes, "close "+ref.String())
 	f.closed = append(f.closed, c)
+	if f.closedRefs == nil {
+		f.closedRefs, f.reads = map[int]bool{}, map[int]int{}
+	}
+	f.closedRefs[ref.Number] = true
 	return nil
 }
 func (f *finishFake) Comments(tracker.IssueRef) ([]tracker.Comment, error) { return f.comments, nil }
@@ -67,6 +99,7 @@ func (f *finishFake) MergePR(_ string, n int, sha string) error {
 		return f.mergeErr
 	}
 	f.writes = append(f.writes, "merge")
+	f.mergedOK = true
 	return nil
 }
 func (f *finishFake) MergePRBypass(_ string, n int, sha string) error {
@@ -75,6 +108,7 @@ func (f *finishFake) MergePRBypass(_ string, n int, sha string) error {
 		return f.mergeErr
 	}
 	f.writes = append(f.writes, "merge-bypass")
+	f.mergedOK = true
 	return nil
 }
 func (f *finishFake) BranchRules(string, string) ([]tracker.BranchRule, error) {
@@ -1094,4 +1128,162 @@ func TestFinishSaysNothingWithoutAPolicyToReport(t *testing.T) {
 	if !strings.Contains(buf.String(), "as BLOCKED") || strings.Contains(buf.String(), "rules in force") {
 		t.Errorf("a BLOCKED PR on unreadable rules:\n%s", buf.String())
 	}
+}
+
+// finishLive runs a finish that passes every gate, with the sleeper
+// recording its waits, and returns what it printed and the waits.
+func finishLive(t *testing.T, f *finishFake) (string, []time.Duration) {
+	t.Helper()
+	waits := recordSleeps(t)
+	p, run, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	if err := run(&buf); err != nil {
+		t.Fatalf("a finish whose merge happened must exit 0: %v", err)
+	}
+	return buf.String(), *waits
+}
+
+// After the merge the verb reads the task back instead of asserting that
+// its closing keyword closed it (#386, M21-R7). Closed on the first read:
+// it says so, waits for nothing, and reads no merge commit it does not
+// need.
+func TestFinishReadsTheTaskBackClosed(t *testing.T) {
+	f := cleanFinish()
+	out, waits := finishLive(t, f)
+	if !strings.Contains(out, "merged PR #9\no/r#7 closed\n") {
+		t.Errorf("the merge line and the read-back:\n%s", out)
+	}
+	if strings.Contains(out, "closes via its closing keyword") {
+		t.Errorf("the live run still asserts the close:\n%s", out)
+	}
+	if f.taskReads != 1 || len(waits) != 0 {
+		t.Errorf("read the task %d times, waited %v; want one read, no wait", f.taskReads, waits)
+	}
+	if f.shaReads != 0 {
+		t.Errorf("read the merge commit %d times with nothing needing it", f.shaReads)
+	}
+}
+
+// GitHub closes on the keyword asynchronously, so the first read can beat
+// it: the verb reads again after a pause, and a task that closes within
+// the bound is reported closed with no note.
+func TestFinishRereadsATaskGitHubHasNotClosedYet(t *testing.T) {
+	f := cleanFinish()
+	f.stillOpen = 2
+	out, waits := finishLive(t, f)
+	if !strings.Contains(out, "o/r#7 closed\n") || strings.Contains(out, "note: o/r#7") {
+		t.Errorf("a task that closed on the third read:\n%s", out)
+	}
+	if f.taskReads != 3 {
+		t.Errorf("read the task %d times, want 3", f.taskReads)
+	}
+	if want := []time.Duration{readBackWait, readBackWait}; !equalWaits(waits, want) {
+		t.Errorf("waited %v, want %v", waits, want)
+	}
+}
+
+// davison/md-notes#231: the closing reference was there at merge time and
+// GitHub did not act on it. After the bound the verb says plainly that the
+// task is still open and what closes it by hand — a note, not a refusal:
+// the merge happened, the verb exits 0 and the cleanup still runs.
+func TestFinishNotesATaskGitHubLeavesOpen(t *testing.T) {
+	f := cleanFinish()
+	f.stillOpen = -1
+	f.mergeSHA = "19823d0aa"
+	out, waits := finishLive(t, f)
+	want := "note: o/r#7 is still open after the merge: GitHub did not act on the closing reference; close it by hand with a comment naming PR #9 and 19823d0aa\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("output lacks %q:\n%s", want, out)
+	}
+	if strings.Contains(out, "o/r#7 closed") {
+		t.Errorf("reported a close that did not happen:\n%s", out)
+	}
+	if f.taskReads != readBackAttempts || len(waits) != readBackAttempts-1 {
+		t.Errorf("read %d times with %d waits, want %d reads and %d waits", f.taskReads, len(waits), readBackAttempts, readBackAttempts-1)
+	}
+	if got := strings.Join(f.writes, ","); got != "merge,delete task/7-x" {
+		t.Errorf("run wrote %v — the verb does not close the task itself, and the cleanup still runs", f.writes)
+	}
+}
+
+// A task that cannot be read back at all is not reported closed either:
+// the note says so, and what to do if it is still open.
+func TestFinishNotesATaskItCannotReadBack(t *testing.T) {
+	f := cleanFinish()
+	f.readBackErr = errors.New("502")
+	f.mergeSHA = ""
+	out, _ := finishLive(t, f)
+	want := "note: could not read o/r#7 back after the merge (502); if it is still open, close it by hand with a comment naming PR #9 and its merge commit\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("output lacks %q:\n%s", want, out)
+	}
+}
+
+// The captures the verb closes are read back the same way: one that reads
+// closed is reported closed, one GitHub leaves open after the close call
+// gets the same note's shape.
+func TestFinishReadsTheAdoptedCapturesBack(t *testing.T) {
+	f := cleanFinish()
+	f.body = "## Adopts\n- #193 — closes\n- #195 — stays open\n\n## Plan\np\n"
+	f.captureOpen = map[int]bool{195: true}
+	f.mergeSHA = "d1ff00d"
+	out, waits := finishLive(t, f)
+	for _, want := range []string{
+		"closed o/r#193 (adopted by o/r#7)\n",
+		"note: o/r#195 is still open after the close (adopted by o/r#7): GitHub did not act on it; close it by hand with a comment naming PR #9 and d1ff00d\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "closed o/r#195") {
+		t.Errorf("reported a capture closed that reads open:\n%s", out)
+	}
+	if f.reads[193] != 1 || f.reads[195] != readBackAttempts {
+		t.Errorf("capture reads %v, want 193 once and 195 %d times", f.reads, readBackAttempts)
+	}
+	if len(waits) != readBackAttempts-1 {
+		t.Errorf("waited %v", waits)
+	}
+	if f.shaReads != 1 {
+		t.Errorf("read the merge commit %d times, want once for every use", f.shaReads)
+	}
+}
+
+// --dry-run cannot observe GitHub's close, so its line is the one it was:
+// it still says the task closes via its closing keyword, reads nothing
+// back and waits for nothing.
+func TestFinishDryRunMergeLineIsUnchanged(t *testing.T) {
+	f := cleanFinish()
+	waits := recordSleeps(t)
+	p, _, err := planFinish(finishCtx(f, crewRoles), f.task.Ref, false, false)
+	if err != nil || p.refusal != nil {
+		t.Fatalf("plan: err %v refusal %v", err, p.refusal)
+	}
+	var buf bytes.Buffer
+	p.print(&buf)
+	if !strings.Contains(buf.String(), "would merge PR #9 (rebase); o/r#7 closes via its closing keyword\n") {
+		t.Errorf("the dry run's merge line changed:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "still open") || strings.Contains(buf.String(), "o/r#7 closed") {
+		t.Errorf("the dry run reports a read-back:\n%s", buf.String())
+	}
+	if f.taskReads != 0 || len(*waits) != 0 || len(f.writes) != 0 {
+		t.Errorf("the dry run read back %d times, waited %v, wrote %v", f.taskReads, *waits, f.writes)
+	}
+}
+
+func equalWaits(got, want []time.Duration) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

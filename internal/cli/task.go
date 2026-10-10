@@ -706,14 +706,16 @@ func planFinish(c *ctx, ref tracker.IssueRef, operatorConfirm, bypass bool) (*pl
 			if err := c.t.MergePRBypass(pr.Repo, pr.Number, pr.HeadSHA); err != nil {
 				return err
 			}
-			fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded); %s closes via its closing keyword\n", pr.Number, ref)
+			fmt.Fprintf(w, "merged PR #%d via administrator bypass (recorded)\n", pr.Number)
 		} else {
 			if err := c.t.MergePR(pr.Repo, pr.Number, pr.HeadSHA); err != nil {
 				return err
 			}
-			fmt.Fprintf(w, "merged PR #%d; %s closes via its closing keyword\n", pr.Number, ref)
+			fmt.Fprintf(w, "merged PR #%d\n", pr.Number)
 		}
-		closeAdopted(w, c.t, ref, prRef, adopted)
+		merge := &mergeCommit{t: c.t, pr: prRef}
+		confirmTaskClosed(w, c.t, ref, merge)
+		closeAdopted(w, c.t, ref, merge, adopted)
 		deleteHead(w, c.t, pr)
 		planClone(c.t, pr, c.current, true).run(w)
 		return nil
@@ -751,16 +753,103 @@ func planAdoptions(t tracker.Tracker, task tracker.IssueRef) ([]adoptItem, error
 	return items, nil
 }
 
+// readBackAttempts bounds how many times task finish reads an issue back
+// after the merge, and readBackWait is the pause between reads: GitHub
+// closes a task on its closing keyword asynchronously, so the first read
+// can beat it. Four reads two seconds apart give it about six seconds
+// before the verb says the task is still open (#386).
+const (
+	readBackAttempts = 4
+	readBackWait     = 2 * time.Second
+)
+
+// readBack reads an issue's state after the merge until it reads closed,
+// at most readBackAttempts times readBackWait apart. It reports whether
+// the issue closed; err is set only when no read succeeded at all, so an
+// issue that read open and then failed to read is reported open.
+func readBack(t tracker.Tracker, ref tracker.IssueRef) (closed bool, err error) {
+	read := false
+	for attempt := 1; ; attempt++ {
+		issue, rerr := t.Task(ref)
+		switch {
+		case rerr != nil:
+			err = rerr
+		case issue.Closed:
+			return true, nil
+		default:
+			read = true
+		}
+		if attempt == readBackAttempts {
+			if read {
+				return false, nil
+			}
+			return false, err
+		}
+		sleep(readBackWait)
+	}
+}
+
+// mergeCommit reads the commit a merge left on the base branch once, when
+// something after the merge first needs it — a capture's closing comment
+// or a note about an issue left open — and never when nothing does.
+type mergeCommit struct {
+	t    tracker.Tracker
+	pr   tracker.IssueRef
+	done bool
+	sha  string
+	err  error
+}
+
+func (m *mergeCommit) read() (string, error) {
+	if !m.done {
+		m.sha, m.err = m.t.MergeCommit(m.pr.Repo, m.pr.Number)
+		m.done = true
+	}
+	return m.sha, m.err
+}
+
+// byHand is the instruction a still-open issue's note ends with: the
+// comment that closes it names the pull request and, when it can be read,
+// the merge commit.
+func (m *mergeCommit) byHand() string {
+	if sha, err := m.read(); err == nil && sha != "" {
+		return fmt.Sprintf("close it by hand with a comment naming PR #%d and %s", m.pr.Number, sha)
+	}
+	return fmt.Sprintf("close it by hand with a comment naming PR #%d and its merge commit", m.pr.Number)
+}
+
+// confirmTaskClosed reads the task back after the merge instead of
+// asserting that its closing keyword closed it: on davison/md-notes#231
+// GitHub did not act on a closing reference present at merge time, and
+// nothing noticed until status (#386). A task still open is a `note:`,
+// not a refusal — the merge happened and the output must say so. The verb
+// does not close the task itself: that changes what it writes and needs
+// SPEC text (#407).
+func confirmTaskClosed(w io.Writer, t tracker.Tracker, task tracker.IssueRef, merge *mergeCommit) {
+	closed, err := readBack(t, task)
+	switch {
+	case closed:
+		fmt.Fprintf(w, "%s closed\n", task)
+	case err != nil:
+		fmt.Fprintf(w, "note: could not read %s back after the merge (%v); if it is still open, %s\n", task, err, merge.byHand())
+	default:
+		fmt.Fprintf(w, "note: %s is still open after the merge: GitHub did not act on the closing reference; %s\n", task, merge.byHand())
+	}
+}
+
 // closeAdopted closes the captures the task adopted, after the merge has
 // happened and been reported. Nothing here refuses: the merge is done, so
 // an already-closed capture and one that cannot be closed are both `note:`
 // lines naming what a human would have to do (#193). The closing comment
-// names the commit the merge left where it can be read.
-func closeAdopted(w io.Writer, t tracker.Tracker, task, pr tracker.IssueRef, items []adoptItem) {
+// names the commit the merge left where it can be read. Each capture it
+// closes is read back the way the task is, and reported closed only once
+// it reads so (#386).
+func closeAdopted(w io.Writer, t tracker.Tracker, task tracker.IssueRef, merge *mergeCommit, items []adoptItem) {
 	if len(items) == 0 {
 		return
 	}
-	sha, err := t.MergeCommit(pr.Repo, pr.Number)
+	pr := merge.pr
+	sha, err := merge.read()
 	switch {
 	case err != nil:
 		fmt.Fprintf(w, "note: could not read %s's merge commit (%v); the captures below are closed without naming it\n", pr, err)
@@ -776,7 +865,15 @@ func closeAdopted(w io.Writer, t tracker.Tracker, task, pr tracker.IssueRef, ite
 			fmt.Fprintf(w, "note: could not close %s (%v); close it by hand\n", it.Ref, err)
 			continue
 		}
-		fmt.Fprintf(w, "closed %s (adopted by %s)\n", it.Ref, task)
+		closed, err := readBack(t, it.Ref)
+		switch {
+		case closed:
+			fmt.Fprintf(w, "closed %s (adopted by %s)\n", it.Ref, task)
+		case err != nil:
+			fmt.Fprintf(w, "note: could not read %s back after closing it (%v; adopted by %s); if it is still open, %s\n", it.Ref, err, task, merge.byHand())
+		default:
+			fmt.Fprintf(w, "note: %s is still open after the close (adopted by %s): GitHub did not act on it; %s\n", it.Ref, task, merge.byHand())
+		}
 	}
 }
 
