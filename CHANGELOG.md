@@ -6,6 +6,34 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [2.1.1] — 2026-10-10
+
+The first patch under protocol 2.1, carrying what the fleet's first
+fortnight on it surfaced. `task finish` asks GitHub's merge endpoint to
+merge, so a ruleset bypass the caller holds is honoured instead of refused
+client-side, and it and `task start` note a check a ruleset requires that
+nothing reports (#392). After the merge it reads the task, and each capture
+`--adopts` closes, back from GitHub and notes one still open, instead of
+asserting that it closes (#386). `milestone evidence` resolves a private
+repository's Actions, repository and other github.com links through the API
+instead of refusing them `EVIDENCE_UNREACHABLE` (#388). `init`, `migrate`
+and `roles sync` write the commit body SPEC §4 asks of a housekeeping
+change (#389). A new repository learns before its first task that
+`task finish` needs a reporting check: `init`'s `next:` lines say so, and
+`task new` and `task start` note a repository with no workflow on
+`pull_request` (#391). The reviewer contract says what the evidence of
+`task start` is when an App holds the task, and the implementer contract
+asks the PR body to link that start record (#390). The release workflows run
+on a pinned `ubuntu-24.04` image before `ubuntu-latest` moves on 2026-10-19
+(#380). No verb, flag or refusal code is added, removed or repurposed, and
+the protocol stays at 2.1. What an operator does: upgrade every seat's
+binary — every machine and orchestrator that runs the verbs — with
+`gh extension upgrade codecrew`. A hub that wants #399's contract
+clarifications runs `gh codecrew roles sync` and delivers its commit as a
+housekeeping pull request, at its own pace.
+
 ### `task finish` reads the task back after the merge instead of asserting it closed
 
 - `task finish` printed `merged PR #N; <task> closes via its closing
@@ -1794,7 +1822,8 @@ drift report and `roles diff` as the mechanism. A protocol change that
 invalidates existing pointers or recorded comments is a protocol major,
 and the CLI that implements it refuses the old pointer.
 
-[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/radiusred/gh-codecrew/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/radiusred/gh-codecrew/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/radiusred/gh-codecrew/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/radiusred/gh-codecrew/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/radiusred/gh-codecrew/compare/v2.0.0...v2.0.1
