@@ -748,8 +748,9 @@ gh codecrew task finish <ref> [--operator-confirm]
 ```
 
 The gatekeeper: it checks every gate, merges the closing pull request by
-rebase, closes the task and the captures it adopted, deletes the head branch
-and tidies the clone it runs in. The gates, in order: the task is open; it
+rebase, reads the task back to see that GitHub closed it, closes the
+captures the task adopted, deletes the head branch and tidies the clone it
+runs in. The gates, in order: the task is open; it
 carries no `cc:needs-decision`; every gate raised on it has a
 `**Gate resolved:**` answer; the caller is the seat that started it — the
 login in the latest `**Started by**` record, the same login with the `[bot]`
@@ -776,8 +777,22 @@ only an administrator can — so the note reports the record rather than
 predicting the outcome. Where the rules cannot be read — 404 on a plan
 without rulesets, 403 — or the head's checks cannot, these notes say
 nothing; none of them is a gate. After the
-merge it closes each adopted capture with a comment naming the task, the pull
-request and the merge commit, deletes the head branch, and — in a clone of
+merge it reads the task back rather than assuming its closing keyword closed
+it: GitHub closes on the keyword asynchronously, and has been seen not to
+act on one present at merge time
+([#386](https://github.com/radiusred/gh-codecrew/issues/386)). It reads up
+to four times, two seconds apart — about six seconds of waiting at most —
+and prints `<task> closed` as soon as a read finds it closed, or, after the
+last, `note: <task> is still open after the merge: GitHub did not act on
+the closing reference; close it by hand with a comment naming PR #<n> and
+<merge sha>`. The verb does not close the task itself. It then closes each
+adopted capture with a comment naming the task, the pull request and the
+merge commit, and reads each back the same way: `closed <capture> (adopted
+by <task>)` once it reads closed, or `note: <capture> is still open after
+the close (adopted by <task>): GitHub did not act on it; close it by hand
+with a comment naming PR #<n> and <merge sha>`. A read that fails every time
+is a `note:` saying the issue could not be read back. Then it deletes the
+head branch, and — in a clone of
 the task's own repo that holds the merged branch — fetches with prune,
 switches to the default branch if that branch is checked out, fast-forwards
 it, and deletes the local task branch. Nothing after the merge refuses.
@@ -795,12 +810,15 @@ issue, its labels and comments; the pull requests that close it, their
 checks, reviews, review decision, base branch and merge state; the closing
 references GitHub parsed from the pull request body; the rules in force on
 the base branch (`GET /repos/{owner}/{repo}/rules/branches/{branch}`) and
-the check runs and commit statuses on the pull request's head; the local
-clone's branches and remotes.
+the check runs and commit statuses on the pull request's head; after the
+merge, the merge commit, and the task and each capture it closed, read back
+up to four times two seconds apart; the local clone's branches and remotes.
 
 **Writes.** In GitHub: the operator-confirmation or bypass comment where one
-applies, the rebase merge through GitHub's merge endpoint, the task closed, a comment on each adopted capture
-and that capture closed, and the head branch deleted. On disk, and only in a
+applies, the rebase merge through GitHub's merge endpoint — GitHub closes the
+task on the pull request's closing keyword; the verb writes no close on it —
+a comment on each adopted capture and that capture closed, and the head
+branch deleted. On disk, and only in a
 clone of the task's own repo: a fetch with prune, a switch to the default
 branch, a fast-forward of it, and the deletion of the local task branch —
 forced, and allowed only when the branch sits at the merge commit or is
@@ -808,10 +826,13 @@ contained in the fetched default branch. A branch carrying anything else is
 named and kept. Run anywhere else, the local half does nothing and prints
 nothing. Everything it prints as it works is on stdout: the gate lines, the
 merge, the `note:` lines before it — the `BLOCKED` merge, the pull request's
-other closing references, a required check nothing has reported — and every
-`note:` after it.
+other closing references, a required check nothing has reported — the
+read-back's `<task> closed` or its still-open `note:`, and every `note:`
+after it.
 
-**`--dry-run`.** Every gate and every write above, printed and not performed;
+**`--dry-run`.** Every gate and every write above, printed and not performed —
+the merge as `would merge PR #<n> (rebase); <task> closes via its closing
+keyword`, since a dry run cannot observe the close and reads nothing back;
 the `BLOCKED` note indented under the `bypass actor` gate; the same `note:`
 lines about the pull request's other closing references and about a
 required check nothing has reported; the same exit code as the real run's
@@ -846,10 +867,13 @@ was given by a crew identity. [`CREW_BYPASS`](SPEC.md#10-the-cli) —
 [common](#common-refusals) refusals. A merge GitHub refuses is not a
 refusal code: the verb prints GitHub's message and exits `1`. After the merge nothing refuses: a
 capture already closed is reported, one that cannot be closed is a `note:`,
-and so is a failed deletion.
+and so are a task or capture still open after the read-back and a failed
+deletion.
 
-**Exit status.** 0 when the merge happened and the task is closed; 1 on the
-first refusal, whose code `--dry-run` exits with too.
+**Exit status.** 0 when the merge happened — a task still open after the
+read-back is a `note:`, not a failure, because the merge is done and the
+output must say so; 1 on the first refusal, whose code `--dry-run` exits with
+too, or when GitHub refuses the merge.
 
 ```
 gh codecrew task finish 12 --dry-run
