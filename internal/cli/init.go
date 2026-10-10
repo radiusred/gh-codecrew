@@ -346,18 +346,33 @@ func initCmd(w io.Writer, args []string) error {
 	// before it — a GitHub failure here is a note, and the scaffold stands
 	// whatever it says (M14-R5, #267).
 	initLabels(w, ".")
-	if *hub == "self" {
-		fmt.Fprintf(w, "\nnext: every seat is routed to you (~ in %s); to hand one to a\n", config.Pointer)
-		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
-		fmt.Fprintln(w, "then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
-	} else {
-		fmt.Fprintf(w, "\nnext: tasks for this spoke attach to milestones in %s\n", *hub)
-	}
+	initNext(w, *hub)
 	// Last, so the one thing needing a human is the last thing on screen.
 	if len(stranded) > 0 {
 		entryPointAction(w, stranded)
 	}
 	return nil
+}
+
+// initNext prints the next: lines: where the project goes from here, by
+// mode, and in both modes the one requirement nothing init writes can meet.
+// task finish refuses NO_CHECKS on a pull request that reports no check
+// (SPEC §8), and a fresh repository has no workflow, so its first task used
+// to learn that only after it was chartered, built and approved
+// (radiusred/trading-hub#4, #391). Said here, unconditionally — init reads
+// no workflow — it reaches the operator before the first task exists.
+func initNext(w io.Writer, hub string) {
+	if hub == "self" {
+		fmt.Fprintf(w, "\nnext: every seat is routed to you (~ in %s); to hand one to a\n", config.Pointer)
+		fmt.Fprintln(w, "colleague, a team or an App later, see "+U+"/docs/identities.md")
+		fmt.Fprintln(w, "then `gh codecrew milestone new --title \"...\" --goal \"...\"`")
+	} else {
+		fmt.Fprintf(w, "\nnext: tasks for this spoke attach to milestones in %s\n", hub)
+	}
+	fmt.Fprintln(w, "\nnext: task finish requires at least one check reporting on every pull request")
+	fmt.Fprintln(w, "and refuses NO_CHECKS without one (SPEC §8: the gate cannot be satisfied by")
+	fmt.Fprintln(w, "absence); a repository without a workflow on pull_request adds one before its")
+	fmt.Fprintln(w, "first task — "+U+"/docs/first-milestone.md shows a ten-line one")
 }
 
 // entryPointAction prints the one thing these verbs cannot do for the
