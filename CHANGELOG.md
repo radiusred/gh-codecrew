@@ -6,6 +6,16 @@ semantic versioning, and the protocol carries its own version (SPEC §5).
 
 ## [Unreleased]
 
+### The workflows run on a pinned ubuntu-24.04 image
+
+- Every job in `.github/workflows/release.yml` and
+  `.github/workflows/commitlint.yml` — the release build, "Go build and
+  test" and "Lint commit messages" — now runs on `ubuntu-24.04` instead of
+  `ubuntu-latest`, which becomes Ubuntu 26 from 2026-10-19
+  (actions/runner-images#14748). The release build that produces every
+  hub's assets moves image when this repository decides to, not when the
+  label does (#380); a comment above each pin says so (#394)
+
 ### The contracts say what a task's start looks like when an App holds it
 
 - The reviewer contract says what the evidence of `task start` is: the
