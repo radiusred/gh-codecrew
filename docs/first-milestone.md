@@ -370,3 +370,12 @@ in the crew, and it's a ladder:
    [Platform interop](platform-interop.md) is the page written from them:
    the coordinator seat, credentials, wake paths, the onboarding checklist,
    what four cycles cost, and the recipe.
+
+## Tell us how it went
+
+If you've worked through this guide, or part of it, we'd love to hear how it
+went: what you tried, how far you got, and anything that stopped you or
+surprised you. Getting stuck is just as useful to hear about as finishing.
+There's a short form under
+[I tried it](https://github.com/radiusred/gh-codecrew/discussions/categories/i-tried-it)
+in the project's Discussions, and every report is read.
