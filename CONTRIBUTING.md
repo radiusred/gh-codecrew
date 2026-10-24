@@ -24,6 +24,13 @@ the contribution process.
   every tag. The milestone record is the one other kind: the
   doc-synthesizer's `docs:` PR, referencing the milestone issue, reviewed
   the same way and merged by its author.
+- **Reach** — a milestone that measures who finds and uses CodeCrew takes a
+  snapshot at its open and again at its close with `scripts/reach`, so both
+  are read the same way. It prints the Markdown to post on the milestone
+  issue; `--json` keeps the raw figures and `--from` renders them again.
+  GitHub's traffic figures need push access, so it runs under the
+  operator's own `gh` auth. It only reads, and Search Console is added by
+  hand.
 - **Code ships with tests** in the same PR (the #46 convention); documented
   commands are executed by the reviewer, verbatim.
 - **Decisions and deviations** are recorded as comments when they happen
