@@ -309,7 +309,11 @@ gh codecrew milestone close 1
 ```
 
 `refused[VERDICT_MISSING]` — every requirement that has not been struck
-needs a QA verdict, and the qa role is unrouted, which means it's yours.
+needs a QA verdict, and the qa role is yours: `init` set it to `~` ("you")
+in `.codecrew/config.yml`, which the CLI and the reference docs also call
+*unrouted*. So when `milestone close` prints `note: qa is unrouted` and
+mentions declaring routing, that's this, and there's nothing to change
+until you want someone else to hold it ([What next](#what-next)).
 Change hats: build what was merged, exercise the requirement's *intent*
 (not just what the code's own tests prove), and post a comment on the
 **milestone issue**, one line per requirement, in exactly this form:
@@ -337,18 +341,37 @@ One refusal left: `refused[DOC_MISSING]` — and above it, the CLI prints
 every `**Decision:**` and `**Deviation:**` comment recorded during the
 milestone. That's the raw material. Write `docs/milestones/1-<slug>.md` from
 it — the "why" record: what was decided, what was traded off, what deviated
-from plan — add the milestone's row to `ROADMAP.md`, already Done and
-linking the document
-(`| M1 | Walking skeleton | [#<issue>](…) | [Done](docs/milestones/1-<slug>.md) |`),
-and land it on the light path the protocol gives the record ([SPEC
+from plan. The `1` is the milestone's number (the M1), not its issue
+number. The slug is up to you, since the close looks for any
+`docs/milestones/1-*.md`; the title in lower case with hyphens is the usual
+choice, as in `docs/milestones/1-walking-skeleton.md`.
+
+Then add the milestone's row to `ROADMAP.md`, already Done and linking the
+document. `init` wrote the header; the milestone's title goes in its Goal
+column:
+
+```markdown
+| Milestone | Goal | Tracking issue | Status |
+|-----------|------|----------------|--------|
+| M1 | Walking skeleton | [#1](https://github.com/<you>/my-project/issues/1) | [Done](docs/milestones/1-walking-skeleton.md) |
+```
+
+Land both on the light path the protocol gives the record ([SPEC
 §4](../SPEC.md#housekeeping)): no task this time — a `docs:` commit
 referencing the milestone issue, a PR whose body names that issue without a
 closing keyword (the close closes it, not the merge), a clean-context review
-if you like the discipline, then your operator confirmation comment on the
-PR — you are the author and there is no one independent to approve it —
-and a rebase merge. `task finish --operator-confirm` is not involved: there
-is no task for it to finish. The roadmap lists finished milestones;
-`gh codecrew status` reports the open one.
+as in step 5, then your operator confirmation comment on the PR — you are
+the author and there is no one independent to approve it — and a rebase
+merge. `task finish --operator-confirm` is not involved: there is no task
+for it to finish, so you post the comment yourself, in the form it posts:
+
+```markdown
+**Operator confirmation:** reviewed and accepted by @<your-login> as both author and operator (pure solo tier, SPEC §5) — no independent principal exists in this project.
+```
+
+Nothing checks that comment's wording; it is the record that you looked
+before merging. The roadmap lists finished milestones; `gh codecrew status`
+reports the open one.
 
 ## 8. Close
 
