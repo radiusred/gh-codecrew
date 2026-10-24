@@ -1,0 +1,44 @@
+# The form for the "I tried it" Discussions category. GitHub matches a
+# category form by file name, so this file's name must stay equal to the
+# category's slug: i-tried-it.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying CodeCrew, and for taking a minute to tell us how it went.
+
+        Every report is read. A few lines are plenty, and "I got stuck here" is just as useful as "it worked".
+  - type: textarea
+    id: goal
+    attributes:
+      label: What were you trying to do?
+      description: The project or the job you had in mind, in a sentence or two.
+    validations:
+      required: true
+  - type: dropdown
+    id: how-far
+    attributes:
+      label: How far did you get?
+      options:
+        - I read about it
+        - I installed it
+        - I ran init on a repository
+        - I finished a first task
+        - I ran a whole milestone
+    validations:
+      required: true
+  - type: textarea
+    id: stopped-or-surprised
+    attributes:
+      label: What stopped you, or surprised you?
+      description: Where you got stuck, had to guess, or found something you didn't expect. Error messages are welcome.
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup (optional)
+      description: The coding agent and model you used, and your operating system.
+      placeholder: e.g. Claude Code with Sonnet, on macOS
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else?
