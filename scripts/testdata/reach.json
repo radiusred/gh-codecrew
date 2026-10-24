@@ -1,0 +1,61 @@
+{
+  "taken": "2026-10-24 14:00Z",
+  "hub": "example/hub",
+  "operator": "op",
+  "crew_apps": ["example-checky", "example-cody"],
+  "repos": [
+    {
+      "name": "example/hub",
+      "stars": 7, "forks": 1, "watchers": 2, "discussions_enabled": true,
+      "views": {"count": 10, "uniques": 6},
+      "clones": {"count": 383, "uniques": 129},
+      "referrers": [
+        {"referrer": "codecrew.works", "count": 4, "uniques": 3},
+        {"referrer": "github.com", "count": 1, "uniques": 1}
+      ],
+      "authors": [
+        {"login": "alice", "count": 2},
+        {"login": "dependabot[bot]", "count": 5},
+        {"login": "example-cody[bot]", "count": 209},
+        {"login": "op", "count": 176}
+      ],
+      "discussion_authors": [
+        {"login": "bob", "count": 1},
+        {"login": "example-checky[bot]", "count": 1}
+      ],
+      "releases": [
+        {"tag": "v2.1.1", "assets": [
+          {"name": "gh-codecrew_v2.1.1_darwin-amd64", "downloads": 0},
+          {"name": "gh-codecrew_v2.1.1_darwin-arm64", "downloads": 1},
+          {"name": "gh-codecrew_v2.1.1_linux-amd64", "downloads": 2},
+          {"name": "gh-codecrew_v2.1.1_windows-amd64.exe", "downloads": 0}
+        ]},
+        {"tag": "v2.0.0", "assets": [
+          {"name": "gh-codecrew_v2.0.0_linux-amd64", "downloads": 1},
+          {"name": "gh-codecrew_v2.0.0_windows-amd64.exe", "downloads": 1}
+        ]},
+        {"tag": "v0.1.0", "assets": []}
+      ]
+    },
+    {
+      "name": "example/www",
+      "stars": 0, "forks": 0, "watchers": 0, "discussions_enabled": false,
+      "views": {"count": 0, "uniques": 0},
+      "clones": {"count": 22, "uniques": 9},
+      "referrers": [],
+      "authors": [{"login": "op", "count": 41}],
+      "discussion_authors": [],
+      "releases": null
+    },
+    {
+      "name": "example/empty",
+      "stars": 0, "forks": 0, "watchers": 0, "discussions_enabled": true,
+      "views": {"count": 0, "uniques": 0},
+      "clones": {"count": 0, "uniques": 0},
+      "referrers": [],
+      "authors": [{"login": "example-cody", "count": 1}],
+      "discussion_authors": [],
+      "releases": null
+    }
+  ]
+}

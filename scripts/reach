@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# reach — read the hub's and its spokes' reach figures from GitHub and print
+# them as the Markdown snapshot a milestone records at its open and its close
+# (M23-R1, #424): stars, forks, watchers, 14-day views, clones and
+# referrers per repository; the hub's release-asset downloads by platform;
+# and the distinct authors of issues, PRs and discussions, crew apart from
+# everyone else. Reading the same way twice is the point, so the closing
+# snapshot is this command again. It only reads; it never writes to GitHub.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+usage: scripts/reach [--hub OWNER/REPO] [--operator LOGIN] [--json] [SPOKE...]
+       scripts/reach --from FILE
+
+Prints the reach snapshot for the hub (default radiusred/gh-codecrew) and
+each SPOKE named (default radiusred/codecrew-www) as Markdown, ready to post
+as a comment on the milestone issue.
+
+The traffic endpoints (views, clones, referrers) need push access, so run it
+under your own gh auth, the operator's, with no seat GH_TOKEN exported.
+It only reads; it never writes to GitHub.
+
+The crew is the hub's .codecrew/config.yml app: identities (as <slug>[bot])
+plus the operator, whose login comes from `gh api user` unless --operator
+names it. Everyone else is listed by name.
+
+  --hub OWNER/REPO   the hub to read (default radiusred/gh-codecrew)
+  --operator LOGIN   the operator's login, counted as crew
+  --json             print the figures read as JSON instead of Markdown
+  --from FILE        render a JSON file saved with --json; reads nothing
+                     from GitHub
+
+Search Console is not read: only the operator can see it, so the snapshot
+carries a line for the operator to fill in by hand.
+EOF
+}
+
+die() { echo "reach: $*" >&2; exit 1; }
+
+# render turns the JSON that gather prints into the Markdown snapshot.
+render() {
+  jq -r '
+    def iscrew($apps; $op):
+      . as $l
+      | ($l == $op)
+        or (($l | endswith("[bot]")) and any($apps[]; . + "[bot]" == $l));
+    def counted: map("\(.login) (\(.count))") | join(", ");
+    def authors($apps; $op; $none):
+      if length == 0 then $none
+      else
+        (map(select(.login | iscrew($apps; $op)))) as $crew
+        | (map(select(.login | iscrew($apps; $op) | not))) as $others
+        | (if ($others | length) == 0 then "none."
+           else "**\($others | length)**: \($others | counted)." end)
+          + (if ($crew | length) == 0 then ""
+             else " The crew authors are \($crew | counted)." end)
+      end;
+    def refs:
+      if length == 0 then "none"
+      else map("\(.referrer) \(.count) (\(.uniques))") | join(", ") end;
+    def platform: sub("\\.exe$"; "") | split("_") | last;
+    def downloads:
+      if (.assets | length) == 0 then "\(.tag): no assets"
+      else
+        (.assets | map({p: (.name | platform), n: .downloads}) | sort_by(.p)) as $a
+        | ([$a[] | select(.n > 0) | "\(.p) \(.n)"] | join(", ")) as $some
+        | ([$a[] | select(.n == 0) | .p] | join(", ")) as $zero
+        | "\(.tag), \([$a[].n] | add) in all: "
+          + ([$some, (if $zero == "" then empty else "0 on \($zero)" end)]
+             | map(select(. != "")) | join("; "))
+      end;
+    . as $s
+    | ($s.crew_apps) as $apps | ($s.operator) as $op
+    | "**Reach snapshot (GitHub side), \($s.taken)**, read by `scripts/reach`.",
+      "",
+      "| Measure | \([$s.repos[].name] | join(" | ")) |",
+      "|---|\([$s.repos[] | "---"] | join("|"))|",
+      "| Stars / forks / watchers | \([$s.repos[] | "\(.stars) / \(.forks) / \(.watchers)"] | join(" | ")) |",
+      "| Views, 14 days (unique) | \([$s.repos[] | "\(.views.count) (\(.views.uniques))"] | join(" | ")) |",
+      "| Clones, 14 days (unique) | \([$s.repos[] | "\(.clones.count) (\(.clones.uniques))"] | join(" | ")) |",
+      "| Referrers | \([$s.repos[] | .referrers | refs] | join(" | ")) |",
+      "",
+      "- **Non-crew authors of issues and PRs, all time:**",
+      ($s.repos[] | "  - \(.name): \(.authors | authors($apps; $op; "no issues or PRs."))"),
+      "- **Non-crew authors of discussions, all time:**",
+      ($s.repos[]
+       | "  - \(.name): "
+         + (if .discussions_enabled | not then "Discussions are not enabled."
+            else .discussion_authors | authors($apps; $op; "none, and no discussions yet.") end)),
+      ($s.repos[] | select(.releases != null)
+       | "- **Release downloads, \(.name)**, raw counts. `gh extension install` and `upgrade` each fetch one asset and the count is not unique, so subtract the crew'"'"'s own known installs and upgrades by hand for an upper bound on outside installs:",
+         (if (.releases | length) == 0 then "  - no releases"
+          else .releases[] | "  - \(downloads)" end)),
+      "- **Clones** include the crew'"'"'s own dispatch clones and CI, so they are not a measure of outside use.",
+      "- **Search Console:** not read by this script, because only the operator can see it. Operator: add the indexed and not-indexed counts, and impressions and clicks for the previous 28 days."
+  '
+}
+
+# counts turns one login per line into [{login, count}], sorted by login.
+counts() {
+  jq -Rn '[inputs | select(. != "")] | group_by(.) | map({login: .[0], count: length})'
+}
+
+traffic() {
+  gh api "repos/$1/traffic/$2" ${3:+--jq "$3"} ||
+    die "cannot read $2 traffic for $1: it needs push access, so run under your own gh auth (unset GH_TOKEN)"
+}
+
+# repo prints one repository's figures as a JSON object; $2 is "hub" for the
+# hub, whose releases are read too.
+repo() {
+  local name=$1 role=$2 owner=${1%%/*} short=${1#*/}
+  local meta views clones refs authors dauthors='[]' releases=null
+  meta=$(gh api "repos/$name" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, discussions_enabled: .has_discussions}')
+  views=$(traffic "$name" views '{count, uniques}')
+  clones=$(traffic "$name" clones '{count, uniques}')
+  refs=$(traffic "$name" popular/referrers '[.[] | {referrer, count, uniques}]')
+  authors=$(gh api --paginate "repos/$name/issues?state=all&per_page=100" --jq '.[] | .user.login // "ghost"' | counts)
+  if [ "$(jq -r .discussions_enabled <<<"$meta")" = true ]; then
+    # GraphQL names an App's bot user without the [bot] REST gives it.
+    # shellcheck disable=SC2016 # $owner, $name, $endCursor are GraphQL's.
+    dauthors=$(gh api graphql --paginate -F owner="$owner" -F name="$short" -f query='
+      query($owner: String!, $name: String!, $endCursor: String) {
+        repository(owner: $owner, name: $name) {
+          discussions(first: 100, after: $endCursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes { author { __typename login } }
+          }
+        }
+      }' --jq '.data.repository.discussions.nodes[]
+        | if .author == null then "ghost"
+          elif .author.__typename == "Bot" then .author.login + "[bot]"
+          else .author.login end' | counts)
+  fi
+  if [ "$role" = hub ]; then
+    releases=$(gh api --paginate "repos/$name/releases?per_page=100" \
+      --jq '.[] | select(.draft | not) | {tag: .tag_name, assets: [.assets[] | {name, downloads: .download_count}]}' | jq -s .)
+  fi
+  jq -n --arg name "$name" --argjson meta "$meta" --argjson views "$views" \
+    --argjson clones "$clones" --argjson refs "$refs" --argjson authors "$authors" \
+    --argjson dauthors "$dauthors" --argjson releases "$releases" \
+    '{name: $name} + $meta + {views: $views, clones: $clones, referrers: $refs,
+      authors: $authors, discussion_authors: $dauthors, releases: $releases}'
+}
+
+# gather reads every figure from GitHub and prints them as one JSON object.
+gather() {
+  local hub=$1 operator=$2; shift 2
+  local apps taken spoke
+  [ -n "$operator" ] || operator=$(gh api user --jq .login) ||
+    die "cannot read your login from gh api user; name the operator with --operator"
+  apps=$(gh api -H 'Accept: application/vnd.github.raw' "repos/$hub/contents/.codecrew/config.yml" |
+    sed -n 's/^[[:space:]]*identity:[[:space:]]*app:\([A-Za-z0-9-]*\).*/\1/p' |
+    jq -Rn '[inputs | select(. != "")] | unique') ||
+    die "cannot read $hub/.codecrew/config.yml for the crew's App identities"
+  taken=$(date -u '+%Y-%m-%d %H:%MZ')
+  {
+    repo "$hub" hub
+    for spoke in "$@"; do repo "$spoke" spoke; done
+  } | jq -s --arg taken "$taken" --arg hub "$hub" --arg op "$operator" --argjson apps "$apps" \
+    '{taken: $taken, hub: $hub, operator: $op, crew_apps: $apps, repos: .}'
+}
+
+main() {
+  local hub=radiusred/gh-codecrew operator="" json=false from=""
+  local spokes=()
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --hub) hub=${2:?--hub needs OWNER/REPO}; shift 2 ;;
+      --operator) operator=${2:?--operator needs a login}; shift 2 ;;
+      --json) json=true; shift ;;
+      --from) from=${2:?--from needs a file}; shift 2 ;;
+      -h|--help) usage; exit 0 ;;
+      -*) usage >&2; exit 2 ;;
+      *) spokes+=("$1"); shift ;;
+    esac
+  done
+  command -v jq >/dev/null || die "needs jq"
+  if [ -n "$from" ]; then
+    render <"$from"
+    return
+  fi
+  [ ${#spokes[@]} -gt 0 ] || spokes=(radiusred/codecrew-www)
+  # Read everything before printing anything, so a failed read prints no
+  # half a snapshot.
+  # snap is global: the EXIT trap reads it after main has returned.
+  snap=$(mktemp)
+  trap 'rm -f -- "$snap"' EXIT
+  gather "$hub" "$operator" "${spokes[@]}" >"$snap"
+  if [ "$json" = true ]; then
+    cat "$snap"
+  else
+    render <"$snap"
+  fi
+}
+
+main "$@"
