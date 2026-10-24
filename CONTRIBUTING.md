@@ -29,8 +29,9 @@ the contribution process.
   are read the same way. It prints the Markdown to post on the milestone
   issue; `--json` keeps the raw figures and `--from` renders them again.
   GitHub's traffic figures need push access, so it runs under the
-  operator's own `gh` auth. It only reads, and Search Console is added by
-  hand.
+  operator's own `gh` auth. It only reads; what only the operator knows
+  (Search Console, which downloads were the crew's own) is left as a
+  placeholder to fill in before posting.
 - **Code ships with tests** in the same PR (the #46 convention); documented
   commands are executed by the reviewer, verbatim.
 - **Decisions and deviations** are recorded as comments when they happen

@@ -10,8 +10,9 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-usage: scripts/reach [--hub OWNER/REPO] [--operator LOGIN] [--json] [SPOKE...]
-       scripts/reach --from FILE
+usage: scripts/reach [--hub OWNER/REPO] [--operator LOGIN] [--label TEXT]
+                     [--json] [SPOKE...]
+       scripts/reach [--label TEXT] --from FILE
 
 Prints the reach snapshot for the hub (default radiusred/gh-codecrew) and
 each SPOKE named (default radiusred/codecrew-www) as Markdown, ready to post
@@ -27,74 +28,114 @@ names it. Everyone else is listed by name.
 
   --hub OWNER/REPO   the hub to read (default radiusred/gh-codecrew)
   --operator LOGIN   the operator's login, counted as crew
+  --label TEXT       how the snapshot opens, e.g. "M23-R1 closing snapshot"
+                     (default "Reach snapshot")
   --json             print the figures read as JSON instead of Markdown
   --from FILE        render a JSON file saved with --json; reads nothing
                      from GitHub
 
-Search Console is not read: only the operator can see it, so the snapshot
-carries a line for the operator to fill in by hand.
+Search Console is not read, and which downloads were the crew's own
+installs is not knowable from GitHub: only the operator can say, so the
+snapshot carries an _(operator: ...)_ placeholder for each, to fill in by
+hand before posting.
 EOF
 }
 
 die() { echo "reach: $*" >&2; exit 1; }
 
-# render turns the JSON that gather prints into the Markdown snapshot.
+# render turns the JSON that gather prints into the Markdown snapshot, in
+# the shape of M23's opening snapshot (comment 6384122881 on #423): the
+# table, then four bullets, with an _(operator: ...)_ placeholder for each
+# figure only the operator has. Everything else the script reads (every
+# release, each spoke's authors) follows in a collapsed appendix. $1 is the
+# label the snapshot opens with.
 render() {
-  jq -r '
-    def iscrew($apps; $op):
-      . as $l
-      | ($l == $op)
-        or (($l | endswith("[bot]")) and any($apps[]; . + "[bot]" == $l));
-    def counted: map("\(.login) (\(.count))") | join(", ");
-    def authors($apps; $op; $none):
-      if length == 0 then $none
-      else
-        (map(select(.login | iscrew($apps; $op)))) as $crew
-        | (map(select(.login | iscrew($apps; $op) | not))) as $others
-        | (if ($others | length) == 0 then "none."
-           else "**\($others | length)**: \($others | counted)." end)
-          + (if ($crew | length) == 0 then ""
-             else " The crew authors are \($crew | counted)." end)
-      end;
-    def refs:
-      if length == 0 then "none"
-      else map("\(.referrer) \(.count) (\(.uniques))") | join(", ") end;
-    def platform: sub("\\.exe$"; "") | split("_") | last;
-    def downloads:
-      if (.assets | length) == 0 then "\(.tag): no assets"
-      else
-        (.assets | map({p: (.name | platform), n: .downloads}) | sort_by(.p)) as $a
-        | ([$a[] | select(.n > 0) | "\(.p) \(.n)"] | join(", ")) as $some
-        | ([$a[] | select(.n == 0) | .p] | join(", ")) as $zero
-        | "\(.tag), \([$a[].n] | add) in all: "
-          + ([$some, (if $zero == "" then empty else "0 on \($zero)" end)]
-             | map(select(. != "")) | join("; "))
-      end;
-    . as $s
-    | ($s.crew_apps) as $apps | ($s.operator) as $op
-    | "**Reach snapshot (GitHub side), \($s.taken)**, read by `scripts/reach`.",
-      "",
-      "| Measure | \([$s.repos[].name] | join(" | ")) |",
-      "|---|\([$s.repos[] | "---"] | join("|"))|",
-      "| Stars / forks / watchers | \([$s.repos[] | "\(.stars) / \(.forks) / \(.watchers)"] | join(" | ")) |",
-      "| Views, 14 days (unique) | \([$s.repos[] | "\(.views.count) (\(.views.uniques))"] | join(" | ")) |",
-      "| Clones, 14 days (unique) | \([$s.repos[] | "\(.clones.count) (\(.clones.uniques))"] | join(" | ")) |",
-      "| Referrers | \([$s.repos[] | .referrers | refs] | join(" | ")) |",
-      "",
-      "- **Non-crew authors of issues and PRs, all time:**",
-      ($s.repos[] | "  - \(.name): \(.authors | authors($apps; $op; "no issues or PRs."))"),
-      "- **Non-crew authors of discussions, all time:**",
-      ($s.repos[]
-       | "  - \(.name): "
-         + (if .discussions_enabled | not then "Discussions are not enabled."
-            else .discussion_authors | authors($apps; $op; "none, and no discussions yet.") end)),
-      ($s.repos[] | select(.releases != null)
-       | "- **Release downloads, \(.name)**, raw counts. `gh extension install` and `upgrade` each fetch one asset and the count is not unique, so subtract the crew'"'"'s own known installs and upgrades by hand for an upper bound on outside installs:",
-         (if (.releases | length) == 0 then "  - no releases"
-          else .releases[] | "  - \(downloads)" end)),
-      "- **Clones** include the crew'"'"'s own dispatch clones and CI, so they are not a measure of outside use.",
-      "- **Search Console:** not read by this script, because only the operator can see it. Operator: add the indexed and not-indexed counts, and impressions and clicks for the previous 28 days."
-  '
+  # read, not $(cat ...): --from needs nothing but bash and jq.
+  local prog
+  IFS= read -r -d '' prog <<'JQ' || true
+def iscrew($apps; $op):
+  . as $l
+  | ($l == $op) or (($l | endswith("[bot]")) and any($apps[]; . + "[bot]" == $l));
+# "a", "a and b", "a, b and c"
+def listed: if length <= 1 then join("") else (.[:-1] | join(", ")) + " and " + .[-1] end;
+# The operator first, then by count, highest first.
+def counted($op):
+  sort_by((if .login == $op then 0 else 1 end), -.count, .login)
+  | map("\(.login) (\(.count))") | listed;
+def word: . as $n | ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][$n] // ($n | tostring);
+def authors($apps; $op):
+  (map(select(.login | iscrew($apps; $op)))) as $crew
+  | (map(select(.login | iscrew($apps; $op) | not))) as $others
+  | (if ($others | length) == 0 then "none."
+     else "**\($others | length)**: \($others | counted($op))." end)
+    + (if ($crew | length) == 0 then ""
+       elif ($others | length) == 0 then " The authors are \($crew | counted($op))."
+       else " The crew authors are \($crew | counted($op))." end);
+def discussions($apps; $op):
+  if .discussions_enabled | not then "Discussions are not enabled."
+  elif (.discussion_authors | length) == 0 then "Discussions are enabled, and none has been opened yet."
+  else "Non-crew authors of discussions: \(.discussion_authors | authors($apps; $op))" end;
+def refs:
+  if length == 0 then "none"
+  else map("\(.referrer) \(.count) (\(.uniques))") | join(", ") end;
+def platform: sub("\\.exe$"; "") | split("_") | last;
+def plats: .assets | map({p: (.name | platform), n: .downloads}) | sort_by(.p);
+def total: [plats[].n] | add // 0;
+# "v2.1.1 has darwin-arm64 1, linux-amd64 2, and 0 on the other three
+# platforms"; $zeros false leaves the last clause out.
+def has($zeros):
+  plats as $a
+  | [$a[] | select(.n > 0) | "\(.p) \(.n)"] as $some
+  | ([$a[] | select(.n == 0)] | length) as $z
+  | if ($a | length) == 0 then "\(.tag) has no assets"
+    elif ($some | length) == 0 then "\(.tag) has 0 on "
+      + ({"1": "its one platform", "2": "both platforms"}[$a | length | tostring]
+         // "all \($a | length | word) platforms")
+    else "\(.tag) has \($some | join(", "))"
+      + (if $zeros and $z > 0
+         then ", and 0 on the other " + (if $z == 1 then "platform" else "\($z | word) platforms" end)
+         else "" end)
+    end;
+def releases:
+  .releases as $r
+  | if ($r | length) == 0 then "no releases yet."
+    else
+      ($r[0] | total) as $t
+      | "\($r[0] | has(true))."
+      + (if $t == 0 then " Nothing has been downloaded, so there were **0 outside installs**."
+         else " The operator confirms that _(operator: how many of these \($t))_ were the crew's own machines, so there were **_(operator: \($t) less those)_ outside installs**." end)
+      + (if ($r | length) > 1 then " \($r[1] | has(false))." else "" end)
+      + ([$r[2:][] | select((plats | length) > 1 and all(plats[]; .n > 0)) | .tag] as $even
+         | if ($even | length) == 0 then ""
+           else " Earlier releases show some downloads spread evenly across all \($r[0] | plats | length | word) platforms (\($even | join(", "))). That pattern looks like automated fetches rather than people, and is noted only so that the closing snapshot reads them the same way." end)
+    end;
+. as $s
+| $s.crew_apps as $apps | $s.operator as $op
+| ($s.repos | map(select(.name == $s.hub)) | .[0]) as $hub
+| "**\($label) (GitHub side), \($s.taken)**, read by `scripts/reach`.",
+  "",
+  "| Measure | \([$s.repos[].name] | join(" | ")) |",
+  "|---|\([$s.repos[] | "---"] | join("|"))|",
+  "| Stars / forks / watchers | \([$s.repos[] | "\(.stars) / \(.forks) / \(.watchers)"] | join(" | ")) |",
+  "| Views, 14 days (unique) | \([$s.repos[] | "\(.views.count) (\(.views.uniques))"] | join(" | ")) |",
+  "| Clones, 14 days (unique) | \([$s.repos[] | "\(.clones.count) (\(.clones.uniques))"] | join(" | ")) |",
+  "| Referrers | \([$s.repos[] | .referrers | refs] | join(" | ")) |",
+  "",
+  "- **Non-crew authors of issues and PRs, all time:** \($hub.authors | authors($apps; $op)) \($hub | discussions($apps; $op))",
+  "- **Release downloads:** \($hub | releases)",
+  "- **Clones** are dominated by the crew's own dispatch clones and CI, and are not a measure of outside use.",
+  "- **Search Console (operator's report, _(operator: date)_):** _(operator: how many URLs are indexed and how many are not, and why each one is not)_. Impressions and clicks for the previous 28 days: _(operator)_.",
+  "",
+  "<details><summary>Everything else scripts/reach read: every release, and each spoke's authors</summary>",
+  "",
+  "- **Release downloads, every release** (raw counts, not unique: `gh extension install` and `upgrade` each fetch one asset):",
+  ($hub.releases[] | "  - \(has(true)).") ,
+  ($s.repos[] | select(.name != $s.hub)
+   | "- **\(.name), non-crew authors of issues and PRs, all time:** \(.authors | authors($apps; $op)) \(discussions($apps; $op))"),
+  "",
+  "</details>"
+JQ
+  jq -r --arg label "$1" "$prog"
 }
 
 # counts turns one login per line into [{login, count}], sorted by login.
@@ -163,13 +204,14 @@ gather() {
 }
 
 main() {
-  local hub=radiusred/gh-codecrew operator="" json=false from=""
+  local hub=radiusred/gh-codecrew operator="" json=false from="" label="Reach snapshot"
   local spokes=()
   while [ $# -gt 0 ]; do
     case $1 in
       --hub) hub=${2:?--hub needs OWNER/REPO}; shift 2 ;;
       --operator) operator=${2:?--operator needs a login}; shift 2 ;;
       --json) json=true; shift ;;
+      --label) label=${2:?--label needs text}; shift 2 ;;
       --from) from=${2:?--from needs a file}; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       -*) usage >&2; exit 2 ;;
@@ -178,7 +220,7 @@ main() {
   done
   command -v jq >/dev/null || die "needs jq"
   if [ -n "$from" ]; then
-    render <"$from"
+    render "$label" <"$from"
     return
   fi
   [ ${#spokes[@]} -gt 0 ] || spokes=(radiusred/codecrew-www)
@@ -191,7 +233,7 @@ main() {
   if [ "$json" = true ]; then
     cat "$snap"
   else
-    render <"$snap"
+    render "$label" <"$snap"
   fi
 }
 

@@ -34,6 +34,16 @@
           {"name": "gh-codecrew_v2.0.0_linux-amd64", "downloads": 1},
           {"name": "gh-codecrew_v2.0.0_windows-amd64.exe", "downloads": 1}
         ]},
+        {"tag": "v1.0.0", "assets": [
+          {"name": "gh-codecrew_v1.0.0_darwin-amd64", "downloads": 2},
+          {"name": "gh-codecrew_v1.0.0_darwin-arm64", "downloads": 2},
+          {"name": "gh-codecrew_v1.0.0_linux-amd64", "downloads": 3},
+          {"name": "gh-codecrew_v1.0.0_windows-amd64.exe", "downloads": 2}
+        ]},
+        {"tag": "v0.2.0", "assets": [
+          {"name": "gh-codecrew_v0.2.0_linux-amd64", "downloads": 0},
+          {"name": "gh-codecrew_v0.2.0_windows-amd64.exe", "downloads": 0}
+        ]},
         {"tag": "v0.1.0", "assets": []}
       ]
     },
