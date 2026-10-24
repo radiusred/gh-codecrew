@@ -24,6 +24,10 @@ than on the site. The two references are [CLI.md](CLI.md) — every verb, its
 options, what it reads and writes, and what it refuses — and
 [SPEC.md](SPEC.md), the protocol those verbs enforce.
 
+If you have tried CodeCrew, or tried it and got stuck, tell us how it went
+under [I tried it](https://github.com/radiusred/gh-codecrew/discussions/categories/i-tried-it)
+in this repository's Discussions.
+
 ## The routing table
 
 <img src="assets/svg/four-seats.svg" alt="The four seats — implementer, reviewer, qa, doc-synthesizer — each a contract file, each held by exactly one of: you, a colleague by username, a GitHub team, or an App identity." width="720">
