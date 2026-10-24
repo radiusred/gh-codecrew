@@ -317,9 +317,8 @@ gh codecrew milestone close 1
 `refused[VERDICT_MISSING]` — every requirement that has not been struck
 needs a QA verdict, and the qa role is yours: `init` set it to `~` ("you")
 in `.codecrew/config.yml`, which the CLI and the reference docs also call
-*unrouted*. So when `milestone close` prints `note: qa is unrouted` and
-mentions declaring routing, that's this, and there's nothing to change
-until you want someone else to hold it ([What next](#what-next)).
+*unrouted*. There's nothing to change until you want someone else to hold
+it ([What next](#what-next)).
 Change hats: build what was merged, exercise the requirement's *intent*
 (not just what the code's own tests prove), and post a comment on the
 **milestone issue**, one line per requirement, in exactly this form:
@@ -345,7 +344,9 @@ gh codecrew milestone close 1
 
 One refusal left: `refused[DOC_MISSING]` — and above it, the CLI prints
 every `**Decision:**` and `**Deviation:**` comment recorded during the
-milestone. That's the raw material. Write `docs/milestones/1-<slug>.md` from
+milestone. That's the raw material. (Above that is a `note: qa is unrouted`
+line, now that your verdicts count: it means the `~` from step 6, and
+nothing needs changing.) Write `docs/milestones/1-<slug>.md` from
 it — the "why" record: what was decided, what was traded off, what deviated
 from plan. The `1` is the milestone's number (the M1), not its issue
 number. The slug is up to you, since the close looks for any
