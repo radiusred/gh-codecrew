@@ -217,8 +217,13 @@ approval. The norm, even with one human, is a fresh pair of eyes before you
 confirm: ask your agent to start a clean session with no memory of the
 work — a sub-agent, or a different coding tool — give it the reviewer's
 instructions (`gh codecrew roles show reviewer` prints them), and have it
-post its findings as a comment on the PR. Read them and the diff, fix
-what needs fixing, and when you're happy, confirm:
+post its findings as a comment on the PR. Those instructions also serve a
+reviewer with its own GitHub App identity, so skip their identity steps
+when solo: minting a token, posting with `gh pr review` as `<slug>[bot]`,
+and stopping if it shares the PR author's identity. Your reviewer works
+under your own `gh` login and leaves a comment instead.
+Read its findings and the diff, fix what needs fixing, and when you're
+happy, confirm:
 
 ```sh
 gh codecrew task finish 2 --operator-confirm
