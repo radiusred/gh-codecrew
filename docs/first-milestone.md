@@ -145,7 +145,8 @@ gh codecrew task start 2   # your task's issue number
 
 It refuses: `refused[NO_PLAN]`. Plans come before work — edit the task
 issue's **Plan** section with your intended changes (a trivial task may have
-a trivial plan; it may not have an absent one), then run `task start` again.
+a trivial plan; it may not have an absent one), in the web UI or with step
+2's fetch-edit-put on issue 2, then run `task start` again.
 It assigns you and creates a linked branch.
 
 ## 4. Do the work
