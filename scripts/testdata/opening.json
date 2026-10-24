@@ -1,0 +1,592 @@
+{
+  "taken": "2026-10-24 12:15Z",
+  "hub": "radiusred/gh-codecrew",
+  "operator": "davison",
+  "crew_apps": [
+    "radiusred-checky",
+    "radiusred-cody",
+    "radiusred-testy",
+    "radiusred-wordy"
+  ],
+  "repos": [
+    {
+      "name": "radiusred/gh-codecrew",
+      "discussions_enabled": false,
+      "forks": 0,
+      "stars": 7,
+      "watchers": 0,
+      "views": {
+        "count": 10,
+        "uniques": 6
+      },
+      "clones": {
+        "count": 383,
+        "uniques": 129
+      },
+      "referrers": [
+        {
+          "count": 1,
+          "referrer": "codecrew.works",
+          "uniques": 1
+        }
+      ],
+      "authors": [
+        {
+          "login": "davison",
+          "count": 176
+        },
+        {
+          "login": "radiusred-cody[bot]",
+          "count": 209
+        },
+        {
+          "login": "radiusred-testy[bot]",
+          "count": 2
+        },
+        {
+          "login": "radiusred-wordy[bot]",
+          "count": 32
+        }
+      ],
+      "discussion_authors": [],
+      "releases": [
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.1_darwin-amd64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.1.1_darwin-arm64"
+            },
+            {
+              "downloads": 2,
+              "name": "gh-codecrew_v2.1.1_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.1_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.1_windows-amd64.exe"
+            }
+          ],
+          "tag": "v2.1.1"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.1.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.0_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.1.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v2.1.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.2_darwin-amd64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.2_darwin-arm64"
+            },
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v2.0.2_linux-amd64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.2_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.2_windows-amd64.exe"
+            }
+          ],
+          "tag": "v2.0.2"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.0.1_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.0.1_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.1_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.0.1_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v2.0.1_windows-amd64.exe"
+            }
+          ],
+          "tag": "v2.0.1"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.0_darwin-amd64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.0_darwin-arm64"
+            },
+            {
+              "downloads": 2,
+              "name": "gh-codecrew_v2.0.0_linux-amd64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.0_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v2.0.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v2.0.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v1.2.0_darwin-amd64"
+            },
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v1.2.0_darwin-arm64"
+            },
+            {
+              "downloads": 7,
+              "name": "gh-codecrew_v1.2.0_linux-amd64"
+            },
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v1.2.0_linux-arm64"
+            },
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v1.2.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.2.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.1.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.1.0_darwin-arm64"
+            },
+            {
+              "downloads": 2,
+              "name": "gh-codecrew_v1.1.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.1.0_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.1.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.1.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.3_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.3_darwin-arm64"
+            },
+            {
+              "downloads": 3,
+              "name": "gh-codecrew_v1.0.3_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.3_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.3_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.0.3"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.2_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.2_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v1.0.2_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.2_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.2_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.0.2"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.1_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.1_darwin-arm64"
+            },
+            {
+              "downloads": 2,
+              "name": "gh-codecrew_v1.0.1_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.1_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.1_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.0.1"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v1.0.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.0_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v1.0.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v1.0.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.5.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.5.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.5.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.5.0_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.5.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.5.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.4.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.4.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.4.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.4.0_linux-arm64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.4.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.4.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.1_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.1_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.3.1_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.1_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.3.1_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.3.1"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.3.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.3.0_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.3.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.3.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.3_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.3_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.3_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.3_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.3_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.2.3"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.2_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.2_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.2_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.2_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.2_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.2.2"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.1_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.1_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.1_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.1_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.1_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.2.1"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.0_darwin-arm64"
+            },
+            {
+              "downloads": 2,
+              "name": "gh-codecrew_v0.2.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.2.0_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.2.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.2.0"
+        },
+        {
+          "assets": [
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.1.0_darwin-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.1.0_darwin-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.1.0_linux-amd64"
+            },
+            {
+              "downloads": 0,
+              "name": "gh-codecrew_v0.1.0_linux-arm64"
+            },
+            {
+              "downloads": 1,
+              "name": "gh-codecrew_v0.1.0_windows-amd64.exe"
+            }
+          ],
+          "tag": "v0.1.0"
+        }
+      ]
+    },
+    {
+      "name": "radiusred/codecrew-www",
+      "discussions_enabled": false,
+      "forks": 0,
+      "stars": 0,
+      "watchers": 0,
+      "views": {
+        "count": 0,
+        "uniques": 0
+      },
+      "clones": {
+        "count": 22,
+        "uniques": 9
+      },
+      "referrers": [],
+      "authors": [
+        {
+          "login": "davison",
+          "count": 41
+        },
+        {
+          "login": "radiusred-cody[bot]",
+          "count": 29
+        },
+        {
+          "login": "radiusred-testy[bot]",
+          "count": 1
+        },
+        {
+          "login": "radiusred-wordy[bot]",
+          "count": 5
+        }
+      ],
+      "discussion_authors": [],
+      "releases": null
+    }
+  ]
+}
