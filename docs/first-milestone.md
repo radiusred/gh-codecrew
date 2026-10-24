@@ -346,10 +346,11 @@ One refusal left: `refused[DOC_MISSING]` — and above it, the CLI prints
 every `**Decision:**` and `**Deviation:**` comment recorded during the
 milestone. That's the raw material. (Above that is a `note: qa is unrouted`
 line, now that your verdicts count: it means the `~` from step 6, and
-nothing needs changing.) Write `docs/milestones/1-<slug>.md` from
-it — the "why" record: what was decided, what was traded off, what deviated
-from plan. The `1` is the milestone's number (the M1), not its issue
-number. The slug is up to you, since the close looks for any
+nothing needs changing.) The refusal says to dispatch the doc-synthesizer;
+solo, that's you, and this step is the job. Write
+`docs/milestones/1-<slug>.md` from it — the "why" record: what was
+decided, what was traded off, what deviated from plan. The `1` is the
+milestone's number (the M1), not its issue number. The slug is up to you, since the close looks for any
 `docs/milestones/1-*.md`; the title in lower case with hyphens is the usual
 choice, as in `docs/milestones/1-walking-skeleton.md`.
 
@@ -377,8 +378,14 @@ for it to finish, so you post the comment yourself, in the form it posts:
 ```
 
 Nothing checks that comment's wording; it is the record that you looked
-before merging. The roadmap lists finished milestones; `gh codecrew status`
-reports the open one.
+before merging. Then merge it yourself:
+
+```sh
+gh pr merge 4 --rebase --delete-branch   # your record PR's number
+```
+
+The roadmap lists finished milestones; `gh codecrew status` reports the
+open one.
 
 ## 8. Close
 
