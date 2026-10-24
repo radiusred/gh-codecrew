@@ -211,15 +211,22 @@ even though the workflow is there: it just hasn't reported yet. Wait for it
 or pending checks it refuses too — that's the gate having teeth.
 
 The next refusal: no approving review from a non-author, and you can't
-approve your own PR. Solo has an honest degradation:
+approve your own PR. Solo still gets a review; it just isn't a GitHub
+approval. The norm, even with one human, is a fresh pair of eyes before you
+confirm: ask your agent to start a clean session with no memory of the
+work — a sub-agent, or a different coding tool — give it the reviewer's
+instructions (`gh codecrew roles show reviewer` prints them), and have it
+post its findings as a comment on the PR. Read them and the diff, fix
+what needs fixing, and when you're happy, confirm:
 
 ```sh
 gh codecrew task finish 2 --operator-confirm
 ```
 
-This records an explicit confirmation comment on the PR — stating that
-author and operator are the same principal — then rebase-merges and deletes
-the task branch. The task issue closes via its `Closes #2` keyword.
+This posts a confirmation comment on the PR — that you reviewed and accepted
+the work as both author and operator, since no one independent exists to
+approve it — then rebase-merges and deletes the task branch. The task issue
+closes via its `Closes #2` keyword.
 
 ### When the gate is expensive: let the workflow gate itself
 
