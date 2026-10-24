@@ -122,7 +122,11 @@ reads `gh pr checks --json`, and an older `gh` refuses `GH_TOO_OLD` before any
 verb runs. And the repo needs pull-request CI: `task finish` refuses `NO_CHECKS`
 on a PR that reports no checks at all, with no override. `init` does not write a
 workflow; [docs/first-milestone.md](docs/first-milestone.md#5-finish-the-task)
-carries a ten-line one.
+carries a ten-line one. A check that has not reported yet is no check, so
+`NO_CHECKS` straight after a push means wait for it and re-run. Pushing a file
+under `.github/workflows/` over HTTPS needs the `workflow` OAuth scope, which
+`gh auth login` does not request by default: `gh auth refresh -s workflow`
+([GitHub's scopes](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes)).
 
 ## Read next
 

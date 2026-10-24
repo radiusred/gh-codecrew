@@ -172,20 +172,9 @@ comment, so give each its own.
 gh codecrew task finish 2
 ```
 
-Refused again — no approving review from a non-author, and you can't approve
-your own PR. Solo has an honest degradation:
-
-```sh
-gh codecrew task finish 2 --operator-confirm
-```
-
-This records an explicit confirmation comment on the PR — stating that
-author and operator are the same principal — then rebase-merges and deletes
-the task branch. The task issue closes via its `Closes #2` keyword.
-
-If your repo has no CI yet, you'll meet one more refusal first:
-`refused[NO_CHECKS]`. The deterministic gate can't be satisfied by a repo
-that runs nothing, and there's no override — the fix is a ten-line workflow:
+If your repo has no CI yet, the first refusal is `refused[NO_CHECKS]`. The
+deterministic gate can't be satisfied by a repo that runs nothing, and
+there's no override — the fix is a ten-line workflow:
 
 ```yaml
 # .github/workflows/test.yml
@@ -196,11 +185,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: make test   # or your language's test command
+      - run: echo "No tests yet"   # swap in your test command once you have one
 ```
 
-Push it to the task branch, let the check report, and `task finish` (with
-failing or pending checks it refuses too — that's the gate having teeth).
+The last line passes on a brand-new project that has nothing to test yet.
+Once you have tests, replace it with the command that runs them
+(`make test`, `npm test`, `go test ./...`, …) — that's when the check
+starts meaning something.
+
+Commit the file to the task branch and push. If git refuses the push with a
+message about the `workflow` scope, your `gh` login can't write workflow
+files yet: `gh auth login` doesn't ask for that scope by default, and GitHub
+needs it to add or change anything under `.github/workflows/` over HTTPS
+([GitHub's list of scopes](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps#available-scopes)).
+Add it, then push again:
+
+```sh
+gh auth refresh -s workflow
+```
+
+A check takes a little while to show up after a push, usually under a
+minute. Run `task finish` straight away and it may still say `NO_CHECKS`,
+even though the workflow is there: it just hasn't reported yet. Wait for it
+(`gh pr checks` shows when it has) and run `task finish` again. With failing
+or pending checks it refuses too — that's the gate having teeth.
+
+The next refusal: no approving review from a non-author, and you can't
+approve your own PR. Solo has an honest degradation:
+
+```sh
+gh codecrew task finish 2 --operator-confirm
+```
+
+This records an explicit confirmation comment on the PR — stating that
+author and operator are the same principal — then rebase-merges and deletes
+the task branch. The task issue closes via its `Closes #2` keyword.
 
 ### When the gate is expensive: let the workflow gate itself
 
