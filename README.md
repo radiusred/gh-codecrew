@@ -108,7 +108,7 @@ gh codecrew milestone new --title "Walking skeleton" \
   --goal "A deployed hello-world proving the delivery pipeline end to end." \
   --requirement "visiting the app's URL returns a greeting"
 gh codecrew task new --milestone 1 --title "Serve the greeting" --requirements M1-R1
-gh codecrew task start 3     # refuses NO_PLAN until the task body carries a plan
+gh codecrew task start 2     # refuses NO_PLAN until the task body carries a plan
 ```
 
 `gh codecrew help` lists the rest; `gh codecrew status` reports the open

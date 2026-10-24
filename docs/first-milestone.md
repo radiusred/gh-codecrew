@@ -135,10 +135,12 @@ gh codecrew task new --milestone 1 --title "Serve the greeting" --requirements M
 ```
 
 The task issue is attached to the milestone as a sub-issue — `gh codecrew
-status` now shows your project. Try to start it:
+status` now shows your project. In a brand-new repository the milestone is
+issue #1 and this task is #2, so the examples from here on use 2; if your
+numbers differ, use your own. Try to start it:
 
 ```sh
-gh codecrew task start 3   # your task's issue number
+gh codecrew task start 2   # your task's issue number
 ```
 
 It refuses: `refused[NO_PLAN]`. Plans come before work — edit the task
@@ -149,11 +151,11 @@ It assigns you and creates a linked branch.
 ## 4. Do the work
 
 ```sh
-git fetch && git switch task/3-serve-the-greeting
+git fetch && git switch task/2-serve-the-greeting   # task start prints this line
 # ...write the code, in commits that reference the task...
-git commit -m "feat: serve the greeting (#3)"
+git commit -m "feat: serve the greeting (#2)"
 git push
-gh pr create --fill --body "Closes #3"
+gh pr create --fill --body "Closes #2"
 ```
 
 The PR description is the task's summary artifact — say what was done and
@@ -167,19 +169,19 @@ comment, so give each its own.
 ## 5. Finish the task
 
 ```sh
-gh codecrew task finish 3
+gh codecrew task finish 2
 ```
 
 Refused again — no approving review from a non-author, and you can't approve
 your own PR. Solo has an honest degradation:
 
 ```sh
-gh codecrew task finish 3 --operator-confirm
+gh codecrew task finish 2 --operator-confirm
 ```
 
 This records an explicit confirmation comment on the PR — stating that
 author and operator are the same principal — then rebase-merges and deletes
-the task branch. The task issue closes via its `Closes #3` keyword.
+the task branch. The task issue closes via its `Closes #2` keyword.
 
 If your repo has no CI yet, you'll meet one more refusal first:
 `refused[NO_CHECKS]`. The deterministic gate can't be satisfied by a repo
