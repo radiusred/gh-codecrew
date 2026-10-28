@@ -19,30 +19,25 @@ release, verbs and refusal codes.
 
 ## Close announcements — this hub
 
-A duty of this hub, not part of the protocol: every milestone close here
-comes with a post on Bluesky and on X, because for an account with few
-followers, hashtags are the only reach (the operator's
-[Decision on #423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6384159987)).
-Every close means every one, the small milestones included. Posts are
-managed outside the repositories
-([Decision on #423](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6457195537)),
-and radiusred/www's
-[`announcements/README.md`](https://github.com/radiusred/www/blob/main/announcements/README.md)
-is the writing guide.
+A duty of this hub, not part of the protocol. A milestone about
+gh-codecrew itself or how it is used (the CLI, the protocol, the role
+contracts, a release, the docs a user follows) gets one post on Bluesky and
+one on X when it closes. A milestone that only changes the codecrew.works
+website gets none. The operator's Decisions on #423 set the
+[accounts, voice and approval](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6467856741)
+and [which milestones](https://github.com/radiusred/gh-codecrew/issues/423#issuecomment-6469436459).
 
-* **Draft it with the record,** in the record PR's description under a
-  heading of its own: one text for Bluesky and one for X, each in a code
-  block in the syntax the guide gives that network, with its measured
-  length, then the tag table. The draft is not part of the record's diff.
-* **Write for someone who has never heard of CodeCrew.** Short, plain and
-  friendly: what the milestone delivered, with no insider words. Every
-  claim traces to the record. The project home,
-  <https://codecrew.works/>, comes first, then the record or the
-  milestone's blog post.
-* **Five relevant hashtags,** chosen by the guide's tag rules, and lengths
-  measured with the guide's commands, never estimated.
-* **The draft is not an approval.** Approving the record PR approves the
-  record, not the post. Soon after the close the operator approves the
-  exact text for each network, the post goes out with radiusred/www's
-  `social` CLI, and one comment with its links goes on the milestone
-  issue. That comment is the only record of the post.
+* **Where:** CodeCrew's own accounts, Bluesky `codecrew.works` and X
+  `codecrewworks`.
+* **How it is written:** radiusred/www's
+  [`announcements/README.md`](https://github.com/radiusred/www/blob/main/announcements/README.md)
+  is the guide. Re-read every draft against its Don't list before it goes
+  out: `social lint` checks only the mechanical rules, and M24's close post
+  passed it while breaking two of the voice rules
+  ([#443](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6469438706)).
+* **Approval:** none per post once it passes lint, because a close post only
+  restates what is already public on GitHub.
+* **Record:** one comment with the post's links on the milestone issue.
+* **Who drafts:** the coordination layer, at the close, until the announcer
+  under radiusred/ops#38 (M10-R5) takes it over. The record PR carries no
+  draft.
