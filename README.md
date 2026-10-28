@@ -44,9 +44,9 @@ Here is a worked example: the `roles:` section of this repository's own
 `.codecrew/config.yml`, as it stands today. Each row is a seat — the identity
 that holds it, and the harness and model it is dispatched under, which can
 differ from row to row. There are five rows because the coordinator, the seat
-that dispatches the other four, is routed too; `~` means a human holds it,
-here the operator who coordinates this hub by hand. Your table will look
-different, and every seat pointing at `~` is a complete one.
+that dispatches the other four, is routed too. A seat can also point at `~`,
+which means a human holds it. Your table will look different, and every
+seat pointing at `~` is a complete one.
 
 ```yaml
 roles:
@@ -56,17 +56,20 @@ roles:
     identity: app:radiusred-cody
   reviewer:
     harness: codex
-    model: gpt-5.6-terra
+    model: gpt-6.1-sol
     identity: app:radiusred-checky
   qa:
     harness: codex
-    model: gpt-5.6-sol
+    model: gpt-6.1-sol
     identity: app:radiusred-testy
   doc-synthesizer:
     harness: claude-code
+    model: claude-sonnet-5-5
     identity: app:radiusred-wordy
   coordinator:
-    identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)
+    harness: claude-code
+    model: claude-opus-5-5
+    identity: app:radiusred-bossy
 ```
 
 Solo is a routing configuration, not a reduced protocol: `gh codecrew init`

@@ -16,14 +16,17 @@ roles:
     identity: app:radiusred-cody
   reviewer:
     harness: codex
-    model: gpt-5.6-terra
+    model: gpt-6.1-sol
     identity: app:radiusred-checky
   qa:
     harness: codex
-    model: gpt-5.6-sol
+    model: gpt-6.1-sol
     identity: app:radiusred-testy
   doc-synthesizer:
     harness: claude-code
+    model: claude-sonnet-5-5
     identity: app:radiusred-wordy
   coordinator:
-    identity: ~   # the operator: this hub is coordinated by hand (SPEC §7)
+    harness: claude-code
+    model: claude-opus-5-5
+    identity: app:radiusred-bossy
