@@ -5,19 +5,19 @@ Synthesized 2026-10-28 by the doc-synthesizer role
 ([radiusred-wordy](https://github.com/apps/radiusred-wordy)) from the
 milestone's own trail: #443's **five** requirements as opened, **none added,
 none struck and none amended** — the issue's `userContentEdits` is empty, so
-the body has never been edited; its **two comments** — the qa role holder's
-**one** verdict comment and this record's **one Deviation**; the **two** task
+the body has never been edited; its **three comments** — the qa role holder's
+**one** verdict comment and this record's **two Deviations**; the **two** task
 issues, both in the spoke
 [radiusred/codecrew-www](https://github.com/radiusred/codecrew-www)
 ([#86](https://github.com/radiusred/codecrew-www/issues/86),
 [#87](https://github.com/radiusred/codecrew-www/issues/87)); their **two
 merged pull requests** and the **four commits** on them; the **five Decision
-records and one Deviation record** across the milestone issue and its two
-tasks — four Decisions on #86, one on #87, and the Deviation on the milestone
-issue, with no `**Gate resolved:**` record anywhere; the **two review
-submissions**, both approvals and both standing; the **four** adopted backlog
-captures the two finishes closed; and **no** capture filed in the milestone's
-window. The house form is [M22's
+records and two Deviation records** across the milestone issue and its two
+tasks — four Decisions on #86, one on #87, and both Deviations on the
+milestone issue, with no `**Gate resolved:**` record anywhere; the **two
+review submissions**, both approvals and both standing; the **four** adopted
+backlog captures the two finishes closed; and **no** capture filed in the
+milestone's window. The house form is [M22's
 document](22-the-homepage-explains-codecrew-to-someone-meeting-it-for-the-first-time.md),
 cut down for a smaller milestone. Counts follow the record standard the
 reviewer set on [PR #322](https://github.com/radiusred/gh-codecrew/pull/322)
@@ -26,12 +26,14 @@ and has re-applied since: records by the rule `tracker.ExtractRecords` applies
 label), review states from each pull request's reviews API and timeline,
 commits from each pull request's commits API and the spoke's compare API.
 
-**Counted at 2026-10-28T01:32:03Z, against a trail frozen from this document's
+**Counted at 2026-10-28T01:36:41Z, against a trail frozen from this document's
 dispatch.** The last post on the milestone's issues at that instant is this
-record's own
-[Deviation](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6458213308),
-and it is inside every total above; the one before it is the qa role holder's
-verdict comment at 01:23:51Z.
+record's second
+[Deviation](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6458305735),
+at 01:36:04Z, and it is inside every total above; before it come this record's
+first
+[Deviation](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6458213308)
+at 01:29:22Z and the qa role holder's verdict comment at 01:23:51Z.
 
 **This record has no task.** It is a housekeeping pull request under SPEC §4's
 milestone-record clause, as the M18 to M22 records were: the milestone issue
@@ -62,7 +64,7 @@ all 1 cited link resolve across 3 issues — evidence is reachable
 ```
 
 Three issues: the milestone and its two sub-issues. The one link is the live
-homepage, which QA's verdict comment cites. The Deviation cites no URL.
+homepage, which QA's verdict comment cites. Neither Deviation cites a URL.
 
 `gh codecrew milestone close 24 --dry-run`, run at the counting instant,
 before this pull request existed, passes four gates and stops at the fifth, a
@@ -229,7 +231,7 @@ fallback in advance and said it would be recorded.
 
 ## Deviations
 
-One Deviation record, on the milestone issue: this record's own.
+Two Deviation records, both on the milestone issue and both this record's own.
 
 **[The record takes harness facts from its dispatch
 brief](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6458213308)**,
@@ -244,6 +246,17 @@ supports — PR #89's three commits carry the Claude Opus 5.5 trailer and PR
 and QA to Codex under `gpt-5.6-sol`, so the brief's account of QA's model
 differs from the routing table." **Why:** "the brief is not on the trail, so
 this comment puts its account there".
+
+**[QA ran under the reviewer's model, by a dispatch
+slip](https://github.com/radiusred/gh-codecrew/issues/443#issuecomment-6458305735)**,
+at 01:36:04Z, following up the first. "QA ran in Codex under `gpt-5.6-terra`,
+not under the `gpt-5.6-sol` that the hub's routing table names for qa". It
+carries the coordination layer's account, given after the first Deviation was
+posted: "the run reused the reviewer's command line, so it did not follow the
+routing table. It was a dispatch slip, not a decision." The coordination layer
+says the M24-R5 verdict "will run under `gpt-5.6-sol`." **Why:** the first
+Deviation "left the difference unexplained"; this one records the explanation
+"and leaves the earlier comment as it was posted."
 
 No task issue or pull request carries a Deviation. PR #88's body says "No
 deviations from the plan."
@@ -335,9 +348,11 @@ naming PR #89 and fc548c4.
 
 **Captures filed during the milestone — none.** From #443's creation to the
 counting instant, the only issues or pull requests created in this repository
-and the spoke are #443, the two tasks and their two pull requests; an
+and the spoke are #443, the two tasks, their two pull requests and this
+record's own pull request,
+[#444](https://github.com/radiusred/gh-codecrew/pull/444); an
 organisation-wide issue search over the same window, as this record's token
-sees the organisation, returns the same five.
+sees the organisation, returns the same six.
 
 ## The front door
 
@@ -374,6 +389,11 @@ CHANGELOG entry.
   current, the browser's focus behaviour, the rendered control, the compositor
   — and probes that on the live site, which is the gap #86's fourth Decision
   left open by keeping the Tab walk out of CI.
+- **A seat ran off its routing, and nothing a seat wrote showed it.** QA's
+  verdict comment names no model, and CodeCrew does not dispatch agents, so
+  the model a seat runs under is the dispatcher's to honour (SPEC §5); the
+  difference surfaced because the dispatch brief stated the model QA ran
+  under, and its cause is on the trail only in this record's second Deviation.
 - **One of the four commits has no co-author trailer.** 972874e, PR #88's one
   commit, carries no `Co-Authored-By` line; PR #89's three do. Both pull
   request bodies end with the "Generated with Claude Code" line.
@@ -389,9 +409,10 @@ CHANGELOG entry.
 - **The coordination layer's dispatch briefs.** #86's fourth Decision cites
   "the brief", which is not on GitHub.
 - **Which harness and model ran each session**, as the seats record it. This
-  record's Deviation carries the coordination layer's account and the trail's
-  partial support for it, including the difference between that account and
-  the routing table for QA.
+  record's first Deviation carries the coordination layer's account and the
+  trail's partial support for it; the second gives the coordination layer's
+  explanation for QA's model differing from the routing table. Neither is
+  something a seat recorded.
 - **The screenshots and probe scripts behind the rendered checks.** PR #89's
   body says "Screenshots stay in the dispatch directory", and QA's R4 verdict
   says "screenshots retained locally"; the figures are quoted in the bodies
