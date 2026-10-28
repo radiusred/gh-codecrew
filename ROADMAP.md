@@ -24,6 +24,7 @@
 | M20 | The 2.1 post | [#384](https://github.com/radiusred/gh-codecrew/issues/384) | [Done](docs/milestones/20-the-2-1-post.md) |
 | M21 | v2.1.1: what the fleet's first fortnight on 2.1 taught | [#393](https://github.com/radiusred/gh-codecrew/issues/393) | [Done](docs/milestones/21-v2-1-1-what-the-fleets-first-fortnight-on-2-1-taught.md) |
 | M22 | The homepage explains CodeCrew to someone meeting it for the first time | [#420](https://github.com/radiusred/gh-codecrew/issues/420) | [Done](docs/milestones/22-the-homepage-explains-codecrew-to-someone-meeting-it-for-the-first-time.md) |
+| M24 | Keyboard users can see where they are on codecrew.works, and the hero glows | [#443](https://github.com/radiusred/gh-codecrew/issues/443) | [Done](docs/milestones/24-keyboard-users-can-see-where-they-are-on-codecrew-works-and-the-hero-glows.md) |
 
 Candidate future milestones (not yet committed): milestone-close synthesis
 automation, read-only Projects mirror, multi-spoke proving project.
