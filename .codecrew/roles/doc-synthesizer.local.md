@@ -38,6 +38,5 @@ and [which milestones](https://github.com/radiusred/gh-codecrew/issues/423#issue
 * **Approval:** none per post once it passes lint, because a close post only
   restates what is already public on GitHub.
 * **Record:** one comment with the post's links on the milestone issue.
-* **Who drafts:** the coordination layer, at the close, until the announcer
-  under radiusred/ops#38 (M10-R5) takes it over. The record PR carries no
-  draft.
+* **Who drafts and sends:** the doc-synthesizer, after `milestone close`, as
+  a task the coordinator dispatches. The record PR carries no draft.
